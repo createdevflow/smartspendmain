@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+**/node_modules/
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+npm-debug.log*
+
+# Next.js (Client)
+client/.next/
+client/out/
+client/next-env.d.ts
+client/*.tsbuildinfo
+client/.env*.local
+
+# Server
+server/dist/
+server/uploads/*
+!server/uploads/.gitkeep
+server/logs/*
+!server/logs/.gitkeep
+server/*.log
+server/*.txt
+server/tsc_output.txt
+
+# Environment Files (VERY IMPORTANT)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Misc
+*.pem
+*.key
+docker-compose.override.yml

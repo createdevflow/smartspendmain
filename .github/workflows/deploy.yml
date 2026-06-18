@@ -1,0 +1,50 @@
+name: Deploy SmartSpend to VPS
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          SERVER_ENV: ${{ secrets.SERVER_ENV }}
+          CLIENT_ENV: ${{ secrets.CLIENT_ENV }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          envs: SERVER_ENV,CLIENT_ENV
+          script: |
+            set -e
+            cd /var/www/smartspendmain
+
+            echo "=== Pull latest ==="
+            git fetch origin main
+            git reset --hard origin/main
+            
+            echo "=== Apply Environment Variables ==="
+            echo "$SERVER_ENV" > smartspend-backend/.env.production
+            echo "$CLIENT_ENV" > smartspend-admin/.env.production
+
+            echo "=== Build images ==="
+            docker compose build api web
+
+            echo "=== Restart API ==="
+            docker compose up -d --no-deps api
+
+            echo "=== Restart WEB ==="
+            docker compose up -d --no-deps web
+
+            echo "=== Restart NGINX ==="
+            docker compose up -d --no-deps nginx
+
+            echo "=== Cleanup ==="
+            docker image prune -f
+
+            echo "=== Status ==="
+            docker compose ps

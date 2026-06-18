@@ -1,0 +1,124 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: smartspend-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-smartspend}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-smartspend_pass}
+      POSTGRES_DB: ${DB_NAME:-smartspend}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - appnet
+
+  redis:
+    image: redis:7-alpine
+    container_name: smartspend-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - appnet
+
+  minio:
+    image: minio/minio
+    container_name: smartspend-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - appnet
+
+  api:
+    build:
+      context: ./smartspend-backend
+    container_name: smartspend-api
+    restart: unless-stopped
+    env_file:
+      - ./smartspend-backend/.env.production
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    expose:
+      - "3000"
+    depends_on:
+      - db
+      - redis
+      - minio
+    networks:
+      - appnet
+
+  web:
+    build:
+      context: ./smartspend-admin
+    container_name: smartspend-web
+    restart: unless-stopped
+    env_file:
+      - ./smartspend-admin/.env.production
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    expose:
+      - "3001"
+    depends_on:
+      - api
+    networks:
+      - appnet
+
+  nginx:
+    image: nginx:alpine
+    container_name: smartspend-nginx
+    restart: unless-stopped
+    depends_on:
+      - web
+      - api
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      # Uncomment below if you want nginx to serve static uploads from backend
+      # - ./smartspend-backend/uploads:/var/www/smartspend/server/uploads:ro
+    expose:
+      - "80"
+    networks:
+      - appnet
+      - proxy
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz | grep -qi ok || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+
+      # HTTPS router
+      - "traefik.http.routers.smartspend.rule=Host(`smartspend.com`) || Host(`www.smartspend.com`)"
+      - "traefik.http.routers.smartspend.entrypoints=websecure"
+      - "traefik.http.routers.smartspend.tls=true"
+      - "traefik.http.routers.smartspend.tls.certresolver=le"
+      - "traefik.http.services.smartspend.loadbalancer.server.port=80"
+
+      # HTTP -> HTTPS redirect router
+      - "traefik.http.routers.smartspend-http.rule=Host(`smartspend.com`) || Host(`www.smartspend.com`)"
+      - "traefik.http.routers.smartspend-http.entrypoints=web"
+      - "traefik.http.routers.smartspend-http.middlewares=smartspend-https-redirect"
+      - "traefik.http.middlewares.smartspend-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.smartspend-https-redirect.redirectscheme.permanent=true"
+
+networks:
+  appnet:
+    name: smartspend_appnet
+  proxy:
+    external: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

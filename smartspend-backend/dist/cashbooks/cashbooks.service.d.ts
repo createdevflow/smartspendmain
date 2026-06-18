@@ -1,0 +1,91 @@
+import { PrismaService } from '../prisma/prisma.service';
+import { CryptoService } from '../crypto/crypto.service';
+import { FeaturesService } from '../plans/features.service';
+import { AuditService } from '../audit/audit.service';
+import { CreateCashbookDto } from './dto/create-cashbook.dto';
+import { UpdateCashbookDto } from './dto/update-cashbook.dto';
+export declare class CashbooksService {
+    private prisma;
+    private crypto;
+    private features;
+    private audit;
+    constructor(prisma: PrismaService, crypto: CryptoService, features: FeaturesService, audit: AuditService);
+    private getSalt;
+    findAll(userId: string, archived?: boolean): Promise<{
+        name: string;
+        description: string | null;
+        balance: string;
+        income: string;
+        expense: string;
+        memberRole: string;
+        isShared: boolean;
+        id: string;
+        createdAt: Date;
+        userId: string;
+        updatedAt: Date;
+        deletedAt: Date | null;
+        color: string;
+        isDefault: boolean;
+        sortOrder: number;
+        isArchived: boolean;
+        icon: string;
+        currency: string;
+        openingBalance: import("@prisma/client/runtime/library").Decimal;
+    }[]>;
+    findOne(userId: string, id: string): Promise<{
+        name: string;
+        description: string | null;
+        balance: string;
+        id: string;
+        createdAt: Date;
+        userId: string;
+        updatedAt: Date;
+        deletedAt: Date | null;
+        color: string;
+        isDefault: boolean;
+        sortOrder: number;
+        isArchived: boolean;
+        icon: string;
+        currency: string;
+        openingBalance: import("@prisma/client/runtime/library").Decimal;
+    }>;
+    create(userId: string, dto: CreateCashbookDto): Promise<{
+        name: string;
+        description: string | undefined;
+        id: string;
+        createdAt: Date;
+        userId: string;
+        updatedAt: Date;
+        deletedAt: Date | null;
+        color: string;
+        isDefault: boolean;
+        sortOrder: number;
+        isArchived: boolean;
+        icon: string;
+        currency: string;
+        openingBalance: import("@prisma/client/runtime/library").Decimal;
+    }>;
+    update(userId: string, id: string, dto: UpdateCashbookDto): Promise<{
+        name: string;
+        id: string;
+        createdAt: Date;
+        userId: string;
+        description: string | null;
+        updatedAt: Date;
+        deletedAt: Date | null;
+        color: string;
+        isDefault: boolean;
+        sortOrder: number;
+        isArchived: boolean;
+        icon: string;
+        currency: string;
+        openingBalance: import("@prisma/client/runtime/library").Decimal;
+    }>;
+    remove(userId: string, id: string): Promise<{
+        message: string;
+    }>;
+    reorder(userId: string, orderedIds: string[]): Promise<{
+        message: string;
+    }>;
+    private getBalance;
+}

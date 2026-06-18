@@ -1,0 +1,40 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy dependency files
+COPY package.json package-lock.json ./
+COPY prisma ./prisma/
+
+# Install ALL dependencies (including dev) and generate Prisma client
+RUN npm ci
+RUN npx prisma generate
+
+# Copy source code and build
+COPY . .
+RUN npm run build
+
+# --- Production Image ---
+FROM node:20-alpine AS production
+
+WORKDIR /app
+
+# Copy dependency files again
+COPY package.json package-lock.json ./
+COPY prisma ./prisma/
+
+# Install only production dependencies
+RUN npm ci --only=production
+RUN npx prisma generate
+
+# Copy built artifacts from builder
+COPY --from=builder /app/dist ./dist
+
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=3000
+
+EXPOSE 3000
+
+# Start application using production build
+CMD ["npm", "run", "start:prod"]
