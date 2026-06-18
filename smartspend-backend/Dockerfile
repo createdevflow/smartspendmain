@@ -7,7 +7,7 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
 # Install ALL dependencies (including dev) and generate Prisma client
-RUN npm ci
+RUN npm install
 RUN npx prisma generate
 
 # Copy source code and build
@@ -24,7 +24,7 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
 # Install only production dependencies
-RUN npm ci --only=production
+RUN npm install --omit=dev
 RUN npx prisma generate
 
 # Copy built artifacts from builder
