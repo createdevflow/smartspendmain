@@ -40,17 +40,8 @@ jobs:
             echo "=== Build LANDING ==="
             docker compose build landing
 
-            echo "=== Restart API ==="
-            docker compose up -d --no-deps api
-
-            echo "=== Restart WEB (Admin) ==="
-            docker compose up -d --no-deps web
-
-            echo "=== Restart LANDING ==="
-            docker compose up -d --no-deps landing
-
-            echo "=== Restart NGINX ==="
-            docker compose up -d --no-deps nginx
+            echo "=== Start All Services ==="
+            docker compose up -d
 
             echo "=== Cleanup ==="
             docker image prune -f
