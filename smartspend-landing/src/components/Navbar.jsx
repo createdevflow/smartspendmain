@@ -28,7 +28,7 @@ export default function Navbar() {
               </linearGradient>
             </defs>
           </svg>
-          <span className="navbar__brand">SmartSpend</span>
+          <span className="navbar__brand">Cashtro</span>
         </div>
 
         <div className="navbar__links">

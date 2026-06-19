@@ -86,7 +86,7 @@ export default function Dashboard() {
           <div>
             <h1 className="animate-fade-in">Dashboard Overview</h1>
             <p style={{ color: 'var(--text-secondary)' }}>
-              Real-time metrics and activity for your SmartSpend platform.
+              Real-time metrics and activity for your Cashtro platform.
             </p>
           </div>
           <button className="btn btn-secondary" onClick={fetchData} style={{ gap: '0.5rem' }}>

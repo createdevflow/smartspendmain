@@ -58,8 +58,8 @@ const FEATURE_TOGGLES = [
 ];
 
 const DEFAULT_SETTINGS = {
-  appName: 'SmartSpend',
-  supportEmail: 'support@smartspend.app',
+  appName: 'Cashtro',
+  supportEmail: 'support@cashtro.app',
   defaultPlanSlug: 'free',
   maxLoginAttempts: 5,
   lockoutDurationMinutes: 15,

@@ -7,7 +7,7 @@ export default function Header() {
       <div className="container header-container">
         <div className="logo">
           <Wallet size={28} color="var(--primary)" />
-          <span className="logo-text">SmartSpend</span>
+          <span className="logo-text">Cashtro</span>
         </div>
         <nav className="nav-links">
           <a href="#features">Features</a>

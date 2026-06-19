@@ -43,7 +43,7 @@ async function bootstrap() {
     app.useGlobalInterceptors(new transform_interceptor_1.TransformInterceptor());
     if (config.get('NODE_ENV') !== 'production') {
         const swaggerConfig = new swagger_1.DocumentBuilder()
-            .setTitle('SmartSpend API')
+            .setTitle('Cashtro API')
             .setDescription('Personal Finance Platform — Complete API Documentation')
             .setVersion('1.0')
             .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')

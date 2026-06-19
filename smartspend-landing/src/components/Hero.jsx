@@ -63,7 +63,7 @@ export default function Hero() {
           {/* Date stamp header */}
           <div className="ledger__header" role="row">
             <span className="ledger__header-date mono">{TODAY}</span>
-            <span className="ledger__header-brand">SmartSpend</span>
+            <span className="ledger__header-brand">Cashtro</span>
           </div>
 
           <div className="ledger__rule" />

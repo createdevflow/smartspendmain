@@ -9,7 +9,7 @@ export class PassbookService {
   async generatePdf(userId: string, cashbookId: string, month: string) {
     // Stub for PDF generation. In production, use PDFKit or Puppeteer to generate a beautiful branded passbook.
     const tx = await this.getTransactions(userId, cashbookId, month);
-    return Buffer.from('%PDF-1.4\n%Stub PDF content for SmartSpend Passbook');
+    return Buffer.from('%PDF-1.4\n%Stub PDF content for Cashtro Passbook');
   }
 
   async generateCsv(userId: string, cashbookId: string, month: string) {

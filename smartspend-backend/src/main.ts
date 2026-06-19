@@ -53,7 +53,7 @@ async function bootstrap() {
   // ── Swagger (dev + staging only) ────────────────────────────────
   if (config.get('NODE_ENV') !== 'production') {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('SmartSpend API')
+      .setTitle('Cashtro API')
       .setDescription('Personal Finance Platform — Complete API Documentation')
       .setVersion('1.0')
       .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')

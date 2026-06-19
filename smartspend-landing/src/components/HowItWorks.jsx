@@ -44,7 +44,7 @@ const STEPS = [
   {
     num: '03',
     title: 'Watch insights build',
-    desc: 'As you log more, SmartSpend reveals spending patterns you\'d never spot on your own.',
+    desc: 'As you log more, Cashtro reveals spending patterns you\'d never spot on your own.',
     clip: (
       <div className="hiw-clip">
         <div className="hiw-clip__insight">

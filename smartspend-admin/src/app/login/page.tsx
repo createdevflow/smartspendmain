@@ -73,7 +73,7 @@ export default function LoginPage() {
               <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
           </div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827', margin: 0 }}>SmartSpend Admin</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827', margin: 0 }}>Cashtro Admin</h1>
           <p style={{ color: '#6B7280', fontSize: '0.875rem', marginTop: '0.5rem' }}>Enter your credentials to access the command center</p>
         </div>
         
@@ -97,7 +97,7 @@ export default function LoginPage() {
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@smartspend.app"
+              placeholder="admin@cashtro.app"
               required
               style={{ 
                 width: '100%', padding: '0.75rem 1rem', background: '#F9FAFB', 

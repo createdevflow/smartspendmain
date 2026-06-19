@@ -109,7 +109,7 @@ export class CashbookMembersService {
           title: 'Cashbook Invite',
           body: `${inviter?.fullName || 'Someone'} invited you to join '${book.name}' as a ${dto.role.toLowerCase()}.`,
           data: { cashbookId, token },
-          actionUrl: `smartspend://invite/${token}`
+          actionUrl: `cashtro://invite/${token}`
         }
       });
     }
@@ -137,7 +137,7 @@ export class CashbookMembersService {
       },
     });
 
-    return { token, link: `smartspend://invite/${token}` };
+    return { token, link: `cashtro://invite/${token}` };
   }
 
   // ── Accept invite via token ────────────────────────────────────────────────

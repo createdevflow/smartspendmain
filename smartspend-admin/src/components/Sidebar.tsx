@@ -23,7 +23,7 @@ export function Sidebar() {
     if (token) {
       const decoded = decodeJwt(token);
       setAdminInfo({
-        email: decoded?.email || 'admin@smartspend.app',
+        email: decoded?.email || 'admin@cashtro.app',
         name: decoded?.fullName || 'Admin',
       });
     }
@@ -64,7 +64,7 @@ export function Sidebar() {
             <span style={{ color: 'white', fontSize: '1rem', fontWeight: 'bold' }}>S</span>
           </div>
           <div>
-            <p style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem', lineHeight: 1 }}>SmartSpend</p>
+            <p style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem', lineHeight: 1 }}>Cashtro</p>
             <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>Admin Console</p>
           </div>
         </div>

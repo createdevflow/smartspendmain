@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SmartSpend Admin | SaaS Command Center",
+  title: "Cashtro Admin | SaaS Command Center",
   description: "Premium dashboard to manage SmartSpend users, plans, and features.",
 };
 

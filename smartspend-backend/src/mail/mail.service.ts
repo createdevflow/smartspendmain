@@ -40,7 +40,7 @@ export class MailService {
       await this.transporter.sendMail({
         from: this.from,
         to: email,
-        subject: isVerify ? '✉️ Verify your SmartSpend account' : '🔑 Reset your SmartSpend password',
+        subject: isVerify ? '✉️ Verify your Cashtro account' : '🔑 Reset your SmartSpend password',
         html: this.otpTemplate(name, otp, isVerify),
       });
     } catch (e) {

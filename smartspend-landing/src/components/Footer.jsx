@@ -16,7 +16,7 @@ export default function Footer() {
                 </linearGradient>
               </defs>
             </svg>
-            <span className="footer__wordmark">SmartSpend</span>
+            <span className="footer__wordmark">Cashtro</span>
           </div>
           <p className="footer__tagline">Your money, finally organised.</p>
         </div>
@@ -39,7 +39,7 @@ export default function Footer() {
 
       <div className="footer__bottom">
         <div className="container">
-          <p>© 2026 SmartSpend Inc. All rights reserved.</p>
+          <p>© 2026 Cashtro Inc. All rights reserved.</p>
         </div>
       </div>
     </footer>

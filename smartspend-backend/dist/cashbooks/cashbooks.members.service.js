@@ -100,7 +100,7 @@ let CashbookMembersService = class CashbookMembersService {
                     title: 'Cashbook Invite',
                     body: `${inviter?.fullName || 'Someone'} invited you to join '${book.name}' as a ${dto.role.toLowerCase()}.`,
                     data: { cashbookId, token },
-                    actionUrl: `smartspend://invite/${token}`
+                    actionUrl: `cashtro://invite/${token}`
                 }
             });
         }
@@ -119,7 +119,7 @@ let CashbookMembersService = class CashbookMembersService {
                 inviteToken: token,
             },
         });
-        return { token, link: `smartspend://invite/${token}` };
+        return { token, link: `cashtro://invite/${token}` };
     }
     async acceptInvite(userId, token) {
         const member = await this.prisma.cashbookMember.findUnique({ where: { inviteToken: token } });

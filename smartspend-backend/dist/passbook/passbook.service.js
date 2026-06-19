@@ -20,7 +20,7 @@ let PassbookService = class PassbookService {
     }
     async generatePdf(userId, cashbookId, month) {
         const tx = await this.getTransactions(userId, cashbookId, month);
-        return Buffer.from('%PDF-1.4\n%Stub PDF content for SmartSpend Passbook');
+        return Buffer.from('%PDF-1.4\n%Stub PDF content for Cashtro Passbook');
     }
     async generateCsv(userId, cashbookId, month) {
         const tx = await this.getTransactions(userId, cashbookId, month);
