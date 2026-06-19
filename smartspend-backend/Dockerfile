@@ -2,6 +2,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Install dependencies (openssl is required for Prisma on Alpine)
+RUN apk add --no-cache openssl
+
 # Copy dependency files
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
@@ -18,6 +21,9 @@ RUN npm run build
 FROM node:20-alpine AS production
 
 WORKDIR /app
+
+# Install openssl for Prisma
+RUN apk add --no-cache openssl
 
 # Copy dependency files again
 COPY package.json package-lock.json ./
