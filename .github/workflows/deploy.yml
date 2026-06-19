@@ -27,10 +27,7 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             
-            echo "=== Apply Environment Variables ==="
-            echo "$SERVER_ENV" > smartspend-backend/.env.production
-            echo "$CLIENT_ENV" > smartspend-admin/.env.production
-            echo "NEXT_PUBLIC_API_URL=https://cashtro.in/api/v1" >> smartspend-admin/.env.production
+            echo "=== Environment variables are managed manually on the server ==="
 
             echo "=== Build API ==="
             docker compose build api
