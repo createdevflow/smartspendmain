@@ -31,8 +31,14 @@ jobs:
             echo "$SERVER_ENV" > smartspend-backend/.env.production
             echo "$CLIENT_ENV" > smartspend-admin/.env.production
 
-            echo "=== Build images ==="
-            docker compose build api web landing
+            echo "=== Build API ==="
+            docker compose build api
+            
+            echo "=== Build WEB ==="
+            docker compose build web
+            
+            echo "=== Build LANDING ==="
+            docker compose build landing
 
             echo "=== Restart API ==="
             docker compose up -d --no-deps api
