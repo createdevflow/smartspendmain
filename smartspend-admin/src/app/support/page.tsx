@@ -52,12 +52,12 @@ export default function SupportPage() {
   }, []);
 
   useEffect(() => {
-    if (localStorage.getItem('adminToken')) {
-      const t = setTimeout(fetchTickets, 300);
-      return () => clearTimeout(t);
-    } else {
-      window.location.href = '/login';
+    if (typeof window !== 'undefined' && !localStorage.getItem('adminToken')) {
+      window.location.href = '/admin/login';
+      return;
     }
+    const t = setTimeout(fetchTickets, 300);
+    return () => clearTimeout(t);
   }, [fetchTickets]);
 
   const handleReply = async () => {
