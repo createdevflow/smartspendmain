@@ -27,33 +27,33 @@ export declare class AdminService {
                 email: string;
             } | null;
         } & {
-            action: import(".prisma/client").$Enums.AuditAction;
             id: string;
-            userId: string | null;
+            action: import(".prisma/client").$Enums.AuditAction;
             entity: string | null;
             entityId: string | null;
             ipAddress: string | null;
             userAgent: string | null;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
             createdAt: Date;
+            userId: string | null;
         })[];
     }>;
     getUsers(search?: string, status?: string, role?: string, page?: number, limit?: number): Promise<{
         data: {
-            isEmailVerified: boolean;
-            status: import(".prisma/client").$Enums.UserStatus;
+            plan: {
+                name: string;
+                slug: string;
+                color: string;
+            } | null;
             id: string;
             createdAt: Date;
             fullName: string;
             email: string;
             phone: string | null;
             role: import(".prisma/client").$Enums.UserRole;
+            status: import(".prisma/client").$Enums.UserStatus;
+            isEmailVerified: boolean;
             lastLoginAt: Date | null;
-            plan: {
-                name: string;
-                slug: string;
-                color: string;
-            } | null;
             _count: {
                 cashbooks: number;
                 transactions: number;
@@ -68,29 +68,29 @@ export declare class AdminService {
         };
     }>;
     getUserDetail(id: string): Promise<{
-        isEmailVerified: boolean;
-        status: import(".prisma/client").$Enums.UserStatus;
+        plan: {
+            name: string;
+            id: string;
+            slug: string;
+        } | null;
         id: string;
         createdAt: Date;
         fullName: string;
         email: string;
         phone: string | null;
-        role: import(".prisma/client").$Enums.UserRole;
         defaultCurrency: string;
+        role: import(".prisma/client").$Enums.UserRole;
+        status: import(".prisma/client").$Enums.UserStatus;
+        isEmailVerified: boolean;
         timezone: string;
         language: string;
         updatedAt: Date;
         lastLoginAt: Date | null;
-        plan: {
-            id: string;
-            name: string;
-            slug: string;
-        } | null;
         cashbooks: {
             id: string;
             createdAt: Date;
-            currency: string;
             isArchived: boolean;
+            currency: string;
         }[];
         devices: {
             id: string;
@@ -116,67 +116,67 @@ export declare class AdminService {
         };
     }>;
     updateUserStatus(id: string, status: any): Promise<{
-        deletedAt: Date | null;
-        isEmailVerified: boolean;
-        status: import(".prisma/client").$Enums.UserStatus;
         id: string;
         createdAt: Date;
         fullName: string;
         email: string;
         phone: string | null;
+        defaultCurrency: string;
         avatar: string | null;
         role: import(".prisma/client").$Enums.UserRole;
+        status: import(".prisma/client").$Enums.UserStatus;
         planId: string | null;
+        isEmailVerified: boolean;
         expoPushToken: string | null;
-        defaultCurrency: string;
         timezone: string;
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
         updatedAt: Date;
         lastLoginAt: Date | null;
+        deletedAt: Date | null;
     }>;
     updateUserRole(id: string, role: any): Promise<{
-        deletedAt: Date | null;
-        isEmailVerified: boolean;
-        status: import(".prisma/client").$Enums.UserStatus;
         id: string;
         createdAt: Date;
         fullName: string;
         email: string;
         phone: string | null;
+        defaultCurrency: string;
         avatar: string | null;
         role: import(".prisma/client").$Enums.UserRole;
+        status: import(".prisma/client").$Enums.UserStatus;
         planId: string | null;
+        isEmailVerified: boolean;
         expoPushToken: string | null;
-        defaultCurrency: string;
         timezone: string;
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
         updatedAt: Date;
         lastLoginAt: Date | null;
+        deletedAt: Date | null;
     }>;
     assignPlanToUser(userId: string, planId: string): Promise<{
-        deletedAt: Date | null;
-        isEmailVerified: boolean;
-        status: import(".prisma/client").$Enums.UserStatus;
         id: string;
         createdAt: Date;
         fullName: string;
         email: string;
         phone: string | null;
+        defaultCurrency: string;
         avatar: string | null;
         role: import(".prisma/client").$Enums.UserRole;
+        status: import(".prisma/client").$Enums.UserStatus;
         planId: string | null;
+        isEmailVerified: boolean;
         expoPushToken: string | null;
-        defaultCurrency: string;
         timezone: string;
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
         updatedAt: Date;
         lastLoginAt: Date | null;
+        deletedAt: Date | null;
     }>;
     deleteUser(id: string): Promise<{
         message: string;
@@ -190,17 +190,17 @@ export declare class AdminService {
         };
         features: ({
             feature: {
+                category: string | null;
+                type: string;
+                name: string;
                 id: string;
                 createdAt: Date;
-                updatedAt: Date;
-                name: string;
                 description: string | null;
+                updatedAt: Date;
                 sortOrder: number;
                 key: string;
-                type: string;
                 defaultValue: string;
                 unit: string | null;
-                category: string | null;
                 isVisible: boolean;
             };
         } & {
@@ -210,15 +210,15 @@ export declare class AdminService {
             value: string;
         })[];
     } & {
-        isActive: boolean;
+        name: string;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
-        name: string;
-        slug: string;
         description: string | null;
+        updatedAt: Date;
+        slug: string;
         tagline: string | null;
         color: string;
+        isActive: boolean;
         isDefault: boolean;
         priceMonthly: number;
         priceYearly: number;
@@ -236,15 +236,15 @@ export declare class AdminService {
         priceMonthly?: number;
         priceYearly?: number;
     }): Promise<{
-        isActive: boolean;
+        name: string;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
-        name: string;
-        slug: string;
         description: string | null;
+        updatedAt: Date;
+        slug: string;
         tagline: string | null;
         color: string;
+        isActive: boolean;
         isDefault: boolean;
         priceMonthly: number;
         priceYearly: number;
@@ -262,30 +262,30 @@ export declare class AdminService {
         priceMonthly: number;
         priceYearly: number;
     }>): Promise<{
-        isActive: boolean;
+        name: string;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
-        name: string;
-        slug: string;
         description: string | null;
+        updatedAt: Date;
+        slug: string;
         tagline: string | null;
         color: string;
+        isActive: boolean;
         isDefault: boolean;
         priceMonthly: number;
         priceYearly: number;
         sortOrder: number;
     }>;
     deletePlan(id: string, fallbackPlanId?: string): Promise<{
-        isActive: boolean;
+        name: string;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
-        name: string;
-        slug: string;
         description: string | null;
+        updatedAt: Date;
+        slug: string;
         tagline: string | null;
         color: string;
+        isActive: boolean;
         isDefault: boolean;
         priceMonthly: number;
         priceYearly: number;
@@ -302,15 +302,15 @@ export declare class AdminService {
             value: string;
         }[];
     } & {
-        isActive: boolean;
+        name: string;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
-        name: string;
-        slug: string;
         description: string | null;
+        updatedAt: Date;
+        slug: string;
         tagline: string | null;
         color: string;
+        isActive: boolean;
         isDefault: boolean;
         priceMonthly: number;
         priceYearly: number;
@@ -319,15 +319,15 @@ export declare class AdminService {
     assignUsersToPlan(planId: string, emails: string[]): Promise<{
         count: number;
         plan: {
-            isActive: boolean;
+            name: string;
             id: string;
             createdAt: Date;
-            updatedAt: Date;
-            name: string;
-            slug: string;
             description: string | null;
+            updatedAt: Date;
+            slug: string;
             tagline: string | null;
             color: string;
+            isActive: boolean;
             isDefault: boolean;
             priceMonthly: number;
             priceYearly: number;
@@ -343,8 +343,8 @@ export declare class AdminService {
     getFeatures(): Promise<({
         planFeatures: ({
             plan: {
-                id: string;
                 name: string;
+                id: string;
                 slug: string;
             };
         } & {
@@ -354,17 +354,17 @@ export declare class AdminService {
             value: string;
         })[];
     } & {
+        category: string | null;
+        type: string;
+        name: string;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
-        name: string;
         description: string | null;
+        updatedAt: Date;
         sortOrder: number;
         key: string;
-        type: string;
         defaultValue: string;
         unit: string | null;
-        category: string | null;
         isVisible: boolean;
     })[]>;
     createFeature(dto: {
@@ -378,17 +378,17 @@ export declare class AdminService {
         isVisible?: boolean;
         sortOrder?: number;
     }): Promise<{
+        category: string | null;
+        type: string;
+        name: string;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
-        name: string;
         description: string | null;
+        updatedAt: Date;
         sortOrder: number;
         key: string;
-        type: string;
         defaultValue: string;
         unit: string | null;
-        category: string | null;
         isVisible: boolean;
     }>;
     updateFeature(id: string, dto: Partial<{
@@ -402,31 +402,31 @@ export declare class AdminService {
         isVisible: boolean;
         sortOrder: number;
     }>): Promise<{
+        category: string | null;
+        type: string;
+        name: string;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
-        name: string;
         description: string | null;
+        updatedAt: Date;
         sortOrder: number;
         key: string;
-        type: string;
         defaultValue: string;
         unit: string | null;
-        category: string | null;
         isVisible: boolean;
     }>;
     deleteFeature(id: string): Promise<{
+        category: string | null;
+        type: string;
+        name: string;
         id: string;
         createdAt: Date;
-        updatedAt: Date;
-        name: string;
         description: string | null;
+        updatedAt: Date;
         sortOrder: number;
         key: string;
-        type: string;
         defaultValue: string;
         unit: string | null;
-        category: string | null;
         isVisible: boolean;
     }>;
     setPlanFeatureValue(planId: string, featureId: string, value: string): Promise<{
@@ -460,40 +460,40 @@ export declare class AdminService {
                 currency: string;
             };
             category: {
-                id: string;
                 name: string;
+                id: string;
                 color: string;
                 emoji: string;
             } | null;
-            deletedAt: Date | null;
-            id: string;
-            userId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            currency: string;
-            type: import(".prisma/client").$Enums.TransactionType;
-            cashbookId: string;
-            categoryId: string | null;
-            amount: import("@prisma/client/runtime/library").Decimal;
-            exchangeRate: import("@prisma/client/runtime/library").Decimal | null;
-            amountInBookCurrency: import("@prisma/client/runtime/library").Decimal | null;
-            paymentMethod: string | null;
             date: Date;
-            valueDate: Date | null;
-            labels: import(".prisma/client").$Enums.TransactionLabel[];
+            exchangeRate: import("@prisma/client/runtime/library").Decimal | null;
+            type: import(".prisma/client").$Enums.TransactionType;
+            id: string;
+            createdAt: Date;
+            userId: string;
+            updatedAt: Date;
+            deletedAt: Date | null;
             tags: string[];
-            isGstApplied: boolean;
+            currency: string;
+            cashbookId: string;
+            amountInBookCurrency: import("@prisma/client/runtime/library").Decimal | null;
+            amount: import("@prisma/client/runtime/library").Decimal;
             gstRate: import("@prisma/client/runtime/library").Decimal | null;
             cgst: import("@prisma/client/runtime/library").Decimal | null;
             sgst: import("@prisma/client/runtime/library").Decimal | null;
             igst: import("@prisma/client/runtime/library").Decimal | null;
+            categoryId: string | null;
+            paymentMethod: string | null;
+            valueDate: Date | null;
+            labels: import(".prisma/client").$Enums.TransactionLabel[];
+            isGstApplied: boolean;
             receiptKey: string | null;
             receiptUrl: string | null;
             warrantyUntil: Date | null;
             isRecurring: boolean;
-            recurringId: string | null;
             localId: string | null;
             syncedAt: Date | null;
+            recurringId: string | null;
         }[];
         meta: {
             total: number;
@@ -515,15 +515,15 @@ export declare class AdminService {
                 email: string;
             } | null;
         } & {
-            action: import(".prisma/client").$Enums.AuditAction;
             id: string;
-            userId: string | null;
+            action: import(".prisma/client").$Enums.AuditAction;
             entity: string | null;
             entityId: string | null;
             ipAddress: string | null;
             userAgent: string | null;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
             createdAt: Date;
+            userId: string | null;
         })[];
         meta: {
             total: number;
@@ -540,20 +540,20 @@ export declare class AdminService {
                 email: string;
             };
             replies: {
-                createdAt: Date;
                 message: string;
+                createdAt: Date;
                 isAdmin: boolean;
             }[];
         } & {
-            status: string;
-            id: string;
-            userId: string;
-            createdAt: Date;
-            updatedAt: Date;
             type: string;
-            subject: string;
             message: string;
+            subject: string;
             priority: string;
+            id: string;
+            createdAt: Date;
+            userId: string;
+            status: string;
+            updatedAt: Date;
             attachmentUrl: string | null;
             resolvedAt: Date | null;
         })[];
@@ -565,32 +565,32 @@ export declare class AdminService {
         };
     }>;
     updateTicketStatus(id: string, status: string): Promise<{
-        status: string;
-        id: string;
-        userId: string;
-        createdAt: Date;
-        updatedAt: Date;
         type: string;
-        subject: string;
         message: string;
+        subject: string;
         priority: string;
+        id: string;
+        createdAt: Date;
+        userId: string;
+        status: string;
+        updatedAt: Date;
         attachmentUrl: string | null;
         resolvedAt: Date | null;
     }>;
     replyTicket(adminId: string, ticketId: string, message: string): Promise<{
+        message: string;
         id: string;
         createdAt: Date;
-        message: string;
-        ticketId: string;
         authorId: string;
         isAdmin: boolean;
+        ticketId: string;
     }>;
     getSettings(): Promise<{
         id: string;
-        updatedAt: Date;
         description: string | null;
-        value: string;
+        updatedAt: Date;
         key: string;
+        value: string;
     }[]>;
     updateSettings(settings: {
         key: string;
@@ -619,31 +619,31 @@ export declare class AdminService {
                     email: string;
                 } | null;
             } & {
-                status: string;
                 id: string;
                 userId: string | null;
                 email: string;
                 role: import(".prisma/client").$Enums.CashbookMemberRole;
+                status: string;
                 cashbookId: string;
                 inviteToken: string | null;
                 invitedAt: Date;
                 acceptedAt: Date | null;
             })[];
         } & {
-            deletedAt: Date | null;
-            id: string;
-            userId: string;
-            createdAt: Date;
-            updatedAt: Date;
             name: string;
+            id: string;
+            createdAt: Date;
+            userId: string;
             description: string | null;
+            updatedAt: Date;
+            deletedAt: Date | null;
             color: string;
             isDefault: boolean;
             sortOrder: number;
+            isArchived: boolean;
             icon: string;
             currency: string;
             openingBalance: import("@prisma/client/runtime/library").Decimal;
-            isArchived: boolean;
         })[];
         meta: {
             total: number;

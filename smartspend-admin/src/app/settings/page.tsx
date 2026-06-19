@@ -52,6 +52,7 @@ const FEATURE_TOGGLES = [
       { key: 'feature_ocr_active', label: 'AI Receipt Scanner', desc: 'Enable OCR receipt scanning via camera.' },
       { key: 'feature_gamification_active', label: 'Gamification', desc: 'Enable streaks, burn-rate alerts, and achievements.' },
       { key: 'feature_gallery', label: 'Gallery Attachments', desc: 'Allow attaching images to entries.' },
+      { key: 'feature_chat', label: 'In-App Messaging', desc: 'Enable private messaging between contacts and cashbook members.' },
     ],
   },
 ];
@@ -98,6 +99,7 @@ const DEFAULT_SETTINGS = {
   feature_tax_export_active: true,
   feature_panic_button_active: true,
   feature_gallery: true,
+  feature_chat: true,
 };
 
 type TabId = 'general' | 'features' | 'security' | 'notifications' | 'maintenance';

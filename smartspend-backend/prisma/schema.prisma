@@ -133,6 +133,14 @@ model User {
   cashbookMembers    CashbookMember[]
   taxExportLogs      TaxExportLog[]
 
+  // Chat relations
+  contactsFrom       ChatContact[]        @relation("ContactFrom")
+  contactsTo         ChatContact[]        @relation("ContactTo")
+  chatMemberships    ChatMember[]         @relation("ChatMemberships")
+  sentMessages       ChatMessage[]        @relation("SentMessages")
+  messageReactions   ChatMessageReaction[] @relation("MessageReactions")
+  messageReads       ChatMessageRead[]    @relation("MessageReads")
+
   @@index([email])
   @@index([role, status])
   @@index([planId])
@@ -639,3 +647,141 @@ model TaxExportLog {
   @@index([userId])
   @@index([exportedAt])
 }
+
+// ─── MESSAGING SYSTEM ────────────────────────────────────────
+
+enum ContactStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  BLOCKED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  DOCUMENT
+  VOICE
+  TRANSACTION
+  RECEIPT
+  LOCATION
+  CONTACT_CARD
+  SYSTEM
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  DELETED
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+  CASHBOOK_GROUP
+}
+
+model ChatContact {
+  id          String        @id @default(cuid())
+  fromUserId  String
+  fromUser    User          @relation("ContactFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId    String
+  toUser      User          @relation("ContactTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  status      ContactStatus @default(PENDING)
+  blockedAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([fromUserId, toUserId])
+  @@index([toUserId, status])
+  @@index([fromUserId, status])
+}
+
+model ChatConversation {
+  id              String           @id @default(cuid())
+  type            ConversationType @default(DIRECT)
+  name            String?          // for group chats
+  avatar          String?
+  cashbookId      String?          // for CASHBOOK_GROUP type
+  lastMessageAt   DateTime?
+  lastMessageText String?          // preview
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  members  ChatMember[]
+  messages ChatMessage[]
+
+  @@index([lastMessageAt])
+}
+
+model ChatMember {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User             @relation("ChatMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  role           String           @default("member") // admin | member
+  isMuted        Boolean          @default(false)
+  isPinned       Boolean          @default(false)
+  isArchived     Boolean          @default(false)
+  lastReadAt     DateTime?
+  joinedAt       DateTime         @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User             @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  type           MessageType      @default(TEXT)
+  content        String?          // AES-encrypted text content
+  mediaUrl       String?          // image/document/voice URL
+  metadata       Json?            // for transaction cards, location, etc.
+  replyToId      String?
+  replyTo        ChatMessage?     @relation("Replies", fields: [replyToId], references: [id])
+  replies        ChatMessage[]    @relation("Replies")
+  status         MessageStatus    @default(SENT)
+  isEdited       Boolean          @default(false)
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime         @default(now())
+
+  reactions ChatMessageReaction[]
+  readBy    ChatMessageRead[]
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+}
+
+model ChatMessageReaction {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation("MessageReactions", fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime    @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+model ChatMessageRead {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation("MessageReads", fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime    @default(now())
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+}
+

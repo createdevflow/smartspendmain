@@ -53,6 +53,7 @@ services:
     networks:
       - appnet
 
+  # Admin Panel (Next.js) — served at /admin
   web:
     build:
       context: ./smartspend-admin
@@ -70,6 +71,17 @@ services:
     networks:
       - appnet
 
+  # Landing Page (Vite React) — served at /
+  landing:
+    build:
+      context: ./smartspend-landing
+    container_name: smartspend-landing
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - appnet
+
   nginx:
     image: nginx:alpine
     container_name: smartspend-nginx
@@ -77,10 +89,9 @@ services:
     depends_on:
       - web
       - api
+      - landing
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      # Uncomment below if you want nginx to serve static uploads from backend
-      # - ./smartspend-backend/uploads:/var/www/smartspend/server/uploads:ro
     expose:
       - "80"
     networks:
@@ -98,15 +109,15 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
 
-      # HTTPS router
-      - "traefik.http.routers.smartspend.rule=Host(`smartspend.com`) || Host(`www.smartspend.com`)"
+      # HTTPS router for cashtro.in
+      - "traefik.http.routers.smartspend.rule=Host(`cashtro.in`) || Host(`www.cashtro.in`)"
       - "traefik.http.routers.smartspend.entrypoints=websecure"
       - "traefik.http.routers.smartspend.tls=true"
       - "traefik.http.routers.smartspend.tls.certresolver=le"
       - "traefik.http.services.smartspend.loadbalancer.server.port=80"
 
-      # HTTP -> HTTPS redirect router
-      - "traefik.http.routers.smartspend-http.rule=Host(`smartspend.com`) || Host(`www.smartspend.com`)"
+      # HTTP → HTTPS redirect
+      - "traefik.http.routers.smartspend-http.rule=Host(`cashtro.in`) || Host(`www.cashtro.in`)"
       - "traefik.http.routers.smartspend-http.entrypoints=web"
       - "traefik.http.routers.smartspend-http.middlewares=smartspend-https-redirect"
       - "traefik.http.middlewares.smartspend-https-redirect.redirectscheme.scheme=https"
@@ -122,3 +133,4 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
+

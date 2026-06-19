@@ -32,6 +32,7 @@ import { AuditModule } from './audit/audit.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { ExportModule } from './export/export.module';
 import { AppConfigModule } from './app-config/app-config.module';
+import { ChatModule } from './chat/chat.module';
 import { MaintenanceMiddleware } from './common/middleware/maintenance.middleware';
 
 @Module({
@@ -88,6 +89,7 @@ import { MaintenanceMiddleware } from './common/middleware/maintenance.middlewar
     SchedulerModule,
     ExportModule,
     AppConfigModule,
+    ChatModule,
   ],
   providers: [
     // Global rate limiter

@@ -38,6 +38,7 @@ const audit_module_1 = require("./audit/audit.module");
 const scheduler_module_1 = require("./scheduler/scheduler.module");
 const export_module_1 = require("./export/export.module");
 const app_config_module_1 = require("./app-config/app-config.module");
+const chat_module_1 = require("./chat/chat.module");
 const maintenance_middleware_1 = require("./common/middleware/maintenance.middleware");
 let AppModule = class AppModule {
     configure(consumer) {
@@ -93,6 +94,7 @@ exports.AppModule = AppModule = __decorate([
             scheduler_module_1.SchedulerModule,
             export_module_1.ExportModule,
             app_config_module_1.AppConfigModule,
+            chat_module_1.ChatModule,
         ],
         providers: [
             { provide: core_1.APP_GUARD, useClass: throttler_2.ThrottlerGuard },
