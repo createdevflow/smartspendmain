@@ -56,13 +56,9 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('adminToken');
-      const decoded = token ? decodeJwt(token) : null;
-      if (!decoded) {
-        window.location.href = '/admin/login';
-        return;
-      }
+    if (typeof window !== 'undefined' && !localStorage.getItem('adminToken')) {
+      window.location.href = '/admin/login';
+      return;
     }
     fetchData();
   }, []);
