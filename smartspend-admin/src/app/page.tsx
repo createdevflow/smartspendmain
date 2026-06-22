@@ -57,7 +57,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !localStorage.getItem('adminToken')) {
-      window.location.href = '/admin/login';
+      window.location.href = '/login';
       return;
     }
     fetchData();

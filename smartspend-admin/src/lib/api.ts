@@ -31,7 +31,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       // If unauthorized, clear token and redirect to login
       localStorage.removeItem('adminToken');
-      window.location.href = '/admin/login';
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
