@@ -25,9 +25,9 @@ export class MailService {
       return this.cachedTransporter;
     }
 
-    // Read SMTP settings from DB
+    // Read SMTP settings from DB (AppConfig table)
     const keys = ['smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user', 'smtp_pass'];
-    const rows = await this.prisma.systemSetting.findMany({
+    const rows = await this.prisma.appConfig.findMany({
       where: { key: { in: keys } },
     });
 
@@ -61,7 +61,7 @@ export class MailService {
   // ── From address ──────────────────────────────────────────────────────────
 
   private async getFrom(): Promise<string> {
-    const rows = await this.prisma.systemSetting.findMany({
+    const rows = await this.prisma.appConfig.findMany({
       where: { key: { in: ['mail_from_name', 'mail_from_address'] } },
     });
     const db: Record<string, string> = {};

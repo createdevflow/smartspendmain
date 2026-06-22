@@ -535,13 +535,13 @@ export class AdminService {
   // ── System Settings ──────────────────────────────────────────────────────────
 
   async getSettings() {
-    return this.prisma.systemSetting.findMany({ orderBy: { key: 'asc' } });
+    return this.prisma.appConfig.findMany({ orderBy: { key: 'asc' } });
   }
 
   async updateSettings(settings: { key: string; value: string; description?: string }[]) {
     const results: any[] = [];
     for (const setting of settings) {
-      const result = await this.prisma.systemSetting.upsert({
+      const result = await this.prisma.appConfig.upsert({
         where: { key: setting.key },
         update: { value: setting.value, description: setting.description },
         create: { key: setting.key, value: setting.value, description: setting.description },
@@ -554,16 +554,13 @@ export class AdminService {
   // ── App Config (Feature Toggles) ─────────────────────────────────────────────
 
   async getAppConfig() {
-    // Get all known feature toggle keys from SystemSetting
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings = await this.prisma.appConfig.findMany({
       where: { key: { in: APP_FEATURE_KEYS } },
     });
 
-    // Build a map, defaulting missing keys to 'true'
     const configMap: Record<string, string> = {};
     for (const key of APP_FEATURE_KEYS) {
       const found = settings.find(s => s.key === key);
-      // maintenance_mode defaults to false, all features default to true
       configMap[key] = found?.value ?? (key === 'maintenance_mode' ? 'false' : 'true');
     }
 
@@ -571,7 +568,6 @@ export class AdminService {
   }
 
   async updateAppConfig(config: { key: string; value: string }[]) {
-    // Validate keys
     const invalidKeys = config.filter(c => !APP_FEATURE_KEYS.includes(c.key));
     if (invalidKeys.length > 0) {
       throw new BadRequestException(`Unknown config keys: ${invalidKeys.map(k => k.key).join(', ')}`);
@@ -579,7 +575,7 @@ export class AdminService {
 
     const results: any[] = [];
     for (const item of config) {
-      const result = await this.prisma.systemSetting.upsert({
+      const result = await this.prisma.appConfig.upsert({
         where: { key: item.key },
         update: { value: item.value },
         create: {
