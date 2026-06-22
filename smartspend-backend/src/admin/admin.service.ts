@@ -29,6 +29,8 @@ export const APP_FEATURE_KEYS = [
   'feature_shared_cashbooks_active',
   'feature_tax_export_active',
   'feature_panic_button_active',
+  'feature_gallery',
+  'feature_chat',
 ];
 
 @Injectable()

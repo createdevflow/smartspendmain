@@ -274,9 +274,13 @@ export class AdminController {
     @Body() body: any,
   ) {
     const target = body.email || user.email;
-    // Invalidate transporter cache so new SMTP settings take effect immediately
-    this.mailService.invalidateCache();
-    await this.mailService.sendTestEmail(target);
-    return { message: `Test email sent to ${target}` };
+    try {
+      // Invalidate transporter cache so new SMTP settings take effect immediately
+      this.mailService.invalidateCache();
+      await this.mailService.sendTestEmail(target);
+      return { message: `Test email sent to ${target}` };
+    } catch (error: any) {
+      throw new BadRequestException(`Failed to send test email: ${error.message || 'Check SMTP configuration'}`);
+    }
   }
 }
