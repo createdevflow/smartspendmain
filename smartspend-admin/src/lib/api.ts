@@ -28,10 +28,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
+    const isLoginRequest = error.config?.url?.includes('/auth/login');
+    if (!isLoginRequest && error.response?.status === 401 && typeof window !== 'undefined') {
       // If unauthorized, clear token and redirect to login
       localStorage.removeItem('adminToken');
-      window.location.href = '/login';
+      window.location.href = '/admin/login';
     }
     return Promise.reject(error);
   }

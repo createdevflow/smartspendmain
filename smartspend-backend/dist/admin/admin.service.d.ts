@@ -1,8 +1,12 @@
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 export declare const APP_FEATURE_KEYS: string[];
 export declare class AdminService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private jwt;
+    private config;
+    constructor(prisma: PrismaService, jwt: JwtService, config: ConfigService);
     getDashboard(): Promise<{
         metrics: {
             totalUsers: number;
@@ -74,6 +78,7 @@ export declare class AdminService {
             slug: string;
         } | null;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -84,7 +89,6 @@ export declare class AdminService {
         isEmailVerified: boolean;
         timezone: string;
         language: string;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         cashbooks: {
             id: string;
@@ -117,6 +121,7 @@ export declare class AdminService {
     }>;
     updateUserStatus(id: string, status: any): Promise<{
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -132,12 +137,12 @@ export declare class AdminService {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;
     updateUserRole(id: string, role: any): Promise<{
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -153,12 +158,12 @@ export declare class AdminService {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;
     assignPlanToUser(userId: string, planId: string): Promise<{
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -174,12 +179,25 @@ export declare class AdminService {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;
     deleteUser(id: string): Promise<{
         message: string;
+    }>;
+    hardDeleteUser(id: string): Promise<{
+        message: string;
+    }>;
+    adminChangePassword(id: string, newPassword: string): Promise<{
+        message: string;
+    }>;
+    impersonateUser(id: string): Promise<{
+        accessToken: string;
+        user: {
+            id: string;
+            email: string;
+            fullName: string;
+        };
     }>;
     resetUserAccount(id: string): Promise<{
         message: string;
@@ -194,27 +212,27 @@ export declare class AdminService {
                 type: string;
                 name: string;
                 id: string;
-                createdAt: Date;
+                key: string;
                 description: string | null;
                 updatedAt: Date;
+                createdAt: Date;
                 sortOrder: number;
-                key: string;
                 defaultValue: string;
                 unit: string | null;
                 isVisible: boolean;
             };
         } & {
             id: string;
+            value: string;
             planId: string;
             featureId: string;
-            value: string;
         })[];
     } & {
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -238,9 +256,9 @@ export declare class AdminService {
     }): Promise<{
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -264,9 +282,9 @@ export declare class AdminService {
     }>): Promise<{
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -279,9 +297,9 @@ export declare class AdminService {
     deletePlan(id: string, fallbackPlanId?: string): Promise<{
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -297,16 +315,16 @@ export declare class AdminService {
         };
         features: {
             id: string;
+            value: string;
             planId: string;
             featureId: string;
-            value: string;
         }[];
     } & {
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -321,9 +339,9 @@ export declare class AdminService {
         plan: {
             name: string;
             id: string;
-            createdAt: Date;
             description: string | null;
             updatedAt: Date;
+            createdAt: Date;
             slug: string;
             tagline: string | null;
             color: string;
@@ -349,20 +367,20 @@ export declare class AdminService {
             };
         } & {
             id: string;
+            value: string;
             planId: string;
             featureId: string;
-            value: string;
         })[];
     } & {
         category: string | null;
         type: string;
         name: string;
         id: string;
-        createdAt: Date;
+        key: string;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         sortOrder: number;
-        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
@@ -382,11 +400,11 @@ export declare class AdminService {
         type: string;
         name: string;
         id: string;
-        createdAt: Date;
+        key: string;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         sortOrder: number;
-        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
@@ -406,11 +424,11 @@ export declare class AdminService {
         type: string;
         name: string;
         id: string;
-        createdAt: Date;
+        key: string;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         sortOrder: number;
-        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
@@ -420,20 +438,20 @@ export declare class AdminService {
         type: string;
         name: string;
         id: string;
-        createdAt: Date;
+        key: string;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         sortOrder: number;
-        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
     }>;
     setPlanFeatureValue(planId: string, featureId: string, value: string): Promise<{
         id: string;
+        value: string;
         planId: string;
         featureId: string;
-        value: string;
     }>;
     removePlanFeature(planId: string, featureId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
     getTransactions(params: {
@@ -469,9 +487,9 @@ export declare class AdminService {
             exchangeRate: import("@prisma/client/runtime/library").Decimal | null;
             type: import(".prisma/client").$Enums.TransactionType;
             id: string;
+            updatedAt: Date;
             createdAt: Date;
             userId: string;
-            updatedAt: Date;
             deletedAt: Date | null;
             tags: string[];
             currency: string;
@@ -547,13 +565,13 @@ export declare class AdminService {
         } & {
             type: string;
             message: string;
+            id: string;
+            updatedAt: Date;
             subject: string;
             priority: string;
-            id: string;
             createdAt: Date;
             userId: string;
             status: string;
-            updatedAt: Date;
             attachmentUrl: string | null;
             resolvedAt: Date | null;
         })[];
@@ -567,13 +585,13 @@ export declare class AdminService {
     updateTicketStatus(id: string, status: string): Promise<{
         type: string;
         message: string;
+        id: string;
+        updatedAt: Date;
         subject: string;
         priority: string;
-        id: string;
         createdAt: Date;
         userId: string;
         status: string;
-        updatedAt: Date;
         attachmentUrl: string | null;
         resolvedAt: Date | null;
     }>;
@@ -587,10 +605,12 @@ export declare class AdminService {
     }>;
     getSettings(): Promise<{
         id: string;
-        description: string | null;
-        updatedAt: Date;
         key: string;
         value: string;
+        description: string | null;
+        isPublic: boolean;
+        updatedAt: Date;
+        updatedBy: string | null;
     }[]>;
     updateSettings(settings: {
         key: string;
@@ -632,10 +652,10 @@ export declare class AdminService {
         } & {
             name: string;
             id: string;
-            createdAt: Date;
-            userId: string;
             description: string | null;
             updatedAt: Date;
+            createdAt: Date;
+            userId: string;
             deletedAt: Date | null;
             color: string;
             isDefault: boolean;

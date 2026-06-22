@@ -6,10 +6,10 @@ export declare class GoalsController {
         name: string;
         description: string | null;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
         status: import(".prisma/client").$Enums.GoalStatus;
-        updatedAt: Date;
         currency: string;
         emoji: string | null;
         targetAmount: import("@prisma/client/runtime/library").Decimal;
@@ -20,11 +20,11 @@ export declare class GoalsController {
     create(u: any, dto: any): Promise<{
         name: string;
         id: string;
+        description: string | null;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        description: string | null;
         status: import(".prisma/client").$Enums.GoalStatus;
-        updatedAt: Date;
         currency: string;
         emoji: string | null;
         targetAmount: import("@prisma/client/runtime/library").Decimal;
@@ -43,10 +43,10 @@ export declare class GoalsController {
             note: string | null;
         }[];
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
         status: import(".prisma/client").$Enums.GoalStatus;
-        updatedAt: Date;
         currency: string;
         emoji: string | null;
         targetAmount: import("@prisma/client/runtime/library").Decimal;
@@ -57,11 +57,11 @@ export declare class GoalsController {
     update(u: any, id: string, dto: any): Promise<{
         name: string;
         id: string;
+        description: string | null;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        description: string | null;
         status: import(".prisma/client").$Enums.GoalStatus;
-        updatedAt: Date;
         currency: string;
         emoji: string | null;
         targetAmount: import("@prisma/client/runtime/library").Decimal;

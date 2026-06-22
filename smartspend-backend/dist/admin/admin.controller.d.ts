@@ -1,7 +1,9 @@
 import { AdminService } from './admin.service';
+import { MailService } from '../mail/mail.service';
 export declare class AdminController {
     private readonly adminService;
-    constructor(adminService: AdminService);
+    private readonly mailService;
+    constructor(adminService: AdminService, mailService: MailService);
     getDashboard(): Promise<{
         metrics: {
             totalUsers: number;
@@ -73,6 +75,7 @@ export declare class AdminController {
             slug: string;
         } | null;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -83,7 +86,6 @@ export declare class AdminController {
         isEmailVerified: boolean;
         timezone: string;
         language: string;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         cashbooks: {
             id: string;
@@ -118,6 +120,7 @@ export declare class AdminController {
         status: any;
     }): Promise<{
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -133,7 +136,6 @@ export declare class AdminController {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;
@@ -141,6 +143,7 @@ export declare class AdminController {
         role: any;
     }): Promise<{
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -156,7 +159,6 @@ export declare class AdminController {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;
@@ -164,6 +166,7 @@ export declare class AdminController {
         planId: string;
     }): Promise<{
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -179,12 +182,27 @@ export declare class AdminController {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;
     deleteUser(id: string): Promise<{
         message: string;
+    }>;
+    hardDeleteUser(id: string): Promise<{
+        message: string;
+    }>;
+    adminChangePassword(id: string, body: {
+        password: string;
+    }): Promise<{
+        message: string;
+    }>;
+    impersonateUser(id: string): Promise<{
+        accessToken: string;
+        user: {
+            id: string;
+            email: string;
+            fullName: string;
+        };
     }>;
     resetUserAccount(id: string): Promise<{
         message: string;
@@ -214,9 +232,9 @@ export declare class AdminController {
             exchangeRate: import("@prisma/client/runtime/library").Decimal | null;
             type: import(".prisma/client").$Enums.TransactionType;
             id: string;
+            updatedAt: Date;
             createdAt: Date;
             userId: string;
-            updatedAt: Date;
             deletedAt: Date | null;
             tags: string[];
             currency: string;
@@ -282,27 +300,27 @@ export declare class AdminController {
                 type: string;
                 name: string;
                 id: string;
-                createdAt: Date;
+                key: string;
                 description: string | null;
                 updatedAt: Date;
+                createdAt: Date;
                 sortOrder: number;
-                key: string;
                 defaultValue: string;
                 unit: string | null;
                 isVisible: boolean;
             };
         } & {
             id: string;
+            value: string;
             planId: string;
             featureId: string;
-            value: string;
         })[];
     } & {
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -315,9 +333,9 @@ export declare class AdminController {
     createPlan(dto: any): Promise<{
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -330,9 +348,9 @@ export declare class AdminController {
     updatePlan(id: string, dto: any): Promise<{
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -345,9 +363,9 @@ export declare class AdminController {
     deletePlan(id: string, fallbackPlanId?: string): Promise<{
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -363,16 +381,16 @@ export declare class AdminController {
         };
         features: {
             id: string;
+            value: string;
             planId: string;
             featureId: string;
-            value: string;
         }[];
     } & {
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -389,9 +407,9 @@ export declare class AdminController {
         plan: {
             name: string;
             id: string;
-            createdAt: Date;
             description: string | null;
             updatedAt: Date;
+            createdAt: Date;
             slug: string;
             tagline: string | null;
             color: string;
@@ -411,20 +429,20 @@ export declare class AdminController {
             };
         } & {
             id: string;
+            value: string;
             planId: string;
             featureId: string;
-            value: string;
         })[];
     } & {
         category: string | null;
         type: string;
         name: string;
         id: string;
-        createdAt: Date;
+        key: string;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         sortOrder: number;
-        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
@@ -442,11 +460,11 @@ export declare class AdminController {
         type: string;
         name: string;
         id: string;
-        createdAt: Date;
+        key: string;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         sortOrder: number;
-        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
@@ -456,11 +474,11 @@ export declare class AdminController {
         type: string;
         name: string;
         id: string;
-        createdAt: Date;
+        key: string;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         sortOrder: number;
-        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
@@ -470,11 +488,11 @@ export declare class AdminController {
         type: string;
         name: string;
         id: string;
-        createdAt: Date;
+        key: string;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         sortOrder: number;
-        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
@@ -483,9 +501,9 @@ export declare class AdminController {
         value: string;
     }): Promise<{
         id: string;
+        value: string;
         planId: string;
         featureId: string;
-        value: string;
     }>;
     removePlanFeature(planId: string, featureId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
     getTickets(status?: string, page?: number, limit?: number): Promise<{
@@ -503,13 +521,13 @@ export declare class AdminController {
         } & {
             type: string;
             message: string;
+            id: string;
+            updatedAt: Date;
             subject: string;
             priority: string;
-            id: string;
             createdAt: Date;
             userId: string;
             status: string;
-            updatedAt: Date;
             attachmentUrl: string | null;
             resolvedAt: Date | null;
         })[];
@@ -525,13 +543,13 @@ export declare class AdminController {
     }): Promise<{
         type: string;
         message: string;
+        id: string;
+        updatedAt: Date;
         subject: string;
         priority: string;
-        id: string;
         createdAt: Date;
         userId: string;
         status: string;
-        updatedAt: Date;
         attachmentUrl: string | null;
         resolvedAt: Date | null;
     }>;
@@ -547,25 +565,16 @@ export declare class AdminController {
     }>;
     getSettings(): Promise<{
         id: string;
-        description: string | null;
-        updatedAt: Date;
         key: string;
         value: string;
+        description: string | null;
+        isPublic: boolean;
+        updatedAt: Date;
+        updatedBy: string | null;
     }[]>;
-    updateSettings(body: {
-        settings: {
-            key: string;
-            value: string;
-            description?: string;
-        }[];
-    }): Promise<any[]>;
+    updateSettings(body: any): Promise<any[]>;
     getAppConfig(): Promise<Record<string, string>>;
-    updateAppConfig(body: {
-        config: {
-            key: string;
-            value: string;
-        }[];
-    }): Promise<any[]>;
+    updateAppConfig(body: any): Promise<any[]>;
     getSharedCashbooks(page?: number, limit?: number): Promise<{
         data: ({
             user: {
@@ -596,10 +605,10 @@ export declare class AdminController {
         } & {
             name: string;
             id: string;
-            createdAt: Date;
-            userId: string;
             description: string | null;
             updatedAt: Date;
+            createdAt: Date;
+            userId: string;
             deletedAt: Date | null;
             color: string;
             isDefault: boolean;
@@ -640,5 +649,8 @@ export declare class AdminController {
             limit: number;
             totalPages: number;
         };
+    }>;
+    sendTestEmail(user: any, body: any): Promise<{
+        message: string;
     }>;
 }

@@ -10,6 +10,7 @@ export declare class UsersController {
             color: string;
         } | null;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -25,12 +26,12 @@ export declare class UsersController {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;
     updateProfile(user: any, dto: any): Promise<{
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -46,7 +47,6 @@ export declare class UsersController {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;
@@ -79,6 +79,7 @@ export declare class UsersController {
         image: string;
     }): Promise<{
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -94,7 +95,6 @@ export declare class UsersController {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;

@@ -10,6 +10,7 @@ export declare class UsersService {
             color: string;
         } | null;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -25,12 +26,12 @@ export declare class UsersService {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;
     updateProfile(userId: string, dto: any): Promise<{
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -46,7 +47,6 @@ export declare class UsersService {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;
@@ -75,6 +75,7 @@ export declare class UsersService {
     }>;
     uploadAvatar(userId: string, base64Image: string): Promise<{
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
@@ -90,7 +91,6 @@ export declare class UsersService {
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
-        updatedAt: Date;
         lastLoginAt: Date | null;
         deletedAt: Date | null;
     }>;

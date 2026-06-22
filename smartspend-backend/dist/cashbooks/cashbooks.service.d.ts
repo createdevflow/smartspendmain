@@ -20,9 +20,9 @@ export declare class CashbooksService {
         memberRole: string;
         isShared: boolean;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
         deletedAt: Date | null;
         color: string;
         isDefault: boolean;
@@ -37,9 +37,9 @@ export declare class CashbooksService {
         description: string | null;
         balance: string;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
         deletedAt: Date | null;
         color: string;
         isDefault: boolean;
@@ -53,9 +53,9 @@ export declare class CashbooksService {
         name: string;
         description: string | undefined;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
         deletedAt: Date | null;
         color: string;
         isDefault: boolean;
@@ -68,10 +68,10 @@ export declare class CashbooksService {
     update(userId: string, id: string, dto: UpdateCashbookDto): Promise<{
         name: string;
         id: string;
-        createdAt: Date;
-        userId: string;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
+        userId: string;
         deletedAt: Date | null;
         color: string;
         isDefault: boolean;

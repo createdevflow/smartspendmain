@@ -15,66 +15,66 @@ export declare class CashbooksController {
         memberRole: string;
         isShared: boolean;
         id: string;
-        createdAt: Date;
         updatedAt: Date;
-        deletedAt: Date | null;
+        createdAt: Date;
         userId: string;
+        deletedAt: Date | null;
         color: string;
+        isDefault: boolean;
+        sortOrder: number;
+        isArchived: boolean;
         icon: string;
         currency: string;
         openingBalance: import("@prisma/client/runtime/library").Decimal;
-        isArchived: boolean;
-        isDefault: boolean;
-        sortOrder: number;
     }[]>;
     create(user: any, dto: CreateCashbookDto): Promise<{
         name: string;
         description: string | undefined;
         id: string;
-        createdAt: Date;
         updatedAt: Date;
-        deletedAt: Date | null;
+        createdAt: Date;
         userId: string;
+        deletedAt: Date | null;
         color: string;
+        isDefault: boolean;
+        sortOrder: number;
+        isArchived: boolean;
         icon: string;
         currency: string;
         openingBalance: import("@prisma/client/runtime/library").Decimal;
-        isArchived: boolean;
-        isDefault: boolean;
-        sortOrder: number;
     }>;
     findOne(user: any, id: string): Promise<{
         name: string;
         description: string | null;
         balance: string;
         id: string;
-        createdAt: Date;
         updatedAt: Date;
-        deletedAt: Date | null;
+        createdAt: Date;
         userId: string;
+        deletedAt: Date | null;
         color: string;
+        isDefault: boolean;
+        sortOrder: number;
+        isArchived: boolean;
         icon: string;
         currency: string;
         openingBalance: import("@prisma/client/runtime/library").Decimal;
-        isArchived: boolean;
-        isDefault: boolean;
-        sortOrder: number;
     }>;
     update(user: any, id: string, dto: UpdateCashbookDto): Promise<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        deletedAt: Date | null;
-        userId: string;
         name: string;
+        id: string;
         description: string | null;
+        updatedAt: Date;
+        createdAt: Date;
+        userId: string;
+        deletedAt: Date | null;
         color: string;
+        isDefault: boolean;
+        sortOrder: number;
+        isArchived: boolean;
         icon: string;
         currency: string;
         openingBalance: import("@prisma/client/runtime/library").Decimal;
-        isArchived: boolean;
-        isDefault: boolean;
-        sortOrder: number;
     }>;
     remove(user: any, id: string): Promise<{
         message: string;
@@ -88,23 +88,23 @@ export declare class CashbooksController {
         owner: {
             role: string;
             id?: string | undefined;
-            email?: string | undefined;
             fullName?: string | undefined;
+            email?: string | undefined;
             avatar?: string | null | undefined;
         };
         members: ({
             user: {
                 id: string;
-                email: string;
                 fullName: string;
+                email: string;
                 avatar: string | null;
             } | null;
         } & {
             id: string;
+            userId: string | null;
             email: string;
             role: import(".prisma/client").$Enums.CashbookMemberRole;
             status: string;
-            userId: string | null;
             cashbookId: string;
             inviteToken: string | null;
             invitedAt: Date;
@@ -129,10 +129,10 @@ export declare class CashbooksController {
         role: 'EDITOR' | 'VIEWER';
     }): Promise<{
         id: string;
+        userId: string | null;
         email: string;
         role: import(".prisma/client").$Enums.CashbookMemberRole;
         status: string;
-        userId: string | null;
         cashbookId: string;
         inviteToken: string | null;
         invitedAt: Date;

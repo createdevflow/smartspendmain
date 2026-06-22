@@ -12,9 +12,9 @@ export declare class BudgetsController {
     } & {
         name: string;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
         isActive: boolean;
         currency: string;
         cashbookId: string | null;
@@ -31,9 +31,9 @@ export declare class BudgetsController {
     create(user: any, dto: any): Promise<{
         name: string;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
         isActive: boolean;
         currency: string;
         cashbookId: string | null;
@@ -50,9 +50,9 @@ export declare class BudgetsController {
     findOne(user: any, id: string): Promise<{
         name: string;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
         isActive: boolean;
         currency: string;
         cashbookId: string | null;
@@ -70,9 +70,9 @@ export declare class BudgetsController {
         budget: {
             name: string;
             id: string;
+            updatedAt: Date;
             createdAt: Date;
             userId: string;
-            updatedAt: Date;
             isActive: boolean;
             currency: string;
             cashbookId: string | null;
@@ -94,9 +94,9 @@ export declare class BudgetsController {
     update(user: any, id: string, dto: any): Promise<{
         name: string;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
         isActive: boolean;
         currency: string;
         cashbookId: string | null;

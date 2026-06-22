@@ -72,6 +72,26 @@ export class AdminController {
     return this.adminService.deleteUser(id);
   }
 
+  @Delete('users/:id/hard')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Permanently delete user and ALL their data (irreversible)' })
+  hardDeleteUser(@Param('id') id: string) {
+    return this.adminService.hardDeleteUser(id);
+  }
+
+  @Patch('users/:id/password')
+  @ApiOperation({ summary: 'Admin change user password and revoke all sessions' })
+  adminChangePassword(@Param('id') id: string, @Body() body: { password: string }) {
+    return this.adminService.adminChangePassword(id, body.password);
+  }
+
+  @Post('users/:id/impersonate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Generate a short-lived token to log in as this user (15 min)' })
+  impersonateUser(@Param('id') id: string) {
+    return this.adminService.impersonateUser(id);
+  }
+
   @Post('users/:id/reset')
   @ApiOperation({ summary: 'Reset user account (clear all data)' })
   resetUserAccount(@Param('id') id: string) {

@@ -11,22 +11,22 @@ export declare class PlansService {
                 type: string;
                 name: string;
                 id: string;
-                sortOrder: number;
                 key: string;
+                sortOrder: number;
                 unit: string | null;
             };
         } & {
             id: string;
+            value: string;
             planId: string;
             featureId: string;
-            value: string;
         })[];
     } & {
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -43,27 +43,27 @@ export declare class PlansService {
                 type: string;
                 name: string;
                 id: string;
-                createdAt: Date;
+                key: string;
                 description: string | null;
                 updatedAt: Date;
+                createdAt: Date;
                 sortOrder: number;
-                key: string;
                 defaultValue: string;
                 unit: string | null;
                 isVisible: boolean;
             };
         } & {
             id: string;
+            value: string;
             planId: string;
             featureId: string;
-            value: string;
         })[];
     } & {
         name: string;
         id: string;
-        createdAt: Date;
         description: string | null;
         updatedAt: Date;
+        createdAt: Date;
         slug: string;
         tagline: string | null;
         color: string;
@@ -81,27 +81,27 @@ export declare class PlansService {
                     type: string;
                     name: string;
                     id: string;
-                    createdAt: Date;
+                    key: string;
                     description: string | null;
                     updatedAt: Date;
+                    createdAt: Date;
                     sortOrder: number;
-                    key: string;
                     defaultValue: string;
                     unit: string | null;
                     isVisible: boolean;
                 };
             } & {
                 id: string;
+                value: string;
                 planId: string;
                 featureId: string;
-                value: string;
             })[];
         } & {
             name: string;
             id: string;
-            createdAt: Date;
             description: string | null;
             updatedAt: Date;
+            createdAt: Date;
             slug: string;
             tagline: string | null;
             color: string;
@@ -128,9 +128,9 @@ export declare class PlansService {
         plan: {
             name: string;
             id: string;
-            createdAt: Date;
             description: string | null;
             updatedAt: Date;
+            createdAt: Date;
             slug: string;
             tagline: string | null;
             color: string;

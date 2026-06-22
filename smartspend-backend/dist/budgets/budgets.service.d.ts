@@ -12,9 +12,9 @@ export declare class BudgetsService {
     } & {
         name: string;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
         isActive: boolean;
         currency: string;
         cashbookId: string | null;
@@ -31,9 +31,9 @@ export declare class BudgetsService {
     create(userId: string, dto: any): Promise<{
         name: string;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
         isActive: boolean;
         currency: string;
         cashbookId: string | null;
@@ -50,9 +50,9 @@ export declare class BudgetsService {
     findOne(userId: string, id: string): Promise<{
         name: string;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
         isActive: boolean;
         currency: string;
         cashbookId: string | null;
@@ -70,9 +70,9 @@ export declare class BudgetsService {
         budget: {
             name: string;
             id: string;
+            updatedAt: Date;
             createdAt: Date;
             userId: string;
-            updatedAt: Date;
             isActive: boolean;
             currency: string;
             cashbookId: string | null;
@@ -94,9 +94,9 @@ export declare class BudgetsService {
     update(userId: string, id: string, dto: any): Promise<{
         name: string;
         id: string;
+        updatedAt: Date;
         createdAt: Date;
         userId: string;
-        updatedAt: Date;
         isActive: boolean;
         currency: string;
         cashbookId: string | null;

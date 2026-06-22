@@ -10,23 +10,23 @@ export declare class CashbookMembersService {
         owner: {
             role: string;
             id?: string | undefined;
-            email?: string | undefined;
             fullName?: string | undefined;
+            email?: string | undefined;
             avatar?: string | null | undefined;
         };
         members: ({
             user: {
                 id: string;
-                email: string;
                 fullName: string;
+                email: string;
                 avatar: string | null;
             } | null;
         } & {
             id: string;
+            userId: string | null;
             email: string;
             role: import(".prisma/client").$Enums.CashbookMemberRole;
             status: string;
-            userId: string | null;
             cashbookId: string;
             inviteToken: string | null;
             invitedAt: Date;
@@ -53,10 +53,10 @@ export declare class CashbookMembersService {
     }>;
     updateMemberRole(userId: string, cashbookId: string, memberId: string, role: 'EDITOR' | 'VIEWER'): Promise<{
         id: string;
+        userId: string | null;
         email: string;
         role: import(".prisma/client").$Enums.CashbookMemberRole;
         status: string;
-        userId: string | null;
         cashbookId: string;
         inviteToken: string | null;
         invitedAt: Date;

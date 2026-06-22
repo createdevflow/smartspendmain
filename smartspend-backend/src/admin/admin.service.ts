@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcrypt';
 import { AuditAction } from '@prisma/client';
 
 // ── Feature toggle keys for AppConfig ───────────────────────────────────────
@@ -35,7 +38,11 @@ export const APP_FEATURE_KEYS = [
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwt: JwtService,
+    private config: ConfigService,
+  ) {}
 
   // ── Dashboard ────────────────────────────────────────────────────────────────
 
@@ -211,13 +218,15 @@ export class AdminService {
   async deleteUser(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
-    // Soft delete
+    const ts = Date.now();
+    // Soft delete — mangle both email AND phone to free them for re-registration
     await this.prisma.user.update({
       where: { id },
       data: {
         deletedAt: new Date(),
         status: 'BANNED',
-        email: `deleted_${Date.now()}_${user.email}`, // Free up email for re-registration
+        email: `deleted_${ts}_${user.email}`,
+        phone: user.phone ? `deleted_${ts}_${user.phone}` : null,
       },
     });
     // Invalidate all sessions
@@ -225,7 +234,41 @@ export class AdminService {
       where: { userId: id },
       data: { isValid: false },
     });
-    return { message: 'User account deleted successfully' };
+    return { message: 'User account soft-deleted successfully' };
+  }
+
+  async hardDeleteUser(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+    // Prisma cascades deletes all related data automatically via onDelete: Cascade
+    await this.prisma.user.delete({ where: { id } });
+    return { message: 'User account permanently deleted' };
+  }
+
+  async adminChangePassword(id: string, newPassword: string) {
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({ where: { id }, data: { passwordHash } });
+    // Revoke all active sessions for security
+    await this.prisma.session.updateMany({ where: { userId: id }, data: { isValid: false } });
+    return { message: 'Password changed and all sessions revoked' };
+  }
+
+  async impersonateUser(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.deletedAt) throw new BadRequestException('Cannot impersonate a deleted user');
+    const payload = { sub: user.id, email: user.email, role: user.role, plan: user.planId };
+    // Short-lived impersonation token (15 minutes)
+    const accessToken = this.jwt.sign(payload, {
+      secret: this.config.get<string>('jwt.accessSecret'),
+      expiresIn: '15m',
+    });
+    return { accessToken, user: { id: user.id, email: user.email, fullName: user.fullName } };
   }
 
   async resetUserAccount(id: string) {

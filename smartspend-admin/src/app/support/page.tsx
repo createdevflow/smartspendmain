@@ -53,7 +53,7 @@ export default function SupportPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !localStorage.getItem('adminToken')) {
-      window.location.href = '/login';
+      window.location.href = '/admin/login';
       return;
     }
     const t = setTimeout(fetchTickets, 300);

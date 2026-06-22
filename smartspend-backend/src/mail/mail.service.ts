@@ -262,4 +262,39 @@ export class MailService {
   <div class="footer">© ${new Date().getFullYear()} Cashtro</div>
 </div></body></html>`;
   }
+
+  // ── Cashbook Invite Email ──────────────────────────────────────────────────
+
+  async sendCashbookInvite(toEmail: string, inviterName: string, bookName: string, inviteLink: string) {
+    const transporter = await this.getTransporter();
+    const from = await this.getFrom();
+    await transporter.sendMail({
+      from,
+      to: toEmail,
+      subject: `${inviterName} invited you to join a Cashtro cashbook`,
+      html: `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+  body { background:#F8FAFC; font-family:-apple-system,sans-serif; margin:0; padding:0; }
+  .wrapper { max-width:520px; margin:40px auto; background:#fff; border-radius:24px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,.1); border: 1px solid #E2E8F0; }
+  .header { background:linear-gradient(135deg,#1E3A8A,#2563EB); padding:36px 32px; text-align:center; color:#fff; }
+  .body { padding:32px; background:#fff; }
+  .btn { display:inline-block; background:#2563EB; color:#ffffff !important; text-decoration:none; padding:16px 32px; border-radius:12px; font-weight:700; font-size:16px; margin-top:24px; box-shadow: 0 4px 14px rgba(37,99,235,0.4); }
+  .footer { padding:20px 32px; text-align:center; font-size:12px; color:#64748B; border-top:1px solid #E2E8F0; background:#F8FAFC; }
+</style></head>
+<body><div class="wrapper">
+  <div class="header">
+    <h1 style="font-size:26px;font-weight:800;margin:0;color:#fff;">📒 You're Invited!</h1>
+    <p style="margin:10px 0 0;opacity:.9;font-size:16px;color:#fff;">Join a shared cashbook on Cashtro</p>
+  </div>
+  <div class="body">
+    <p style="font-size:16px;color:#1E293B;margin:0 0 12px;line-height:1.5;"><strong>${inviterName}</strong> has invited you to collaborate on their cashbook <strong>"${bookName}"</strong>.</p>
+    <p style="color:#475569;font-size:15px;line-height:1.6;margin-bottom:8px;">Tap the button below to accept the invite and start tracking shared expenses together. The link will automatically open in the Cashtro app.</p>
+    <div style="text-align:center; margin-bottom: 12px;">
+      <a href="${inviteLink}" class="btn">Accept Invite</a>
+    </div>
+  </div>
+  <div class="footer">© ${new Date().getFullYear()} Cashtro · You received this because someone invited you</div>
+</div></body></html>`,
+    });
+  }
 }

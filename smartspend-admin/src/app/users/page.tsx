@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import {
   Search, ChevronLeft, ChevronRight, RefreshCw, Download,
   UserX, RotateCcw, ChevronDown, Shield, CheckCircle, AlertTriangle,
-  Users, UserCheck, UserMinus, Activity,
+  Users, UserCheck, UserMinus, Activity, Trash2, Key, LogIn,
 } from 'lucide-react';
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
@@ -13,11 +13,14 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
   SUSPENDED: { label: 'Suspended', color: '#D97706', bg: 'rgba(217,119,6,0.1)' },
   BANNED: { label: 'Banned', color: '#DC2626', bg: 'rgba(220,38,38,0.1)' },
   PENDING: { label: 'Pending', color: '#6B7280', bg: 'rgba(107,114,128,0.1)' },
+  PENDING_VERIFICATION: { label: 'Unverified', color: '#6B7280', bg: 'rgba(107,114,128,0.1)' },
 };
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
+
+type ActionType = 'status' | 'delete' | 'hard-delete' | 'reset' | 'password' | 'impersonate';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -27,12 +30,12 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [page, setPage] = useState(1);
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const [actionUser, setActionUser] = useState<{ user: any; action: 'status' | 'delete' | 'reset' } | null>(null);
+  const [actionUser, setActionUser] = useState<{ user: any; action: ActionType } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
   const [statusValue, setStatusValue] = useState('ACTIVE');
-  const [plans, setPlans] = useState<any[]>([]);
+  const [passwordValue, setPasswordValue] = useState('');
+  const [impersonateResult, setImpersonateResult] = useState<{ accessToken: string; user: any } | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -57,9 +60,12 @@ export default function UsersPage() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  useEffect(() => {
-    api.get('/admin/plans').then(res => setPlans(res.data?.data || [])).catch(() => {});
-  }, []);
+  const closeModal = () => {
+    setActionUser(null);
+    setActionError('');
+    setPasswordValue('');
+    setImpersonateResult(null);
+  };
 
   const handleAction = async () => {
     if (!actionUser) return;
@@ -68,13 +74,31 @@ export default function UsersPage() {
     try {
       if (actionUser.action === 'status') {
         await api.patch(`/admin/users/${actionUser.user.id}/status`, { status: statusValue });
+        closeModal();
+        fetchUsers();
       } else if (actionUser.action === 'delete') {
         await api.delete(`/admin/users/${actionUser.user.id}`);
+        closeModal();
+        fetchUsers();
+      } else if (actionUser.action === 'hard-delete') {
+        await api.delete(`/admin/users/${actionUser.user.id}/hard`);
+        closeModal();
+        fetchUsers();
       } else if (actionUser.action === 'reset') {
         await api.post(`/admin/users/${actionUser.user.id}/reset`);
+        closeModal();
+        fetchUsers();
+      } else if (actionUser.action === 'password') {
+        if (!passwordValue || passwordValue.length < 8) {
+          setActionError('Password must be at least 8 characters');
+          return;
+        }
+        await api.patch(`/admin/users/${actionUser.user.id}/password`, { password: passwordValue });
+        closeModal();
+      } else if (actionUser.action === 'impersonate') {
+        const res = await api.post(`/admin/users/${actionUser.user.id}/impersonate`);
+        setImpersonateResult(res.data?.data || res.data);
       }
-      setActionUser(null);
-      fetchUsers();
     } catch (e: any) {
       setActionError(e.response?.data?.message || 'Action failed. Please try again.');
     } finally {
@@ -250,7 +274,7 @@ export default function UsersPage() {
                         </div>
                         {user.lastLoginAt && (
                           <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.125rem' }}>
-                            Last login: {formatDate(user.lastLoginAt)}
+                            Last: {formatDate(user.lastLoginAt)}
                           </p>
                         )}
                       </td>
@@ -258,30 +282,36 @@ export default function UsersPage() {
                         {formatDate(user.createdAt)}
                       </td>
                       <td style={{ padding: '0.875rem 1rem' }}>
-                        <div style={{ display: 'flex', gap: '0.375rem' }}>
-                          <button
-                            title="Change Status"
-                            className="btn btn-secondary"
+                        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                          <button title="Change Status" className="btn btn-secondary"
                             onClick={() => { setStatusValue(user.status); setActionUser({ user, action: 'status' }); }}
-                            style={{ padding: '0.35rem 0.625rem', fontSize: '0.75rem' }}
-                          >
+                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}>
                             <Shield size={13} />
                           </button>
-                          <button
-                            title="Reset Account Data"
-                            className="btn btn-secondary"
+                          <button title="Change Password" className="btn btn-secondary"
+                            onClick={() => setActionUser({ user, action: 'password' })}
+                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}>
+                            <Key size={13} />
+                          </button>
+                          <button title="Login As User" className="btn btn-secondary"
+                            onClick={() => setActionUser({ user, action: 'impersonate' })}
+                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', color: '#7C3AED', borderColor: '#7C3AED' }}>
+                            <LogIn size={13} />
+                          </button>
+                          <button title="Reset Account Data" className="btn btn-secondary"
                             onClick={() => setActionUser({ user, action: 'reset' })}
-                            style={{ padding: '0.35rem 0.625rem', fontSize: '0.75rem' }}
-                          >
+                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}>
                             <RotateCcw size={13} />
                           </button>
-                          <button
-                            title="Delete Account"
-                            className="btn btn-secondary"
+                          <button title="Soft Delete" className="btn btn-secondary"
                             onClick={() => setActionUser({ user, action: 'delete' })}
-                            style={{ padding: '0.35rem 0.625rem', fontSize: '0.75rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}
-                          >
+                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', color: '#D97706', borderColor: '#D97706' }}>
                             <UserX size={13} />
+                          </button>
+                          <button title="Permanent Delete (irreversible)" className="btn btn-secondary"
+                            onClick={() => setActionUser({ user, action: 'hard-delete' })}
+                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}>
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </td>
@@ -319,12 +349,13 @@ export default function UsersPage() {
         </div>
       </main>
 
-      {/* Action Modal */}
+      {/* ─── Action Modal ─── */}
       {actionUser && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={e => { if (e.target === e.currentTarget) setActionUser(null); }}
-        >
-          <div className="card" style={{ width: '420px', padding: '1.75rem', boxShadow: 'var(--shadow-xl)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
+          <div className="card" style={{ width: '440px', padding: '1.75rem', boxShadow: 'var(--shadow-xl)' }}>
+
+            {/* Status Change */}
             {actionUser.action === 'status' && (
               <>
                 <h3 style={{ marginBottom: '0.5rem' }}>Change User Status</h3>
@@ -341,23 +372,101 @@ export default function UsersPage() {
                 </div>
               </>
             )}
-            {actionUser.action === 'delete' && (
+
+            {/* Change Password */}
+            {actionUser.action === 'password' && (
               <>
-                <h3 style={{ marginBottom: '0.5rem', color: 'var(--danger)' }}>Delete User Account</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
-                  This will soft-delete <strong>{actionUser.user.fullName}</strong>'s account and invalidate all sessions. Their email address will be freed for re-registration.
+                <h3 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Key size={18} /> Change Password
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+                  Set a new password for <strong>{actionUser.user.fullName}</strong>. All active sessions will be revoked.
                 </p>
-                <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginBottom: '1.25rem' }}>
-                  <p style={{ color: 'var(--danger)', fontSize: '0.8125rem' }}>⚠️ This action cannot be undone from this interface. All data remains in the database (soft delete).</p>
+                <div className="input-group">
+                  <label className="input-label">New Password</label>
+                  <input
+                    type="password"
+                    className="input-field"
+                    placeholder="Min 8 characters"
+                    value={passwordValue}
+                    onChange={e => setPasswordValue(e.target.value)}
+                    autoFocus
+                  />
                 </div>
               </>
             )}
+
+            {/* Impersonate / Login As */}
+            {actionUser.action === 'impersonate' && !impersonateResult && (
+              <>
+                <h3 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <LogIn size={18} style={{ color: '#7C3AED' }} /> Login As User
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+                  Generate a 15-minute access token for <strong>{actionUser.user.fullName}</strong> ({actionUser.user.email}).
+                </p>
+                <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginBottom: '1.25rem' }}>
+                  <p style={{ color: '#7C3AED', fontSize: '0.8125rem' }}>⚠️ This token expires in 15 minutes. Use it to debug or verify the user's experience.</p>
+                </div>
+              </>
+            )}
+
+            {/* Impersonate Result */}
+            {actionUser.action === 'impersonate' && impersonateResult && (
+              <>
+                <h3 style={{ marginBottom: '0.5rem', color: '#059669' }}>✅ Token Generated</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+                  15-minute access token for <strong>{impersonateResult.user?.fullName}</strong>:
+                </p>
+                <div style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginBottom: '1rem', wordBreak: 'break-all', fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  {impersonateResult.accessToken}
+                </div>
+                <button className="btn btn-secondary" style={{ width: '100%', marginBottom: '0.75rem' }}
+                  onClick={() => { navigator.clipboard.writeText(impersonateResult.accessToken); }}>
+                  Copy Token to Clipboard
+                </button>
+                <p style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', textAlign: 'center' }}>
+                  Use this token as Bearer auth in API calls or inject it into the app's secure storage.
+                </p>
+                <button className="btn btn-secondary" style={{ width: '100%', marginTop: '0.75rem' }} onClick={closeModal}>Close</button>
+                return null;
+              </>
+            )}
+
+            {/* Soft Delete */}
+            {actionUser.action === 'delete' && (
+              <>
+                <h3 style={{ marginBottom: '0.5rem', color: '#D97706' }}>Soft Delete Account</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+                  Soft-delete <strong>{actionUser.user.fullName}</strong>'s account. Frees email & phone for re-registration. Data stays in database.
+                </p>
+                <div style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginBottom: '1.25rem' }}>
+                  <p style={{ color: '#D97706', fontSize: '0.8125rem' }}>⚠️ Recoverable from database directly. All sessions will be invalidated.</p>
+                </div>
+              </>
+            )}
+
+            {/* Hard Delete */}
+            {actionUser.action === 'hard-delete' && (
+              <>
+                <h3 style={{ marginBottom: '0.5rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Trash2 size={18} /> Permanent Delete
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+                  Permanently erase <strong>{actionUser.user.fullName}</strong>'s account and ALL associated data from the database.
+                </p>
+                <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginBottom: '1.25rem' }}>
+                  <p style={{ color: 'var(--danger)', fontSize: '0.8125rem' }}>🚨 THIS IS IRREVERSIBLE. Transactions, cashbooks, sessions, OTPs — everything will be permanently deleted from the database.</p>
+                </div>
+              </>
+            )}
+
+            {/* Reset Data */}
             {actionUser.action === 'reset' && (
               <>
                 <h3 style={{ marginBottom: '0.5rem', color: 'var(--warning)' }}>Reset Account Data</h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
-                  This will delete all transactions, cashbooks, budgets, and goals for <strong>{actionUser.user.fullName}</strong>.
-                  The account itself (email, password) will remain active.
+                  Delete all transactions, cashbooks, budgets, and goals for <strong>{actionUser.user.fullName}</strong>. Account login remains active.
                 </p>
                 <div style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginBottom: '1.25rem' }}>
                   <p style={{ color: 'var(--warning)', fontSize: '0.8125rem' }}>⚠️ All financial data will be removed. This is a soft delete and can be recovered from the database directly.</p>
@@ -369,20 +478,37 @@ export default function UsersPage() {
               <p style={{ color: 'var(--danger)', fontSize: '0.8125rem', marginBottom: '1rem' }}>{actionError}</p>
             )}
 
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => { setActionUser(null); setActionError(''); }}>Cancel</button>
-              <button
-                className="btn btn-primary"
-                onClick={handleAction}
-                disabled={actionLoading}
-                style={{
-                  background: actionUser.action === 'delete' ? 'var(--danger)' : actionUser.action === 'reset' ? 'var(--warning)' : undefined,
-                  borderColor: actionUser.action === 'delete' ? 'var(--danger)' : actionUser.action === 'reset' ? 'var(--warning)' : undefined,
-                }}
-              >
-                {actionLoading ? 'Processing...' : actionUser.action === 'delete' ? 'Delete Account' : actionUser.action === 'reset' ? 'Reset Data' : 'Update Status'}
-              </button>
-            </div>
+            {/* Show action buttons only when not showing impersonate result */}
+            {!(actionUser.action === 'impersonate' && impersonateResult) && (
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button className="btn btn-secondary" onClick={closeModal}>Cancel</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleAction}
+                  disabled={actionLoading}
+                  style={{
+                    background: actionUser.action === 'hard-delete' ? 'var(--danger)'
+                      : actionUser.action === 'delete' ? '#D97706'
+                      : actionUser.action === 'reset' ? 'var(--warning)'
+                      : actionUser.action === 'impersonate' ? '#7C3AED'
+                      : undefined,
+                    borderColor: actionUser.action === 'hard-delete' ? 'var(--danger)'
+                      : actionUser.action === 'delete' ? '#D97706'
+                      : actionUser.action === 'reset' ? 'var(--warning)'
+                      : actionUser.action === 'impersonate' ? '#7C3AED'
+                      : undefined,
+                  }}
+                >
+                  {actionLoading ? 'Processing...'
+                    : actionUser.action === 'hard-delete' ? '🚨 Permanently Delete'
+                    : actionUser.action === 'delete' ? 'Soft Delete'
+                    : actionUser.action === 'reset' ? 'Reset Data'
+                    : actionUser.action === 'password' ? 'Change Password'
+                    : actionUser.action === 'impersonate' ? 'Generate Token'
+                    : 'Update Status'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

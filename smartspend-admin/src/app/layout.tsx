@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Cashtro Admin | SaaS Command Center",
-  description: "Premium dashboard to manage SmartSpend users, plans, and features.",
+  description: "Premium dashboard to manage Cashtro users, plans, and features.",
 };
 
 export default function RootLayout({

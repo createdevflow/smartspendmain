@@ -24,10 +24,10 @@ export declare class AnalyticsService {
             cashbook: {
                 name: string;
                 id: string;
-                createdAt: Date;
-                userId: string;
                 description: string | null;
                 updatedAt: Date;
+                createdAt: Date;
+                userId: string;
                 deletedAt: Date | null;
                 color: string;
                 isDefault: boolean;
@@ -48,9 +48,9 @@ export declare class AnalyticsService {
             exchangeRate: import("@prisma/client/runtime/library").Decimal | null;
             type: import(".prisma/client").$Enums.TransactionType;
             id: string;
+            updatedAt: Date;
             createdAt: Date;
             userId: string;
-            updatedAt: Date;
             deletedAt: Date | null;
             tags: string[];
             currency: string;

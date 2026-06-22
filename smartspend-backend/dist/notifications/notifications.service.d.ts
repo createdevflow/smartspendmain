@@ -4,8 +4,8 @@ export declare class NotificationsService {
     constructor(prisma: PrismaService);
     findAll(userId: string): Promise<{
         type: import(".prisma/client").$Enums.NotificationType;
-        data: import("@prisma/client/runtime/library").JsonValue | null;
         id: string;
+        data: import("@prisma/client/runtime/library").JsonValue | null;
         createdAt: Date;
         userId: string;
         title: string;
@@ -16,8 +16,8 @@ export declare class NotificationsService {
     }[]>;
     markAsRead(userId: string, id: string): Promise<{
         type: import(".prisma/client").$Enums.NotificationType;
-        data: import("@prisma/client/runtime/library").JsonValue | null;
         id: string;
+        data: import("@prisma/client/runtime/library").JsonValue | null;
         createdAt: Date;
         userId: string;
         title: string;
@@ -34,8 +34,8 @@ export declare class NotificationsService {
     }>;
     create(userId: string, title: string, body: string, type: any): Promise<{
         type: import(".prisma/client").$Enums.NotificationType;
-        data: import("@prisma/client/runtime/library").JsonValue | null;
         id: string;
+        data: import("@prisma/client/runtime/library").JsonValue | null;
         createdAt: Date;
         userId: string;
         title: string;

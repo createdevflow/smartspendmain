@@ -28,7 +28,7 @@ let CashbookMembersService = class CashbookMembersService {
         return book;
     }
     async assertFeatureEnabled() {
-        const setting = await this.prisma.systemSetting.findUnique({
+        const setting = await this.prisma.appConfig.findUnique({
             where: { key: 'feature_shared_cashbooks_active' },
         });
         if (setting?.value === 'false') {
@@ -92,6 +92,7 @@ let CashbookMembersService = class CashbookMembersService {
                 },
             });
         }
+        const inviteLink = `https://cashtro.in/join/${token}`;
         if (targetUser) {
             await this.prisma.notification.create({
                 data: {
@@ -100,11 +101,11 @@ let CashbookMembersService = class CashbookMembersService {
                     title: 'Cashbook Invite',
                     body: `${inviter?.fullName || 'Someone'} invited you to join '${book.name}' as a ${dto.role.toLowerCase()}.`,
                     data: { cashbookId, token },
-                    actionUrl: `cashtro://invite/${token}`
-                }
+                    actionUrl: inviteLink,
+                },
             });
         }
-        await this.sendInviteEmail(dto.email, inviter?.fullName || 'Someone', book.name, token);
+        await this.sendInviteEmail(dto.email, inviter?.fullName || 'Someone', book.name, inviteLink);
         return { message: 'Invite sent', token };
     }
     async createInviteLink(userId, cashbookId) {
@@ -119,7 +120,7 @@ let CashbookMembersService = class CashbookMembersService {
                 inviteToken: token,
             },
         });
-        return { token, link: `cashtro://invite/${token}` };
+        return { token, link: `https://cashtro.in/join/${token}` };
     }
     async acceptInvite(userId, token) {
         const member = await this.prisma.cashbookMember.findUnique({ where: { inviteToken: token } });
@@ -160,12 +161,12 @@ let CashbookMembersService = class CashbookMembersService {
         await this.prisma.cashbookMember.delete({ where: { id: member.id } });
         return { message: 'You have left the cashbook' };
     }
-    async sendInviteEmail(toEmail, inviterName, bookName, token) {
+    async sendInviteEmail(toEmail, inviterName, bookName, inviteLink) {
         try {
-            console.log(`[INVITE] To: ${toEmail} | Token: ${token}`);
+            await this.mail.sendCashbookInvite(toEmail, inviterName, bookName, inviteLink);
         }
         catch (e) {
-            console.error('Failed to send invite email', e);
+            console.error('[CashbookInvite] Failed to send invite email:', e?.message);
         }
     }
 };

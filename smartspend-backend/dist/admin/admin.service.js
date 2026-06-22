@@ -12,6 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminService = exports.APP_FEATURE_KEYS = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const jwt_1 = require("@nestjs/jwt");
+const config_1 = require("@nestjs/config");
+const bcrypt = require("bcrypt");
 const client_1 = require("@prisma/client");
 exports.APP_FEATURE_KEYS = [
     'feature_transactions',
@@ -38,10 +41,14 @@ exports.APP_FEATURE_KEYS = [
     'feature_shared_cashbooks_active',
     'feature_tax_export_active',
     'feature_panic_button_active',
+    'feature_gallery',
+    'feature_chat',
 ];
 let AdminService = class AdminService {
-    constructor(prisma) {
+    constructor(prisma, jwt, config) {
         this.prisma = prisma;
+        this.jwt = jwt;
+        this.config = config;
     }
     async getDashboard() {
         const now = new Date();
@@ -196,19 +203,53 @@ let AdminService = class AdminService {
         const user = await this.prisma.user.findUnique({ where: { id } });
         if (!user)
             throw new common_1.NotFoundException('User not found');
+        const ts = Date.now();
         await this.prisma.user.update({
             where: { id },
             data: {
                 deletedAt: new Date(),
                 status: 'BANNED',
-                email: `deleted_${Date.now()}_${user.email}`,
+                email: `deleted_${ts}_${user.email}`,
+                phone: user.phone ? `deleted_${ts}_${user.phone}` : null,
             },
         });
         await this.prisma.session.updateMany({
             where: { userId: id },
             data: { isValid: false },
         });
-        return { message: 'User account deleted successfully' };
+        return { message: 'User account soft-deleted successfully' };
+    }
+    async hardDeleteUser(id) {
+        const user = await this.prisma.user.findUnique({ where: { id } });
+        if (!user)
+            throw new common_1.NotFoundException('User not found');
+        await this.prisma.user.delete({ where: { id } });
+        return { message: 'User account permanently deleted' };
+    }
+    async adminChangePassword(id, newPassword) {
+        if (!newPassword || newPassword.length < 8) {
+            throw new common_1.BadRequestException('Password must be at least 8 characters');
+        }
+        const user = await this.prisma.user.findUnique({ where: { id } });
+        if (!user)
+            throw new common_1.NotFoundException('User not found');
+        const passwordHash = await bcrypt.hash(newPassword, 12);
+        await this.prisma.user.update({ where: { id }, data: { passwordHash } });
+        await this.prisma.session.updateMany({ where: { userId: id }, data: { isValid: false } });
+        return { message: 'Password changed and all sessions revoked' };
+    }
+    async impersonateUser(id) {
+        const user = await this.prisma.user.findUnique({ where: { id } });
+        if (!user)
+            throw new common_1.NotFoundException('User not found');
+        if (user.deletedAt)
+            throw new common_1.BadRequestException('Cannot impersonate a deleted user');
+        const payload = { sub: user.id, email: user.email, role: user.role, plan: user.planId };
+        const accessToken = this.jwt.sign(payload, {
+            secret: this.config.get('jwt.accessSecret'),
+            expiresIn: '15m',
+        });
+        return { accessToken, user: { id: user.id, email: user.email, fullName: user.fullName } };
     }
     async resetUserAccount(id) {
         const user = await this.prisma.user.findUnique({ where: { id } });
@@ -463,12 +504,15 @@ let AdminService = class AdminService {
         });
     }
     async getSettings() {
-        return this.prisma.systemSetting.findMany({ orderBy: { key: 'asc' } });
+        return this.prisma.appConfig.findMany({ orderBy: { key: 'asc' } });
     }
     async updateSettings(settings) {
+        if (!settings || !Array.isArray(settings)) {
+            throw new common_1.BadRequestException('Invalid settings payload: must be an array');
+        }
         const results = [];
         for (const setting of settings) {
-            const result = await this.prisma.systemSetting.upsert({
+            const result = await this.prisma.appConfig.upsert({
                 where: { key: setting.key },
                 update: { value: setting.value, description: setting.description },
                 create: { key: setting.key, value: setting.value, description: setting.description },
@@ -478,7 +522,7 @@ let AdminService = class AdminService {
         return results;
     }
     async getAppConfig() {
-        const settings = await this.prisma.systemSetting.findMany({
+        const settings = await this.prisma.appConfig.findMany({
             where: { key: { in: exports.APP_FEATURE_KEYS } },
         });
         const configMap = {};
@@ -489,13 +533,16 @@ let AdminService = class AdminService {
         return configMap;
     }
     async updateAppConfig(config) {
+        if (!config || !Array.isArray(config)) {
+            throw new common_1.BadRequestException('Invalid config payload: must be an array');
+        }
         const invalidKeys = config.filter(c => !exports.APP_FEATURE_KEYS.includes(c.key));
         if (invalidKeys.length > 0) {
             throw new common_1.BadRequestException(`Unknown config keys: ${invalidKeys.map(k => k.key).join(', ')}`);
         }
         const results = [];
         for (const item of config) {
-            const result = await this.prisma.systemSetting.upsert({
+            const result = await this.prisma.appConfig.upsert({
                 where: { key: item.key },
                 update: { value: item.value },
                 create: {
@@ -552,6 +599,8 @@ let AdminService = class AdminService {
 exports.AdminService = AdminService;
 exports.AdminService = AdminService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        jwt_1.JwtService,
+        config_1.ConfigService])
 ], AdminService);
 //# sourceMappingURL=admin.service.js.map

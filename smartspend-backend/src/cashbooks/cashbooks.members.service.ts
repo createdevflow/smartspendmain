@@ -23,7 +23,8 @@ export class CashbookMembersService {
 
   // ── Check global feature flag ──────────────────────────────────────────────
   private async assertFeatureEnabled() {
-    const setting = await this.prisma.systemSetting.findUnique({
+    // Fixed: use appConfig instead of the non-existent systemSetting
+    const setting = await this.prisma.appConfig.findUnique({
       where: { key: 'feature_shared_cashbooks_active' },
     });
     if (setting?.value === 'false') {
@@ -33,7 +34,6 @@ export class CashbookMembersService {
 
   // ── List members of a cashbook ─────────────────────────────────────────────
   async getMembers(userId: string, cashbookId: string) {
-    // Must be owner or accepted member to view
     const book = await this.prisma.cashbook.findFirst({
       where: { id: cashbookId, deletedAt: null },
     });
@@ -50,7 +50,6 @@ export class CashbookMembersService {
       orderBy: { invitedAt: 'asc' },
     });
 
-    // Also include owner
     const owner = await this.prisma.user.findUnique({
       where: { id: book.userId },
       select: { id: true, fullName: true, email: true, avatar: true },
@@ -67,24 +66,20 @@ export class CashbookMembersService {
     await this.assertFeatureEnabled();
     const book = await this.assertOwner(userId, cashbookId);
 
-    // Cannot invite yourself
     const inviter = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true } });
     if (inviter?.email.toLowerCase() === dto.email.toLowerCase()) {
       throw new BadRequestException('You cannot invite yourself');
     }
 
-    // Check existing invite
     const existing = await this.prisma.cashbookMember.findUnique({
       where: { cashbookId_email: { cashbookId, email: dto.email } },
     });
     const token = randomBytes(32).toString('hex');
     const targetUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
 
-    // Create or update member
     let member;
     if (existing) {
       if (existing.status === 'accepted') throw new ConflictException('This user is already a member');
-      // Re-send invite for pending
       member = await this.prisma.cashbookMember.update({
         where: { id: existing.id },
         data: { role: dto.role as any, inviteToken: token, invitedAt: new Date() },
@@ -96,10 +91,12 @@ export class CashbookMembersService {
           email: dto.email,
           role: dto.role as any,
           inviteToken: token,
-          userId: targetUser?.id, // link if already registered
+          userId: targetUser?.id,
         },
       });
     }
+
+    const inviteLink = `https://cashtro.in/join/${token}`;
 
     if (targetUser) {
       await this.prisma.notification.create({
@@ -109,13 +106,13 @@ export class CashbookMembersService {
           title: 'Cashbook Invite',
           body: `${inviter?.fullName || 'Someone'} invited you to join '${book.name}' as a ${dto.role.toLowerCase()}.`,
           data: { cashbookId, token },
-          actionUrl: `cashtro://invite/${token}`
-        }
+          actionUrl: inviteLink,
+        },
       });
     }
 
-    // Send email
-    await this.sendInviteEmail(dto.email, inviter?.fullName || 'Someone', book.name, token);
+    // Send email invite (non-fatal if it fails)
+    await this.sendInviteEmail(dto.email, inviter?.fullName || 'Someone', book.name, inviteLink);
 
     return { message: 'Invite sent', token };
   }
@@ -126,18 +123,18 @@ export class CashbookMembersService {
     await this.assertOwner(userId, cashbookId);
 
     const token = randomBytes(16).toString('hex');
-    
-    // Create a pending member with a placeholder email
+
     await this.prisma.cashbookMember.create({
       data: {
         cashbookId,
-        email: `link_${token}@shared.local`, // Placeholder
+        email: `link_${token}@shared.local`,
         role: 'VIEWER',
         inviteToken: token,
       },
     });
 
-    return { token, link: `cashtro://invite/${token}` };
+    // Return a proper HTTPS domain link — not a deep link
+    return { token, link: `https://cashtro.in/join/${token}` };
   }
 
   // ── Accept invite via token ────────────────────────────────────────────────
@@ -146,10 +143,9 @@ export class CashbookMembersService {
     if (!member) throw new NotFoundException('Invalid or expired invite link');
     if (member.status === 'accepted') throw new ConflictException('Invite already accepted');
 
-    // Link to the user account
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     const isGenericLink = member.email.startsWith('link_') && member.email.endsWith('@shared.local');
-    
+
     if (!isGenericLink && member.email.toLowerCase() !== user?.email?.toLowerCase()) {
       throw new ForbiddenException('This invite was sent to a different email address');
     }
@@ -179,7 +175,7 @@ export class CashbookMembersService {
     return this.prisma.cashbookMember.update({ where: { id: memberId }, data: { role: role as any } });
   }
 
-  // ── Leave a shared cashbook (member leaves themselves) ────────────────────
+  // ── Leave a shared cashbook ────────────────────────────────────────────────
   async leaveBook(userId: string, cashbookId: string) {
     const member = await this.prisma.cashbookMember.findFirst({ where: { cashbookId, userId } });
     if (!member) throw new NotFoundException('You are not a member of this cashbook');
@@ -187,14 +183,12 @@ export class CashbookMembersService {
     return { message: 'You have left the cashbook' };
   }
 
-  // ── Send invite email ──────────────────────────────────────────────────────
-  private async sendInviteEmail(toEmail: string, inviterName: string, bookName: string, token: string) {
+  // ── Send invite email (non-fatal) ──────────────────────────────────────────
+  private async sendInviteEmail(toEmail: string, inviterName: string, bookName: string, inviteLink: string) {
     try {
-      // In dev mode, just log the token
-      console.log(`[INVITE] To: ${toEmail} | Token: ${token}`);
-      // Mail service send (would use template in production)
+      await this.mail.sendCashbookInvite(toEmail, inviterName, bookName, inviteLink);
     } catch (e) {
-      console.error('Failed to send invite email', e);
+      console.error('[CashbookInvite] Failed to send invite email:', e?.message);
     }
   }
 }

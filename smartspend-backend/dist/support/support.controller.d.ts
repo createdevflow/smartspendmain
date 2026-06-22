@@ -14,26 +14,26 @@ export declare class SupportController {
     } & {
         type: string;
         message: string;
+        id: string;
+        updatedAt: Date;
         subject: string;
         priority: string;
-        id: string;
         createdAt: Date;
         userId: string;
         status: string;
-        updatedAt: Date;
         attachmentUrl: string | null;
         resolvedAt: Date | null;
     })[]>;
     createTicket(user: any, dto: any): Promise<{
         type: string;
         message: string;
+        id: string;
+        updatedAt: Date;
         subject: string;
         priority: string;
-        id: string;
         createdAt: Date;
         userId: string;
         status: string;
-        updatedAt: Date;
         attachmentUrl: string | null;
         resolvedAt: Date | null;
     }>;
