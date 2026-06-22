@@ -41,6 +41,9 @@ jobs:
             echo "=== Start All Services ==="
             docker compose up -d
 
+            echo "=== Restart Nginx ==="
+            docker compose restart nginx
+
             echo "=== Cleanup ==="
             docker image prune -f
 
