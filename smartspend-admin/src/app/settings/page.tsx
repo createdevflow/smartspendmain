@@ -2,9 +2,9 @@
 import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { api } from '@/lib/api';
-import { Save, Shield, Bell, Database, Globe, RefreshCw, CheckCircle, Zap, AlertTriangle, Lock, Users } from 'lucide-react';
+import { Save, Shield, Bell, Database, Globe, RefreshCw, CheckCircle, Zap, AlertTriangle, Lock, Mail, Send, Eye, EyeOff } from 'lucide-react';
 
-// ── All 18 feature toggles + legacy flags ─────────────────────────────────────
+// ── All feature toggles ───────────────────────────────────────────────────────
 const FEATURE_TOGGLES = [
   {
     group: 'Core Features',
@@ -59,7 +59,7 @@ const FEATURE_TOGGLES = [
 
 const DEFAULT_SETTINGS = {
   appName: 'Cashtro',
-  supportEmail: 'support@cashtro.app',
+  supportEmail: 'support@cashtro.in',
   defaultPlanSlug: 'free',
   maxLoginAttempts: 5,
   lockoutDurationMinutes: 15,
@@ -67,10 +67,15 @@ const DEFAULT_SETTINGS = {
   sessionDurationDays: 30,
   enablePublicRegistration: true,
   requireEmailVerification: true,
-  smtpHost: '',
-  smtpPort: 587,
-  smtpUser: '',
-  smtpSender: '',
+  // SMTP settings
+  smtp_host: '',
+  smtp_port: 587,
+  smtp_secure: false,
+  smtp_user: '',
+  smtp_pass: '',
+  mail_from_name: 'Cashtro',
+  mail_from_address: '',
+  // Notification toggles
   budgetAlertEnabled: true,
   weeklyDigestEnabled: false,
   // Feature toggles
@@ -104,6 +109,7 @@ const DEFAULT_SETTINGS = {
 
 type TabId = 'general' | 'features' | 'security' | 'notifications' | 'maintenance';
 
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('general');
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -113,6 +119,10 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [testEmailAddr, setTestEmailAddr] = useState('');
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [showSmtpPass, setShowSmtpPass] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -162,7 +172,7 @@ export default function SettingsPage() {
     setSaving(true);
     setError('');
     try {
-      // Separate feature toggle keys from regular settings
+      // Keys that go to app-config (feature toggles)
       const featureKeys = new Set(FEATURE_TOGGLES.flatMap(g => g.items.map(i => i.key)));
       featureKeys.add('maintenance_mode');
 
@@ -189,6 +199,20 @@ export default function SettingsPage() {
       setError(e.response?.data?.message || 'Failed to save settings.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const sendTestEmail = async () => {
+    setTestingEmail(true);
+    setTestEmailResult(null);
+    try {
+      const res = await api.post('/admin/test-email', { email: testEmailAddr || undefined });
+      setTestEmailResult({ ok: true, msg: res.data?.data?.message || 'Test email sent successfully!' });
+    } catch (e: any) {
+      const msg = e.response?.data?.error?.message || e.response?.data?.message || 'Failed to send test email. Check SMTP settings.';
+      setTestEmailResult({ ok: false, msg });
+    } finally {
+      setTestingEmail(false);
     }
   };
 
@@ -369,24 +393,120 @@ export default function SettingsPage() {
             {/* ── Notifications ─────────────────────────────────────────── */}
             {activeTab === 'notifications' && (
               <div>
-                <h3 style={{ marginBottom: '1.25rem' }}>Email & Notification Settings</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                  <div className="input-group">
-                    <label className="input-label">SMTP Host</label>
-                    <input className="input-field" value={settings.smtpHost} onChange={e => set('smtpHost', e.target.value)} placeholder="e.g. smtp.gmail.com" />
+                {/* SMTP Config */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1.25rem' }}>
+                  <Mail size={18} style={{ color: 'var(--accent)' }} />
+                  <h3 style={{ margin: 0 }}>SMTP Email Configuration</h3>
+                </div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+                  Configure your SMTP server to enable all transactional emails: OTP verification, password reset, budget alerts, and monthly reports.
+                  Settings are saved to the database and applied immediately — <strong>no server restart required</strong>.
+                </p>
+
+                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.25rem', marginBottom: '1.5rem' }}>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>SERVER SETTINGS</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="input-group">
+                      <label className="input-label">SMTP Host</label>
+                      <input className="input-field" value={settings.smtp_host} onChange={e => set('smtp_host', e.target.value)} placeholder="e.g. smtp.gmail.com or mail.yourdomain.com" />
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>Gmail: smtp.gmail.com · Brevo: smtp-relay.brevo.com · Mailgun: smtp.mailgun.org</p>
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">SMTP Port</label>
+                      <input className="input-field" type="number" value={settings.smtp_port} onChange={e => set('smtp_port', Number(e.target.value))} />
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>587 (TLS/STARTTLS) · 465 (SSL) · 25 (plain)</p>
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">SMTP Username</label>
+                      <input className="input-field" value={settings.smtp_user} onChange={e => set('smtp_user', e.target.value)} placeholder="your@gmail.com" />
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">SMTP Password / App Password</label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          className="input-field"
+                          type={showSmtpPass ? 'text' : 'password'}
+                          value={settings.smtp_pass}
+                          onChange={e => set('smtp_pass', e.target.value)}
+                          placeholder="••••••••••••"
+                          style={{ paddingRight: '2.5rem' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSmtpPass(p => !p)}
+                          style={{ position: 'absolute', right: '0.625rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex' }}
+                        >
+                          {showSmtpPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>For Gmail, use a 16-character App Password (not your main password).</p>
+                    </div>
                   </div>
-                  <div className="input-group">
-                    <label className="input-label">SMTP Port</label>
-                    <input className="input-field" type="number" value={settings.smtpPort} onChange={e => set('smtpPort', Number(e.target.value))} />
+
+                  <div style={{ marginTop: '1rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer', userSelect: 'none', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                      <input type="checkbox" checked={!!settings.smtp_secure} onChange={e => set('smtp_secure', e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--accent)' }} />
+                      <span><strong>Use SSL/TLS</strong> — Enable for port 465. Leave off for port 587 (STARTTLS).</span>
+                    </label>
                   </div>
-                  <div className="input-group">
-                    <label className="input-label">SMTP Username</label>
-                    <input className="input-field" value={settings.smtpUser} onChange={e => set('smtpUser', e.target.value)} placeholder="your@email.com" />
+                </div>
+
+                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.25rem', marginBottom: '1.5rem' }}>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>SENDER IDENTITY</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="input-group">
+                      <label className="input-label">From Name</label>
+                      <input className="input-field" value={settings.mail_from_name} onChange={e => set('mail_from_name', e.target.value)} placeholder="Cashtro" />
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>Display name users see in their inbox.</p>
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">From Email Address</label>
+                      <input className="input-field" type="email" value={settings.mail_from_address} onChange={e => set('mail_from_address', e.target.value)} placeholder="noreply@cashtro.in" />
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>The address emails are sent from. Must match the SMTP account.</p>
+                    </div>
                   </div>
-                  <div className="input-group">
-                    <label className="input-label">Sender Name</label>
-                    <input className="input-field" value={settings.smtpSender} onChange={e => set('smtpSender', e.target.value)} placeholder="SmartSpend" />
+                </div>
+
+                {/* Test Email */}
+                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.25rem', marginBottom: '1.5rem' }}>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.75rem' }}>TEST YOUR CONFIGURATION</h4>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                    After saving your SMTP settings above, send a test email to verify delivery works correctly.
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
+                    <div className="input-group" style={{ flex: 1, margin: 0 }}>
+                      <label className="input-label">Recipient Email</label>
+                      <input
+                        className="input-field"
+                        type="email"
+                        value={testEmailAddr}
+                        onChange={e => setTestEmailAddr(e.target.value)}
+                        placeholder="your@email.com (leave blank to send to your admin email)"
+                      />
+                    </div>
+                    <button
+                      className="btn btn-primary"
+                      onClick={sendTestEmail}
+                      disabled={testingEmail}
+                      style={{ gap: '0.5rem', flexShrink: 0, height: '42px' }}
+                    >
+                      <Send size={15} />
+                      {testingEmail ? 'Sending...' : 'Send Test Email'}
+                    </button>
                   </div>
+                  {testEmailResult && (
+                    <div style={{
+                      marginTop: '0.875rem', padding: '0.75rem 1rem',
+                      borderRadius: 'var(--radius-sm)', fontSize: '0.875rem',
+                      background: testEmailResult.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                      border: `1px solid ${testEmailResult.ok ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                      color: testEmailResult.ok ? '#065F46' : '#B91C1C',
+                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    }}>
+                      {testEmailResult.ok ? <CheckCircle size={15} /> : <AlertTriangle size={15} />}
+                      {testEmailResult.msg}
+                    </div>
+                  )}
                 </div>
 
                 <h4 style={{ marginBottom: '0.75rem', marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>NOTIFICATION TYPES</h4>

@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { MailService } from '../mail/mail.service';
 
 @ApiTags('admin')
 @ApiBearerAuth('JWT')
@@ -16,7 +17,10 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @Controller({ path: 'admin', version: '1' })
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly mailService: MailService,
+  ) {}
 
   // ── Dashboard ──────────────────────────────────────────────────────────────
   @Get('dashboard')
@@ -260,4 +264,19 @@ export class AdminController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) { return this.adminService.getTaxExportLogs(Number(page) || 1, Number(limit) || 20); }
+
+  // ── Test Email ────────────────────────────────────────────────────────────
+  @Post('test-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send a test email to verify SMTP configuration' })
+  async sendTestEmail(
+    @CurrentUser() user: any,
+    @Body() body: { email?: string },
+  ) {
+    const target = body.email || user.email;
+    // Invalidate transporter cache so new SMTP settings take effect immediately
+    this.mailService.invalidateCache();
+    await this.mailService.sendTestEmail(target);
+    return { message: `Test email sent to ${target}` };
+  }
 }
