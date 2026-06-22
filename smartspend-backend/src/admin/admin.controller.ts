@@ -227,7 +227,7 @@ export class AdminController {
 
   @Patch('settings')
   @ApiOperation({ summary: 'Batch update system settings' })
-  updateSettings(@Body() body: { settings: { key: string; value: string; description?: string }[] }) {
+  updateSettings(@Body() body: any) {
     return this.adminService.updateSettings(body.settings);
   }
 
@@ -238,7 +238,7 @@ export class AdminController {
 
   @Patch('app-config')
   @ApiOperation({ summary: 'Update app config feature toggles' })
-  updateAppConfig(@Body() body: { config: { key: string; value: string }[] }) {
+  updateAppConfig(@Body() body: any) {
     return this.adminService.updateAppConfig(body.config);
   }
 
@@ -271,7 +271,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Send a test email to verify SMTP configuration' })
   async sendTestEmail(
     @CurrentUser() user: any,
-    @Body() body: { email?: string },
+    @Body() body: any,
   ) {
     const target = body.email || user.email;
     // Invalidate transporter cache so new SMTP settings take effect immediately
