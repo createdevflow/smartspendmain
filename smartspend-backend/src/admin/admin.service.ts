@@ -541,6 +541,9 @@ export class AdminService {
   }
 
   async updateSettings(settings: { key: string; value: string; description?: string }[]) {
+    if (!settings || !Array.isArray(settings)) {
+      throw new BadRequestException('Invalid settings payload: must be an array');
+    }
     const results: any[] = [];
     for (const setting of settings) {
       const result = await this.prisma.appConfig.upsert({
@@ -570,6 +573,9 @@ export class AdminService {
   }
 
   async updateAppConfig(config: { key: string; value: string }[]) {
+    if (!config || !Array.isArray(config)) {
+      throw new BadRequestException('Invalid config payload: must be an array');
+    }
     const invalidKeys = config.filter(c => !APP_FEATURE_KEYS.includes(c.key));
     if (invalidKeys.length > 0) {
       throw new BadRequestException(`Unknown config keys: ${invalidKeys.map(k => k.key).join(', ')}`);
