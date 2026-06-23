@@ -60,12 +60,7 @@ export function Sidebar() {
     <>
       <div className="mobile-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-          <div style={{
-            width: '24px', height: '24px', borderRadius: '6px',
-            background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'white', fontSize: '12px'
-          }}>S</div>
+          <img src="/cashtro-icon.png" alt="Cashtro" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
           Cashtro Admin
         </div>
         <button className="btn btn-ghost" onClick={() => setMobileMenuOpen(true)}>
@@ -81,14 +76,9 @@ export function Sidebar() {
         {/* Logo */}
       <div style={{ marginBottom: '1.5rem', paddingBottom: '1.25rem', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{
-            width: '36px', height: '36px', borderRadius: '10px',
-            background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0, boxShadow: '0 2px 8px rgba(37,99,235,0.3)',
-          }}>
-            <span style={{ color: 'white', fontSize: '1rem', fontWeight: 'bold' }}>S</span>
-          </div>
+          <img src="/cashtro-icon.png" alt="Cashtro" style={{
+            width: '40px', height: '40px', objectFit: 'contain', flexShrink: 0,
+          }} />
           <div>
             <p style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem', lineHeight: 1 }}>Cashtro</p>
             <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>Admin Console</p>

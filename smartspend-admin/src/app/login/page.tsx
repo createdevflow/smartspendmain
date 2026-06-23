@@ -64,16 +64,12 @@ export default function LoginPage() {
         margin: '1rem'
       }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ 
-            width: '48px', height: '48px', background: '#2563EB', borderRadius: '12px', 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem',
-            boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
-          }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-          </div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827', margin: 0 }}>Cashtro Admin</h1>
+          <img 
+            src="/cashtro-logo.png" 
+            alt="Cashtro" 
+            style={{ width: '180px', height: 'auto', objectFit: 'contain', margin: '0 auto 1.25rem', display: 'block' }} 
+          />
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1E3A8A', margin: 0 }}>Admin Console</h1>
           <p style={{ color: '#6B7280', fontSize: '0.875rem', marginTop: '0.5rem' }}>Enter your credentials to access the command center</p>
         </div>
         

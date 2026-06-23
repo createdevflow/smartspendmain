@@ -1,5 +1,5 @@
 /* ============================================================
-   SmartSpend Landing — Global Design System
+   Cashtro Landing — Global Design System
    ============================================================ */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
@@ -7,18 +7,19 @@
 :root {
   --bg-primary:    #F7F9FC;
   --bg-card:       #FFFFFF;
-  --bg-muted:      #EFF2F7;
-  --accent-indigo: #4F46E5;
-  --accent-violet: #7C3AED;
+  --bg-muted:      #EFF4FB;
+  --accent-indigo: #2563EB;
+  --accent-navy:   #1E3A8A;
+  --accent-violet: #3B82F6;
   --text-primary:  #0F172A;
   --text-secondary:#475569;
   --positive:      #059669;
   --negative:      #DC2626;
-  --border:        #E2E8F0;
+  --border:        #DBEAFE;
 
-  --gradient: linear-gradient(135deg, #4F46E5, #7C3AED);
-  --shadow-card: 0 4px 24px rgba(15,23,42,0.08);
-  --shadow-elevated: 0 8px 40px rgba(15,23,42,0.12);
+  --gradient: linear-gradient(135deg, #1E3A8A, #2563EB);
+  --shadow-card: 0 4px 24px rgba(30,58,138,0.10);
+  --shadow-elevated: 0 8px 40px rgba(30,58,138,0.14);
   --radius-card: 16px;
   --radius-sm: 8px;
   --transition: 0.2s ease;
@@ -103,6 +104,39 @@ h1, h2, h3, h4 {
   border-radius: var(--radius-sm);
 }
 
+
+/* ---- Scroll reveal ---- */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---- Section headers ---- */
+.section-header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+.section-header h2 {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+.section-header p {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  max-width: 520px;
+  margin: 0 auto;
+}
+
 /* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -110,4 +144,5 @@ h1, h2, h3, h4 {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .reveal { opacity: 1; transform: none; }
 }

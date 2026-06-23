@@ -4,6 +4,35 @@ import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
 import { PrismaService } from '../prisma/prisma.service';
 
+// ── Shared brand helpers ─────────────────────────────────────────────────────
+
+const BRAND_NAVY = '#1E3A8A';
+const BRAND_BLUE = '#2563EB';
+const YEAR = new Date().getFullYear();
+
+/** Shared email wrapper base CSS */
+const BASE_CSS = `
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #EFF4FB; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  .wrapper { max-width: 480px; margin: 40px auto; background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 8px 40px rgba(30,58,138,.12); }
+  .header { background: linear-gradient(135deg, ${BRAND_NAVY} 0%, ${BRAND_BLUE} 100%); padding: 28px; text-align: center; }
+  .brand { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+  .brand-in { font-size: 15px; color: #93C5FD; font-weight: 600; }
+  .header-sub { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 4px; letter-spacing: 1.2px; text-transform: uppercase; }
+  .body { padding: 28px; }
+  .footer { background: #F8FAFC; padding: 18px 28px; text-align: center; font-size: 11px; color: #94A3B8; border-top: 1px solid #E2E8F0; line-height: 1.8; }
+  .footer a { color: ${BRAND_BLUE}; text-decoration: none; }
+`;
+
+function emailShell(headerContent: string, bodyContent: string, footerContent = '') {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${BASE_CSS}</style></head><body><div class="wrapper">
+<div class="header">${headerContent}</div>
+<div class="body">${bodyContent}</div>
+<div class="footer">${footerContent || `© ${YEAR} Cashtro · <a href="https://cashtro.in">cashtro.in</a><br>Manage · Track · Grow`}</div>
+</div></body></html>`;
+}
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -94,7 +123,7 @@ export class MailService {
       this.logger.log(`OTP email sent to ${email} (purpose: ${purpose})`);
     } catch (e) {
       this.logger.error(`Failed to send OTP email to ${email}:`, e);
-      throw e; // re-throw so caller can surface the error
+      throw e;
     }
   }
 
@@ -107,25 +136,18 @@ export class MailService {
       from,
       to: toEmail,
       subject: '✅ Cashtro SMTP Test — Configuration Working',
-      html: `<!DOCTYPE html><html><head><meta charset="utf-8">
-<style>
-  body{background:#F8FAFC;font-family:-apple-system,sans-serif;}
-  .w{max-width:500px;margin:40px auto;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.1);}
-  .h{background:linear-gradient(135deg,#1E3A8A,#2563EB);padding:32px;text-align:center;color:#fff;}
-  .b{padding:32px;}
-  .badge{display:inline-block;background:#DCFCE7;color:#166534;border:1px solid #86EFAC;padding:8px 20px;border-radius:999px;font-weight:700;font-size:15px;margin:20px 0;}
-</style></head><body>
-<div class="w">
-  <div class="h"><div style="font-size:40px">✅</div><h1 style="font-size:22px;margin:8px 0">Email Delivery Confirmed</h1></div>
-  <div class="b">
-    <p style="color:#0F172A;font-size:16px;font-weight:600">Your SMTP configuration is working!</p>
-    <div class="badge">✓ Test email delivered successfully</div>
-    <p style="color:#64748B;margin-top:12px">All transactional emails (OTP verification, password reset, budget alerts) will now be delivered to your users.</p>
-  </div>
-  <div style="padding:20px 32px;background:#F8FAFC;text-align:center;font-size:12px;color:#94A3B8;border-top:1px solid #E2E8F0">
-    © ${new Date().getFullYear()} Cashtro Admin
-  </div>
-</div></body></html>`,
+      html: emailShell(
+        `<div class="brand">Cashtro<span class="brand-in">.in</span></div>
+         <div class="header-sub">SMTP Configuration Test</div>`,
+        `<p style="font-size:16px;font-weight:700;color:#0F172A;margin-bottom:12px">✅ Email Delivery Confirmed!</p>
+         <div style="display:inline-block;background:#DCFCE7;color:#166534;border:1px solid #86EFAC;padding:8px 20px;border-radius:999px;font-weight:700;font-size:14px;margin:12px 0">
+           ✓ Test email delivered successfully
+         </div>
+         <p style="color:#64748B;margin-top:16px;font-size:14px;line-height:1.6">
+           Your SMTP configuration is working correctly. All transactional emails (OTP verification, password reset, budget alerts) will be delivered to your users.
+         </p>`,
+        `© ${YEAR} Cashtro Admin · <a href="https://cashtro.in">cashtro.in</a>`
+      ),
     });
   }
 
@@ -158,109 +180,77 @@ export class MailService {
   // ── Templates ─────────────────────────────────────────────────────────────
 
   private otpTemplate(name: string, otp: string, isVerify: boolean): string {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${isVerify ? 'Verify Email' : 'Reset Password'} - Cashtro</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .wrapper { max-width: 500px; margin: 40px auto; background: #fff; border-radius: 24px; overflow: hidden; box-shadow: 0 8px 40px rgba(0,0,0,.10); }
-    .header { background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 50%, #3B82F6 100%); padding: 40px 32px; text-align: center; }
-    .logo-icon { font-size: 40px; display: block; margin-bottom: 10px; }
-    .logo-text { font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
-    .body { padding: 36px 32px; }
-    .greeting { font-size: 18px; font-weight: 600; color: #0F172A; margin-bottom: 12px; }
-    .description { font-size: 15px; color: #64748B; line-height: 1.6; margin-bottom: 28px; }
-    .otp-box { background: linear-gradient(135deg, #EFF6FF, #DBEAFE); border: 2px dashed #93C5FD; border-radius: 20px; padding: 28px; text-align: center; margin-bottom: 24px; }
-    .otp-label { font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
-    .otp-code { font-size: 44px; font-weight: 800; color: #1D4ED8; letter-spacing: 12px; font-variant-numeric: tabular-nums; }
-    .expiry { font-size: 13px; color: #94A3B8; text-align: center; margin-bottom: 24px; }
-    .warning { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 12px; padding: 14px 18px; font-size: 13px; color: #92400E; }
-    .footer { background: #F8FAFC; padding: 24px 32px; text-align: center; font-size: 12px; color: #94A3B8; border-top: 1px solid #E2E8F0; }
-    .footer a { color: #2563EB; text-decoration: none; }
-  </style>
-</head>
-<body>
-<div class="wrapper">
-  <div class="header">
-    <span class="logo-icon">💰</span>
-    <div class="logo-text">Cashtro</div>
-  </div>
-  <div class="body">
-    <p class="greeting">Hi ${name} 👋</p>
-    <p class="description">${isVerify
-      ? "Welcome to Cashtro! You're one step away from taking control of your finances. Use the code below to verify your email address."
-      : "We received a request to reset your password. Use the code below to create a new password. If you didn't request this, please ignore this email."
-    }</p>
-    <div class="otp-box">
-      <div class="otp-label">Your verification code</div>
-      <div class="otp-code">${otp}</div>
-    </div>
-    <p class="expiry">⏱️ This code expires in <strong>10 minutes</strong></p>
-    <div class="warning">
-      🔒 <strong>Security tip:</strong> Never share this code with anyone. Cashtro will never ask for this code via phone or chat.
-    </div>
-  </div>
-  <div class="footer">
-    © ${new Date().getFullYear()} Cashtro · Your trusted finance companion<br>
-    If you didn't request this, you can safely ignore this email.
-  </div>
-</div>
-</body>
-</html>`;
+    return emailShell(
+      `<div class="brand">Cashtro<span class="brand-in">.in</span></div>
+       <div class="header-sub">${isVerify ? 'Email Verification' : 'Password Reset'}</div>`,
+      `<p style="font-size:17px;font-weight:700;color:#0F172A;margin-bottom:10px">Hi ${name} 👋</p>
+       <p style="font-size:14px;color:#64748B;line-height:1.65;margin-bottom:24px">
+         ${isVerify
+           ? "Welcome to Cashtro! You're one step away from taking control of your finances. Use the code below to verify your email address."
+           : "We received a request to reset your Cashtro password. Use the code below to create a new password. If you didn't request this, please ignore this email."
+         }
+       </p>
+       <div style="background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:1.5px dashed #93C5FD;border-radius:16px;padding:24px;text-align:center;margin-bottom:20px">
+         <div style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">Your verification code</div>
+         <div style="font-size:38px;font-weight:800;color:${BRAND_NAVY};letter-spacing:10px;font-variant-numeric:tabular-nums">${otp}</div>
+       </div>
+       <p style="font-size:12px;color:#94A3B8;text-align:center;margin-bottom:20px">⏱️ This code expires in <strong>10 minutes</strong></p>
+       <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:12px 16px;font-size:13px;color:#92400E">
+         🔒 <strong>Security tip:</strong> Never share this code with anyone. Cashtro will never ask for your OTP via phone or chat.
+       </div>`,
+      `© ${YEAR} Cashtro · <a href="https://cashtro.in">cashtro.in</a><br>
+       Manage · Track · Grow<br>
+       If you didn't request this, you can safely ignore this email.`
+    );
   }
 
   private budgetAlertTemplate(name: string, budgetName: string, pct: number, spent: string, limit: string): string {
-    const color = pct >= 100 ? '#EF4444' : pct >= 80 ? '#F59E0B' : '#3B82F6';
-    return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<style>
-  body { background:#F8FAFC; font-family: -apple-system,sans-serif; }
-  .wrapper { max-width:500px; margin:40px auto; background:#fff; border-radius:24px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,.1); }
-  .header { background:linear-gradient(135deg,#1E3A8A,#2563EB); padding:32px; text-align:center; color:#fff; }
-  .body { padding:32px; }
-  .progress-bar { background:#E2E8F0; border-radius:999px; height:12px; margin:16px 0; }
-  .progress-fill { background:${color}; border-radius:999px; height:12px; width:${Math.min(pct, 100)}%; }
-  .footer { padding:20px 32px; text-align:center; font-size:12px; color:#94A3B8; border-top:1px solid #E2E8F0; }
-</style></head>
-<body><div class="wrapper">
-  <div class="header"><h1 style="font-size:22px;font-weight:800;margin:0">⚠️ Budget Alert</h1></div>
-  <div class="body">
-    <p style="font-size:16px;font-weight:600;color:#0F172A">Hi ${name},</p>
-    <p style="color:#64748B;margin-top:8px">Your budget <strong>${budgetName}</strong> has reached <strong style="color:${color}">${pct}%</strong></p>
-    <div class="progress-bar"><div class="progress-fill"></div></div>
-    <p style="color:#64748B">Spent: <strong>${spent}</strong> of <strong>${limit}</strong></p>
-    <p style="margin-top:16px;color:#64748B">Open Cashtro to review your spending and adjust if needed.</p>
-  </div>
-  <div class="footer">© ${new Date().getFullYear()} Cashtro</div>
-</div></body></html>`;
+    const color = pct >= 100 ? '#EF4444' : pct >= 80 ? '#F59E0B' : BRAND_BLUE;
+    const emoji = pct >= 100 ? '🚨' : pct >= 80 ? '⚠️' : '📊';
+    return emailShell(
+      `<div style="font-size:32px;margin-bottom:8px">${emoji}</div>
+       <div class="brand">Budget Alert</div>
+       <div class="header-sub">Cashtro · cashtro.in</div>`,
+      `<p style="font-size:16px;font-weight:700;color:#0F172A;margin-bottom:8px">Hi ${name},</p>
+       <p style="color:#64748B;font-size:14px;margin-bottom:16px">
+         Your budget <strong style="color:#0F172A">${budgetName}</strong> has reached
+         <strong style="color:${color}">${pct}%</strong> of its limit.
+       </p>
+       <div style="background:#F8FAFC;border-radius:12px;padding:16px;margin-bottom:16px">
+         <div style="background:#E2E8F0;border-radius:999px;height:10px;margin-bottom:10px;overflow:hidden">
+           <div style="background:${color};border-radius:999px;height:10px;width:${Math.min(pct, 100)}%"></div>
+         </div>
+         <div style="display:flex;justify-content:space-between;font-size:13px">
+           <span style="color:#64748B">Spent: <strong style="color:#0F172A">${spent}</strong></span>
+           <span style="color:#64748B">Limit: <strong style="color:#0F172A">${limit}</strong></span>
+         </div>
+       </div>
+       <p style="color:#64748B;font-size:14px">Open Cashtro to review your spending and adjust if needed.</p>`
+    );
   }
 
   private monthlyReportTemplate(name: string, month: string, income: string, expense: string, savings: string): string {
-    return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<style>
-  body { background:#F8FAFC; font-family:-apple-system,sans-serif; }
-  .wrapper { max-width:500px; margin:40px auto; background:#fff; border-radius:24px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,.1); }
-  .header { background:linear-gradient(135deg,#1E3A8A,#2563EB); padding:32px; text-align:center; color:#fff; }
-  .body { padding:32px; }
-  .stat { display:flex; justify-content:space-between; padding:14px 0; border-bottom:1px solid #F1F5F9; }
-  .footer { padding:20px 32px; text-align:center; font-size:12px; color:#94A3B8; border-top:1px solid #E2E8F0; }
-</style></head>
-<body><div class="wrapper">
-  <div class="header"><h1 style="font-size:22px;font-weight:800;margin:0">📊 Monthly Report</h1><p style="margin:8px 0 0;opacity:.8">${month}</p></div>
-  <div class="body">
-    <p style="font-size:16px;font-weight:600;color:#0F172A">Hi ${name}, here's your summary for ${month}:</p>
-    <div style="margin-top:20px">
-      <div class="stat"><span style="color:#64748B">💰 Total Income</span><strong style="color:#10B981">${income}</strong></div>
-      <div class="stat"><span style="color:#64748B">💸 Total Expense</span><strong style="color:#EF4444">${expense}</strong></div>
-      <div class="stat"><span style="color:#64748B">🏦 Net Savings</span><strong style="color:#2563EB">${savings}</strong></div>
-    </div>
-    <p style="margin-top:20px;color:#64748B">Open Cashtro to see the full breakdown with categories and trends.</p>
-  </div>
-  <div class="footer">© ${new Date().getFullYear()} Cashtro</div>
-</div></body></html>`;
+    return emailShell(
+      `<div style="font-size:28px;margin-bottom:8px">📊</div>
+       <div class="brand">Monthly Report</div>
+       <div class="header-sub">${month}</div>`,
+      `<p style="font-size:16px;font-weight:700;color:#0F172A;margin-bottom:20px">Hi ${name}, here's your summary for ${month}:</p>
+       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+         <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:14px;text-align:center">
+           <div style="font-size:10px;font-weight:700;color:#16A34A;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Income</div>
+           <div style="font-size:16px;font-weight:800;color:#16A34A">${income}</div>
+         </div>
+         <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:14px;text-align:center">
+           <div style="font-size:10px;font-weight:700;color:#DC2626;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Expenses</div>
+           <div style="font-size:16px;font-weight:800;color:#DC2626">${expense}</div>
+         </div>
+         <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:14px;text-align:center">
+           <div style="font-size:10px;font-weight:700;color:${BRAND_NAVY};text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Saved</div>
+           <div style="font-size:16px;font-weight:800;color:${BRAND_NAVY}">${savings}</div>
+         </div>
+       </div>
+       <p style="color:#64748B;font-size:14px">Open Cashtro to see the full breakdown with categories and trends.</p>`
+    );
   }
 
   // ── Cashbook Invite Email ──────────────────────────────────────────────────
@@ -272,29 +262,25 @@ export class MailService {
       from,
       to: toEmail,
       subject: `${inviterName} invited you to join a Cashtro cashbook`,
-      html: `<!DOCTYPE html><html><head><meta charset="utf-8">
-<style>
-  body { background:#F8FAFC; font-family:-apple-system,sans-serif; margin:0; padding:0; }
-  .wrapper { max-width:520px; margin:40px auto; background:#fff; border-radius:24px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,.1); border: 1px solid #E2E8F0; }
-  .header { background:linear-gradient(135deg,#1E3A8A,#2563EB); padding:36px 32px; text-align:center; color:#fff; }
-  .body { padding:32px; background:#fff; }
-  .btn { display:inline-block; background:#2563EB; color:#ffffff !important; text-decoration:none; padding:16px 32px; border-radius:12px; font-weight:700; font-size:16px; margin-top:24px; box-shadow: 0 4px 14px rgba(37,99,235,0.4); }
-  .footer { padding:20px 32px; text-align:center; font-size:12px; color:#64748B; border-top:1px solid #E2E8F0; background:#F8FAFC; }
-</style></head>
-<body><div class="wrapper">
-  <div class="header">
-    <h1 style="font-size:26px;font-weight:800;margin:0;color:#fff;">📒 You're Invited!</h1>
-    <p style="margin:10px 0 0;opacity:.9;font-size:16px;color:#fff;">Join a shared cashbook on Cashtro</p>
-  </div>
-  <div class="body">
-    <p style="font-size:16px;color:#1E293B;margin:0 0 12px;line-height:1.5;"><strong>${inviterName}</strong> has invited you to collaborate on their cashbook <strong>"${bookName}"</strong>.</p>
-    <p style="color:#475569;font-size:15px;line-height:1.6;margin-bottom:8px;">Tap the button below to accept the invite and start tracking shared expenses together. The link will automatically open in the Cashtro app.</p>
-    <div style="text-align:center; margin-bottom: 12px;">
-      <a href="${inviteLink}" class="btn">Accept Invite</a>
-    </div>
-  </div>
-  <div class="footer">© ${new Date().getFullYear()} Cashtro · You received this because someone invited you</div>
-</div></body></html>`,
+      html: emailShell(
+        `<div style="font-size:32px;margin-bottom:8px">📒</div>
+         <div class="brand">You're Invited!</div>
+         <div class="header-sub">Join a shared cashbook on Cashtro</div>`,
+        `<p style="font-size:15px;color:#1E293B;margin-bottom:12px;line-height:1.6">
+           <strong>${inviterName}</strong> has invited you to collaborate on their cashbook <strong>"${bookName}"</strong>.
+         </p>
+         <p style="color:#475569;font-size:14px;line-height:1.65;margin-bottom:24px">
+           Tap the button below to accept the invite and start tracking shared expenses together.
+           The link will automatically open in the Cashtro app.
+         </p>
+         <div style="text-align:center;margin-bottom:8px">
+           <a href="${inviteLink}" style="display:inline-block;background:${BRAND_BLUE};color:#fff;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:700;font-size:15px;box-shadow:0 4px 14px rgba(37,99,235,0.35)">
+             Accept Invite →
+           </a>
+         </div>`,
+        `© ${YEAR} Cashtro · You received this because someone invited you<br>
+         <a href="https://cashtro.in">cashtro.in</a>`
+      ),
     });
   }
 }

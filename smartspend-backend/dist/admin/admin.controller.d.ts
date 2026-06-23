@@ -28,33 +28,33 @@ export declare class AdminController {
                 email: string;
             } | null;
         } & {
-            id: string;
             action: import(".prisma/client").$Enums.AuditAction;
+            id: string;
+            userId: string | null;
             entity: string | null;
             entityId: string | null;
             ipAddress: string | null;
             userAgent: string | null;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
             createdAt: Date;
-            userId: string | null;
         })[];
     }>;
     getUsers(search?: string, status?: string, role?: string, page?: number, limit?: number): Promise<{
         data: {
-            plan: {
-                name: string;
-                slug: string;
-                color: string;
-            } | null;
+            isEmailVerified: boolean;
+            status: import(".prisma/client").$Enums.UserStatus;
             id: string;
             createdAt: Date;
             fullName: string;
             email: string;
             phone: string | null;
             role: import(".prisma/client").$Enums.UserRole;
-            status: import(".prisma/client").$Enums.UserStatus;
-            isEmailVerified: boolean;
             lastLoginAt: Date | null;
+            plan: {
+                name: string;
+                slug: string;
+                color: string;
+            } | null;
             _count: {
                 cashbooks: number;
                 transactions: number;
@@ -69,29 +69,29 @@ export declare class AdminController {
         };
     }>;
     getUserDetail(id: string): Promise<{
-        plan: {
-            name: string;
-            id: string;
-            slug: string;
-        } | null;
+        isEmailVerified: boolean;
+        status: import(".prisma/client").$Enums.UserStatus;
         id: string;
-        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
         phone: string | null;
-        defaultCurrency: string;
         role: import(".prisma/client").$Enums.UserRole;
-        status: import(".prisma/client").$Enums.UserStatus;
-        isEmailVerified: boolean;
+        defaultCurrency: string;
         timezone: string;
         language: string;
+        updatedAt: Date;
         lastLoginAt: Date | null;
+        plan: {
+            id: string;
+            name: string;
+            slug: string;
+        } | null;
         cashbooks: {
             id: string;
             createdAt: Date;
-            isArchived: boolean;
             currency: string;
+            isArchived: boolean;
         }[];
         devices: {
             id: string;
@@ -119,71 +119,71 @@ export declare class AdminController {
     updateUserStatus(id: string, body: {
         status: any;
     }): Promise<{
+        deletedAt: Date | null;
+        isEmailVerified: boolean;
+        status: import(".prisma/client").$Enums.UserStatus;
         id: string;
-        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
         phone: string | null;
-        defaultCurrency: string;
         avatar: string | null;
         role: import(".prisma/client").$Enums.UserRole;
-        status: import(".prisma/client").$Enums.UserStatus;
         planId: string | null;
-        isEmailVerified: boolean;
         expoPushToken: string | null;
+        defaultCurrency: string;
         timezone: string;
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
+        updatedAt: Date;
         lastLoginAt: Date | null;
-        deletedAt: Date | null;
     }>;
     updateUserRole(id: string, body: {
         role: any;
     }): Promise<{
+        deletedAt: Date | null;
+        isEmailVerified: boolean;
+        status: import(".prisma/client").$Enums.UserStatus;
         id: string;
-        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
         phone: string | null;
-        defaultCurrency: string;
         avatar: string | null;
         role: import(".prisma/client").$Enums.UserRole;
-        status: import(".prisma/client").$Enums.UserStatus;
         planId: string | null;
-        isEmailVerified: boolean;
         expoPushToken: string | null;
+        defaultCurrency: string;
         timezone: string;
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
+        updatedAt: Date;
         lastLoginAt: Date | null;
-        deletedAt: Date | null;
     }>;
     assignPlanToUser(id: string, body: {
         planId: string;
     }): Promise<{
+        deletedAt: Date | null;
+        isEmailVerified: boolean;
+        status: import(".prisma/client").$Enums.UserStatus;
         id: string;
-        updatedAt: Date;
         createdAt: Date;
         fullName: string;
         email: string;
         phone: string | null;
-        defaultCurrency: string;
         avatar: string | null;
         role: import(".prisma/client").$Enums.UserRole;
-        status: import(".prisma/client").$Enums.UserStatus;
         planId: string | null;
-        isEmailVerified: boolean;
         expoPushToken: string | null;
+        defaultCurrency: string;
         timezone: string;
         language: string;
         pushNotifications: boolean;
         emailReports: boolean;
+        updatedAt: Date;
         lastLoginAt: Date | null;
-        deletedAt: Date | null;
     }>;
     deleteUser(id: string): Promise<{
         message: string;
@@ -223,40 +223,40 @@ export declare class AdminController {
                 currency: string;
             };
             category: {
-                name: string;
                 id: string;
+                name: string;
                 color: string;
                 emoji: string;
             } | null;
-            date: Date;
-            exchangeRate: import("@prisma/client/runtime/library").Decimal | null;
-            type: import(".prisma/client").$Enums.TransactionType;
-            id: string;
-            updatedAt: Date;
-            createdAt: Date;
-            userId: string;
             deletedAt: Date | null;
-            tags: string[];
+            id: string;
+            userId: string;
+            createdAt: Date;
+            updatedAt: Date;
             currency: string;
             cashbookId: string;
-            amountInBookCurrency: import("@prisma/client/runtime/library").Decimal | null;
+            categoryId: string | null;
             amount: import("@prisma/client/runtime/library").Decimal;
+            exchangeRate: import("@prisma/client/runtime/library").Decimal | null;
+            amountInBookCurrency: import("@prisma/client/runtime/library").Decimal | null;
+            type: import(".prisma/client").$Enums.TransactionType;
+            paymentMethod: string | null;
+            date: Date;
+            valueDate: Date | null;
+            labels: import(".prisma/client").$Enums.TransactionLabel[];
+            tags: string[];
+            isGstApplied: boolean;
             gstRate: import("@prisma/client/runtime/library").Decimal | null;
             cgst: import("@prisma/client/runtime/library").Decimal | null;
             sgst: import("@prisma/client/runtime/library").Decimal | null;
             igst: import("@prisma/client/runtime/library").Decimal | null;
-            categoryId: string | null;
-            paymentMethod: string | null;
-            valueDate: Date | null;
-            labels: import(".prisma/client").$Enums.TransactionLabel[];
-            isGstApplied: boolean;
             receiptKey: string | null;
             receiptUrl: string | null;
             warrantyUntil: Date | null;
             isRecurring: boolean;
+            recurringId: string | null;
             localId: string | null;
             syncedAt: Date | null;
-            recurringId: string | null;
         }[];
         meta: {
             total: number;
@@ -273,15 +273,15 @@ export declare class AdminController {
                 email: string;
             } | null;
         } & {
-            id: string;
             action: import(".prisma/client").$Enums.AuditAction;
+            id: string;
+            userId: string | null;
             entity: string | null;
             entityId: string | null;
             ipAddress: string | null;
             userAgent: string | null;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
             createdAt: Date;
-            userId: string | null;
         })[];
         meta: {
             total: number;
@@ -296,80 +296,80 @@ export declare class AdminController {
         };
         features: ({
             feature: {
-                category: string | null;
-                type: string;
-                name: string;
                 id: string;
-                key: string;
-                description: string | null;
-                updatedAt: Date;
                 createdAt: Date;
+                updatedAt: Date;
+                name: string;
+                description: string | null;
                 sortOrder: number;
+                type: string;
+                category: string | null;
+                key: string;
                 defaultValue: string;
                 unit: string | null;
                 isVisible: boolean;
             };
         } & {
             id: string;
-            value: string;
             planId: string;
             featureId: string;
+            value: string;
         })[];
     } & {
-        name: string;
+        isActive: boolean;
         id: string;
-        description: string | null;
-        updatedAt: Date;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
         slug: string;
+        description: string | null;
         tagline: string | null;
         color: string;
-        isActive: boolean;
         isDefault: boolean;
         priceMonthly: number;
         priceYearly: number;
         sortOrder: number;
     })[]>;
     createPlan(dto: any): Promise<{
-        name: string;
+        isActive: boolean;
         id: string;
-        description: string | null;
-        updatedAt: Date;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
         slug: string;
+        description: string | null;
         tagline: string | null;
         color: string;
-        isActive: boolean;
         isDefault: boolean;
         priceMonthly: number;
         priceYearly: number;
         sortOrder: number;
     }>;
     updatePlan(id: string, dto: any): Promise<{
-        name: string;
+        isActive: boolean;
         id: string;
-        description: string | null;
-        updatedAt: Date;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
         slug: string;
+        description: string | null;
         tagline: string | null;
         color: string;
-        isActive: boolean;
         isDefault: boolean;
         priceMonthly: number;
         priceYearly: number;
         sortOrder: number;
     }>;
     deletePlan(id: string, fallbackPlanId?: string): Promise<{
-        name: string;
+        isActive: boolean;
         id: string;
-        description: string | null;
-        updatedAt: Date;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
         slug: string;
+        description: string | null;
         tagline: string | null;
         color: string;
-        isActive: boolean;
         isDefault: boolean;
         priceMonthly: number;
         priceYearly: number;
@@ -381,20 +381,20 @@ export declare class AdminController {
         };
         features: {
             id: string;
-            value: string;
             planId: string;
             featureId: string;
+            value: string;
         }[];
     } & {
-        name: string;
+        isActive: boolean;
         id: string;
-        description: string | null;
-        updatedAt: Date;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
         slug: string;
+        description: string | null;
         tagline: string | null;
         color: string;
-        isActive: boolean;
         isDefault: boolean;
         priceMonthly: number;
         priceYearly: number;
@@ -405,15 +405,15 @@ export declare class AdminController {
     }): Promise<{
         count: number;
         plan: {
-            name: string;
+            isActive: boolean;
             id: string;
-            description: string | null;
-            updatedAt: Date;
             createdAt: Date;
+            updatedAt: Date;
+            name: string;
             slug: string;
+            description: string | null;
             tagline: string | null;
             color: string;
-            isActive: boolean;
             isDefault: boolean;
             priceMonthly: number;
             priceYearly: number;
@@ -423,26 +423,26 @@ export declare class AdminController {
     getFeatures(): Promise<({
         planFeatures: ({
             plan: {
-                name: string;
                 id: string;
+                name: string;
                 slug: string;
             };
         } & {
             id: string;
-            value: string;
             planId: string;
             featureId: string;
+            value: string;
         })[];
     } & {
-        category: string | null;
-        type: string;
-        name: string;
         id: string;
-        key: string;
-        description: string | null;
-        updatedAt: Date;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        description: string | null;
         sortOrder: number;
+        type: string;
+        category: string | null;
+        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
@@ -456,43 +456,43 @@ export declare class AdminController {
         success: boolean;
     }>;
     createFeature(dto: any): Promise<{
-        category: string | null;
-        type: string;
-        name: string;
         id: string;
-        key: string;
-        description: string | null;
-        updatedAt: Date;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        description: string | null;
         sortOrder: number;
+        type: string;
+        category: string | null;
+        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
     }>;
     updateFeature(id: string, dto: any): Promise<{
-        category: string | null;
-        type: string;
-        name: string;
         id: string;
-        key: string;
-        description: string | null;
-        updatedAt: Date;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        description: string | null;
         sortOrder: number;
+        type: string;
+        category: string | null;
+        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
     }>;
     deleteFeature(id: string): Promise<{
-        category: string | null;
-        type: string;
-        name: string;
         id: string;
-        key: string;
-        description: string | null;
-        updatedAt: Date;
         createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        description: string | null;
         sortOrder: number;
+        type: string;
+        category: string | null;
+        key: string;
         defaultValue: string;
         unit: string | null;
         isVisible: boolean;
@@ -501,9 +501,9 @@ export declare class AdminController {
         value: string;
     }): Promise<{
         id: string;
-        value: string;
         planId: string;
         featureId: string;
+        value: string;
     }>;
     removePlanFeature(planId: string, featureId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
     getTickets(status?: string, page?: number, limit?: number): Promise<{
@@ -514,20 +514,20 @@ export declare class AdminController {
                 email: string;
             };
             replies: {
-                message: string;
                 createdAt: Date;
+                message: string;
                 isAdmin: boolean;
             }[];
         } & {
-            type: string;
-            message: string;
-            id: string;
-            updatedAt: Date;
-            subject: string;
-            priority: string;
-            createdAt: Date;
-            userId: string;
             status: string;
+            id: string;
+            userId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            type: string;
+            subject: string;
+            message: string;
+            priority: string;
             attachmentUrl: string | null;
             resolvedAt: Date | null;
         })[];
@@ -541,35 +541,35 @@ export declare class AdminController {
     updateTicketStatus(id: string, body: {
         status: string;
     }): Promise<{
-        type: string;
-        message: string;
-        id: string;
-        updatedAt: Date;
-        subject: string;
-        priority: string;
-        createdAt: Date;
-        userId: string;
         status: string;
+        id: string;
+        userId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        type: string;
+        subject: string;
+        message: string;
+        priority: string;
         attachmentUrl: string | null;
         resolvedAt: Date | null;
     }>;
     replyTicket(user: any, id: string, body: {
         message: string;
     }): Promise<{
-        message: string;
         id: string;
         createdAt: Date;
+        message: string;
+        ticketId: string;
         authorId: string;
         isAdmin: boolean;
-        ticketId: string;
     }>;
     getSettings(): Promise<{
         id: string;
-        key: string;
-        value: string;
-        description: string | null;
-        isPublic: boolean;
         updatedAt: Date;
+        description: string | null;
+        value: string;
+        key: string;
+        isPublic: boolean;
         updatedBy: string | null;
     }[]>;
     updateSettings(body: any): Promise<any[]>;
@@ -592,31 +592,31 @@ export declare class AdminController {
                     email: string;
                 } | null;
             } & {
+                status: string;
                 id: string;
                 userId: string | null;
                 email: string;
                 role: import(".prisma/client").$Enums.CashbookMemberRole;
-                status: string;
                 cashbookId: string;
                 inviteToken: string | null;
                 invitedAt: Date;
                 acceptedAt: Date | null;
             })[];
         } & {
-            name: string;
-            id: string;
-            description: string | null;
-            updatedAt: Date;
-            createdAt: Date;
-            userId: string;
             deletedAt: Date | null;
+            id: string;
+            userId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            name: string;
+            description: string | null;
             color: string;
             isDefault: boolean;
             sortOrder: number;
-            isArchived: boolean;
             icon: string;
             currency: string;
             openingBalance: import("@prisma/client/runtime/library").Decimal;
+            isArchived: boolean;
         })[];
         meta: {
             total: number;

@@ -9,8 +9,23 @@ import Pricing from './components/Pricing';
 import Footer from './components/Footer';
 import JoinPage from './components/JoinPage';
 
+// Global scroll-reveal: watches .reveal elements and adds .visible when in view
+function useScrollReveal() {
+  useEffect(() => {
+    const elements = document.querySelectorAll('.reveal');
+    if (!elements.length) return;
+    const obs = new IntersectionObserver(
+      (entries) => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } }),
+      { threshold: 0.1 }
+    );
+    elements.forEach(el => obs.observe(el));
+    return () => obs.disconnect();
+  });
+}
+
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  useScrollReveal();
 
   useEffect(() => {
     const handlePopState = () => setCurrentPath(window.location.pathname);

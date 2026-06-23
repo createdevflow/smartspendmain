@@ -22,11 +22,11 @@ export declare class CashbookMembersService {
                 avatar: string | null;
             } | null;
         } & {
+            status: string;
             id: string;
             userId: string | null;
             email: string;
             role: import(".prisma/client").$Enums.CashbookMemberRole;
-            status: string;
             cashbookId: string;
             inviteToken: string | null;
             invitedAt: Date;
@@ -52,11 +52,11 @@ export declare class CashbookMembersService {
         message: string;
     }>;
     updateMemberRole(userId: string, cashbookId: string, memberId: string, role: 'EDITOR' | 'VIEWER'): Promise<{
+        status: string;
         id: string;
         userId: string | null;
         email: string;
         role: import(".prisma/client").$Enums.CashbookMemberRole;
-        status: string;
         cashbookId: string;
         inviteToken: string | null;
         invitedAt: Date;
