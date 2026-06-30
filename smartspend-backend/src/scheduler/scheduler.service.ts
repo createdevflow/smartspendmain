@@ -144,12 +144,12 @@ export class SchedulerService {
       const goals = await this.prisma.goal.findMany({
         where: {
           status: 'ACTIVE',
-          targetDate: { lte: sevenDaysFromNow, gte: now },
+          deadline: { lte: sevenDaysFromNow, gte: now },
         },
       });
 
       for (const goal of goals) {
-        const daysLeft = Math.ceil((new Date(goal.targetDate!).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const daysLeft = Math.ceil((new Date(goal.deadline!).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         await this.notifications.createUserNotification(goal.userId, {
           title: '🎯 Goal Deadline Approaching',
           body: `Your goal "${goal.name}" is due in ${daysLeft} day${daysLeft === 1 ? '' : 's'}! Keep saving!`,

@@ -133,7 +133,7 @@ export class CommunicationService {
   }) {
     // Verify user is member of conversation
     const membership = await this.prisma.chatMember.findFirst({
-      where: { conversationId: dto.conversationId, userId, isActive: true },
+      where: { conversationId: dto.conversationId, userId },
     });
     if (!membership) throw new ForbiddenException('Not a member of this conversation');
 
@@ -257,7 +257,7 @@ export class CommunicationService {
       try {
         // Verify conversation still exists and user is still a member
         const membership = await this.prisma.chatMember.findFirst({
-          where: { conversationId: msg.conversationId, userId: msg.userId, isActive: true },
+          where: { conversationId: msg.conversationId, userId: msg.userId },
         });
         if (!membership) {
           await this.prisma.scheduledMessage.update({ where: { id: msg.id }, data: { status: ScheduleStatus.CANCELLED } });
@@ -277,7 +277,7 @@ export class CommunicationService {
         // Update conversation last message
         await this.prisma.chatConversation.update({
           where: { id: msg.conversationId },
-          data: { lastMessageAt: now, lastMessagePreview: msg.content.slice(0, 100) },
+          data: { lastMessageAt: now, lastMessageText: msg.content.slice(0, 100) },
         });
 
         const nextRunAt = this.computeNextRun(now, msg.repeat);

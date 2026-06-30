@@ -206,8 +206,7 @@ export class NotificationsService {
         select: { expoPushToken: true },
       });
       const tokens = [user.expoPushToken, ...devices.map((d) => d.expoPushToken)]
-        .filter(Boolean)
-        .filter((t) => t.startsWith('ExponentPushToken'));
+        .filter((t): t is string => typeof t === 'string' && t.startsWith('ExponentPushToken'));
 
       if (!tokens.length) return;
       await this.sendExpoPushBatch(tokens, title, body, actionUrl);
@@ -224,8 +223,7 @@ export class NotificationsService {
       });
       const tokens = users
         .map((u) => u.expoPushToken)
-        .filter(Boolean)
-        .filter((t) => t!.startsWith('ExponentPushToken')) as string[];
+        .filter((t): t is string => typeof t === 'string' && t.startsWith('ExponentPushToken'));
       if (!tokens.length) return;
       await this.sendExpoPushBatch(tokens, title, body, actionUrl);
     } catch (e) {
