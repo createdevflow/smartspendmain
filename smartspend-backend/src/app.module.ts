@@ -35,6 +35,7 @@ import { AppConfigModule } from './app-config/app-config.module';
 import { ChatModule } from './chat/chat.module';
 import { WealthModule } from './wealth/wealth.module';
 import { PaymentModule } from './payment/payment.module';
+import { CommunicationModule } from './communication/communication.module';
 import { MaintenanceMiddleware } from './common/middleware/maintenance.middleware';
 
 @Module({
@@ -94,6 +95,7 @@ import { MaintenanceMiddleware } from './common/middleware/maintenance.middlewar
     ChatModule,
     WealthModule,
     PaymentModule,
+    CommunicationModule,
   ],
   providers: [
     // Global rate limiter

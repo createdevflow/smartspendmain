@@ -1,7 +1,7 @@
 'use client';
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Users, CreditCard, Settings, LogOut, Ticket, BookOpen, FileDown, CreditCard as TxIcon, Activity, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, Settings, LogOut, Ticket, BookOpen, FileDown, CreditCard as TxIcon, Activity, ShieldAlert, Bell } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function decodeJwt(token: string) {
@@ -47,6 +47,7 @@ export function Sidebar() {
     { href: '/plans', icon: <CreditCard className="nav-icon" />, label: 'Plans & Features' },
     { href: '/cashbooks', icon: <BookOpen className="nav-icon" />, label: 'Shared Cashbooks' },
     { href: '/tax-exports', icon: <FileDown className="nav-icon" />, label: 'Tax Exports' },
+    { href: '/communication', icon: <Bell className="nav-icon" />, label: 'Communication' },
     { href: '/support', icon: <Ticket className="nav-icon" />, label: 'Support' },
     { href: '/logs', icon: <ShieldAlert className="nav-icon" />, label: 'Logs & Monitoring' },
     { href: '/settings', icon: <Settings className="nav-icon" />, label: 'Settings' },

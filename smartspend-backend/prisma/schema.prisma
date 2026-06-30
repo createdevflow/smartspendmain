@@ -92,6 +92,62 @@ enum CashbookMemberRole {
   VIEWER
 }
 
+enum ScheduleRepeat {
+  ONE_TIME
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum ScheduleStatus {
+  PENDING
+  SENT
+  FAILED
+  PAUSED
+  CANCELLED
+}
+
+enum NotificationCategory {
+  BUDGET
+  GOAL
+  TRANSACTION
+  REPORT
+  SCHEDULER
+  SECURITY
+  SYSTEM
+  WEALTH
+  ADMIN
+}
+
+enum AdminNotifType {
+  ANNOUNCEMENT
+  FEATURE_UPDATE
+  MAINTENANCE
+  SECURITY
+  OFFER
+  PROMOTIONAL
+  REMINDER
+  INFO
+}
+
+enum AdminNotifAudience {
+  ALL
+  FREE_USERS
+  PREMIUM_USERS
+  SELECTED
+  ANDROID
+  IOS
+}
+
+enum AdminNotifStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  CANCELLED
+}
+
 // ─── USER ───────────────────────────────────────────────────
 
 model User {
@@ -149,6 +205,12 @@ model User {
   savedArticles     SavedArticle[]
   sipEntries        SIPEntry[]
   SubscriptionOrder SubscriptionOrder[]
+
+  // Communication Center
+  scheduledEmails        ScheduledEmail[]
+  scheduledMessages      ScheduledMessage[]
+  notificationPreference NotificationPreference?
+  adminNotifRecipients   AdminNotifRecipient[]
 
   @@index([email])
   @@index([role, status])
@@ -529,20 +591,27 @@ model ExchangeRate {
 // ─── NOTIFICATIONS ───────────────────────────────────────────
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      NotificationType
-  title     String
-  body      String
-  data      Json?
-  actionUrl String?
-  isRead    Boolean          @default(false)
-  sentAt    DateTime?
-  createdAt DateTime         @default(now())
+  id           String               @id @default(cuid())
+  userId       String
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         NotificationType
+  category     NotificationCategory @default(SYSTEM)
+  title        String
+  body         String
+  data         Json?
+  actionUrl    String?
+  imageUrl     String?
+  actionButton String?
+  isRead       Boolean              @default(false)
+  isPinned     Boolean              @default(false)
+  isArchived   Boolean              @default(false)
+  sentAt       DateTime?
+  createdAt    DateTime             @default(now())
 
   @@index([userId, isRead])
+  @@index([userId, category])
   @@index([userId, createdAt])
+  @@index([userId, isArchived])
 }
 
 // ─── AUDIT LOGS ──────────────────────────────────────────────
@@ -932,4 +1001,136 @@ model SubscriptionOrder {
 
   @@index([userId])
   @@index([orderId])
+}
+
+// ─── COMMUNICATION CENTER ────────────────────────────────────
+
+model ScheduledEmail {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipients  String[]        // email addresses
+  subject     String
+  body        String
+  attachments Json?           // [{name, url, type}]
+  emailType   String          @default("custom") // custom | receipt | invoice | report | export
+  scheduledAt DateTime
+  timezone    String          @default("Asia/Kolkata")
+  repeat      ScheduleRepeat  @default(ONE_TIME)
+  status      ScheduleStatus  @default(PENDING)
+  lastSentAt  DateTime?
+  nextRunAt   DateTime?
+  sentCount   Int             @default(0)
+  failCount   Int             @default(0)
+  lastError   String?
+  metadata    Json?           // source data (cashbookId, reportType, etc.)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  deliveryLogs EmailDeliveryLog[]
+
+  @@index([userId, status])
+  @@index([status, scheduledAt])
+  @@index([nextRunAt, status])
+}
+
+model EmailDeliveryLog {
+  id               String         @id @default(cuid())
+  scheduledEmailId String
+  scheduledEmail   ScheduledEmail @relation(fields: [scheduledEmailId], references: [id], onDelete: Cascade)
+  status           String         // sent | failed
+  recipients       String[]
+  error            String?
+  sentAt           DateTime       @default(now())
+
+  @@index([scheduledEmailId])
+}
+
+model ScheduledMessage {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String
+  content        String
+  messageType    String         @default("TEXT") // TEXT | RECEIPT | TRANSACTION | INVOICE | REMINDER
+  attachmentData Json?          // shared data (transactionId, invoiceId, etc.)
+  scheduledAt    DateTime
+  repeat         ScheduleRepeat @default(ONE_TIME)
+  status         ScheduleStatus @default(PENDING)
+  lastSentAt     DateTime?
+  nextRunAt      DateTime?
+  sentCount      Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([userId, status])
+  @@index([status, scheduledAt])
+  @@index([nextRunAt, status])
+  @@index([conversationId])
+}
+
+model AdminNotification {
+  id              String              @id @default(cuid())
+  title           String
+  subtitle        String?
+  body            String
+  bannerImage     String?
+  iconName        String?
+  buttonText      String?
+  actionUrl       String?
+  notifType       AdminNotifType      @default(ANNOUNCEMENT)
+  audience        AdminNotifAudience  @default(ALL)
+  selectedUserIds String[]
+  channelInApp    Boolean             @default(true)
+  channelPush     Boolean             @default(false)
+  status          AdminNotifStatus    @default(DRAFT)
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  sentCount       Int                 @default(0)
+  createdById     String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  recipients AdminNotifRecipient[]
+
+  @@index([status])
+  @@index([scheduledAt, status])
+}
+
+model AdminNotifRecipient {
+  id                  String            @id @default(cuid())
+  adminNotificationId String
+  adminNotification   AdminNotification @relation(fields: [adminNotificationId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveredAt         DateTime?
+  readAt              DateTime?
+  clickedAt           DateTime?
+  createdAt           DateTime          @default(now())
+
+  @@unique([adminNotificationId, userId])
+  @@index([userId])
+  @@index([adminNotificationId])
+}
+
+model NotificationPreference {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetAlerts          Boolean  @default(true)
+  goalAlerts            Boolean  @default(true)
+  transactionAlerts     Boolean  @default(true)
+  reportAlerts          Boolean  @default(true)
+  schedulerAlerts       Boolean  @default(true)
+  securityAlerts        Boolean  @default(true)
+  systemAlerts          Boolean  @default(true)
+  wealthAlerts          Boolean  @default(true)
+  adminAlerts           Boolean  @default(true)
+  pushEnabled           Boolean  @default(true)
+  emailEnabled          Boolean  @default(true)
+  inAppEnabled          Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([userId])
 }

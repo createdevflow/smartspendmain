@@ -291,4 +291,13 @@ export class MailService {
       ),
     });
   }
+
+  // ── Custom / Scheduled Email ───────────────────────────────────────────────
+
+  async sendCustomEmail(opts: { to: string | string[]; subject: string; html: string }) {
+    const transporter = await this.getTransporter();
+    const from = await this.getFrom();
+    const recipients = Array.isArray(opts.to) ? opts.to.join(',') : opts.to;
+    await transporter.sendMail({ from, to: recipients, subject: opts.subject, html: opts.html });
+  }
 }
