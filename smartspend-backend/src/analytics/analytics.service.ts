@@ -199,15 +199,32 @@ export class AnalyticsService {
   }
 
   // ── Gamification ───────────────────────────────────────────────────────────
-  async getBurnRate(userId: string) {
-    const featureEnabled = await this.prisma.systemSetting.findUnique({ where: { key: 'feature_gamification_active' } });
+  async getBurnRate(userId: string, targetCashbookId?: string) {
+    const featureEnabled = await this.prisma.appConfig.findUnique({ where: { key: 'feature_gamification_active' } });
     if (featureEnabled?.value !== 'true') return null;
 
     const now = new Date();
     
+    // Get all accessible cashbook IDs (owned or shared)
+    const accessibleCashbooks = await this.prisma.cashbook.findMany({
+      where: {
+        OR: [
+          { userId },
+          { members: { some: { userId } } }
+        ],
+        isArchived: false,
+        deletedAt: null,
+        ...(targetCashbookId ? { id: targetCashbookId } : {})
+      },
+      select: { id: true, openingBalance: true }
+    });
+    
+    if (accessibleCashbooks.length === 0) return { streak: 0, burnRateDaysLeft: 0, avgDailySpend: 0, netWorth: 0 };
+    const cashbookIds = accessibleCashbooks.map(c => c.id);
+
     // 1. Calculate No Spend Streak
     const expenses = await this.prisma.transaction.findMany({
-      where: { userId, type: 'EXPENSE', deletedAt: null },
+      where: { cashbookId: { in: cashbookIds }, type: 'EXPENSE', deletedAt: null },
       orderBy: { date: 'desc' },
       select: { date: true },
     });
@@ -227,12 +244,27 @@ export class AnalyticsService {
     }
 
     // 2. Calculate Burn Rate (Days Left = Balance / Avg Daily Spend)
-    const { netWorth } = await this.getNetWorth(userId);
+    const aggIncome = await this.prisma.transaction.aggregate({
+      where: { cashbookId: { in: cashbookIds }, type: 'INCOME', deletedAt: null },
+      _sum: { amountInBookCurrency: true }
+    });
+    const aggExpense = await this.prisma.transaction.aggregate({
+      where: { cashbookId: { in: cashbookIds }, type: 'EXPENSE', deletedAt: null },
+      _sum: { amountInBookCurrency: true }
+    });
+    
+    let netWorth = 0;
+    for (const book of accessibleCashbooks) netWorth += Number(book.openingBalance);
+    netWorth += Number(aggIncome._sum.amountInBookCurrency || 0) - Number(aggExpense._sum.amountInBookCurrency || 0);
     
     // Avg daily spend over last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const last30Spend = await this.sumTransactions(userId, 'EXPENSE', thirtyDaysAgo, now);
+    const last30Agg = await this.prisma.transaction.aggregate({
+      where: { cashbookId: { in: cashbookIds }, type: 'EXPENSE', deletedAt: null, date: { gte: thirtyDaysAgo, lte: now } },
+      _sum: { amountInBookCurrency: true },
+    });
+    const last30Spend = Number(last30Agg._sum.amountInBookCurrency || 0);
     const avgDailySpend = last30Spend / 30;
 
     let daysLeft = 999;

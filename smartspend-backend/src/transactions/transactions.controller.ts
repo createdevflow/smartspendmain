@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards,
+  Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
@@ -43,6 +43,34 @@ export class TransactionsController {
   @ApiOperation({ summary: 'Delete multiple transactions' })
   bulkDelete(@CurrentUser() user: any, @Body() body: { ids: string[] }) {
     return this.transactionsService.bulkDelete(user.sub, body.ids);
+  }
+
+  @Get('upcoming-bills/:cashbookId')
+  @ApiOperation({ summary: 'Predict upcoming bills based on recurring expenses' })
+  getUpcomingBills(@CurrentUser() user: any, @Param('cashbookId') cashbookId: string) {
+    return this.transactionsService.getUpcomingBills(user.sub, cashbookId);
+  }
+
+  @Post('recurring/:cashbookId')
+  @ApiOperation({ summary: 'Create manual recurring subscription' })
+  createRecurringTransaction(@CurrentUser() user: any, @Param('cashbookId') cashbookId: string, @Body() dto: any) {
+    return this.transactionsService.createRecurringTransaction(user.sub, cashbookId, dto);
+  }
+
+  @Put('recurring/:id')
+  @ApiOperation({ summary: 'Update a manual recurring transaction' })
+  updateRecurringTransaction(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: any
+  ) {
+    return this.transactionsService.updateRecurringTransaction(user.sub, id, dto);
+  }
+
+  @Delete('recurring/:id')
+  @ApiOperation({ summary: 'Delete manual recurring subscription' })
+  deleteRecurringTransaction(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.transactionsService.deleteRecurringTransaction(user.sub, id);
   }
 
   @Get(':id')

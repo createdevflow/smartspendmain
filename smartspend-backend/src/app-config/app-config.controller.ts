@@ -2,11 +2,11 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+import { APP_FEATURE_KEYS } from '../admin/admin.service';
 
 /**
  * Public app configuration endpoint.
- * Returns only public feature flags — no auth required.
- * Mobile app polls this to check maintenance mode and feature availability.
+ * Returns public feature flags — polled by mobile app every 10s.
  */
 @ApiTags('app-config')
 @Controller({ path: 'app-config', version: '1' })
@@ -15,52 +15,37 @@ export class AppConfigController {
 
   @Public()
   @Get('public')
-  @ApiOperation({ summary: 'Get public app configuration and feature flags (no auth required)' })
+  @ApiOperation({ summary: 'Get public app configuration and feature flags' })
   async getPublicConfig() {
-    const publicKeys = [
-      'maintenance_mode',
-      'feature_transactions',
-      'feature_cashbooks',
-      'feature_categories',
-      'feature_analytics',
-      'feature_reports',
-      'feature_notifications',
-      'feature_budget_management',
-      'feature_savings_goals',
-      'feature_multi_device_sync',
-      'feature_backup_restore',
-      'feature_export',
-      'feature_import',
-      'feature_user_registration',
-      'feature_profile_editing',
-      'feature_account_deletion',
-      'feature_app_updates',
-      'feature_beta',
-      'feature_whatsapp_active',
-      'feature_ocr_active',
-      'feature_gamification_active',
-      'feature_shared_cashbooks_active',
-      'feature_tax_export_active',
-      'feature_panic_button_active',
-    ];
-
-    const settings = await this.prisma.systemSetting.findMany({
-      where: { key: { in: publicKeys } },
+    const settings = await this.prisma.appConfig.findMany({
+      where: { key: { in: APP_FEATURE_KEYS } },
     });
 
     const config: Record<string, boolean | string> = {};
-    for (const key of publicKeys) {
+    const teaseModes: Record<string, boolean> = {};
+
+    for (const key of APP_FEATURE_KEYS) {
       const found = settings.find(s => s.key === key);
-      const rawValue = found?.value ?? (key === 'maintenance_mode' ? 'false' : 'true');
-      // Parse booleans
+      let rawValue = found?.value;
+      if (rawValue === undefined) {
+        if (key.endsWith('_url')) rawValue = '';
+        else if (['maintenance_mode', 'feature_beta', 'feature_whatsapp_active', 'feature_ocr_active', 'feature_gamification_active', 'feature_shared_cashbooks_active', 'download_ios_enabled'].includes(key)) rawValue = 'false';
+        else rawValue = 'true';
+      }
       if (rawValue === 'true') config[key] = true;
       else if (rawValue === 'false') config[key] = false;
       else config[key] = rawValue;
+
+      teaseModes[key] = found?.teaseMode ?? false;
     }
 
     return {
-      config,
-      updatedAt: new Date().toISOString(),
+      success: true,
+      data: {
+        config,
+        teaseModes,
+        updatedAt: new Date().toISOString(),
+      }
     };
   }
 }

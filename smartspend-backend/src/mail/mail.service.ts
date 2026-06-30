@@ -14,13 +14,13 @@ const YEAR = new Date().getFullYear();
 const BASE_CSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #EFF4FB; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-  .wrapper { max-width: 480px; margin: 40px auto; background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 8px 40px rgba(30,58,138,.12); }
-  .header { background: linear-gradient(135deg, ${BRAND_NAVY} 0%, ${BRAND_BLUE} 100%); padding: 28px; text-align: center; }
-  .brand { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+  .wrapper { max-width: 480px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; }
+  .header { background: #1E3A8A; padding: 28px; text-align: center; }
+  .brand { font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
   .brand-in { font-size: 15px; color: #93C5FD; font-weight: 600; }
-  .header-sub { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 4px; letter-spacing: 1.2px; text-transform: uppercase; }
-  .body { padding: 28px; }
-  .footer { background: #F8FAFC; padding: 18px 28px; text-align: center; font-size: 11px; color: #94A3B8; border-top: 1px solid #E2E8F0; line-height: 1.8; }
+  .header-sub { font-size: 11px; color: #CBD5E1; margin-top: 4px; letter-spacing: 1.2px; text-transform: uppercase; }
+  .body { padding: 28px; color: #334155; }
+  .footer { background: #F8FAFC; padding: 18px 28px; text-align: center; font-size: 11px; color: #64748B; border-top: 1px solid #E2E8F0; line-height: 1.8; }
   .footer a { color: ${BRAND_BLUE}; text-decoration: none; }
 `;
 
@@ -106,8 +106,12 @@ export class MailService {
   async sendOtp(email: string, name: string, otp: string, purpose: 'email_verify' | 'password_reset') {
     const isVerify = purpose === 'email_verify';
 
-    if (this.config.get('NODE_ENV') === 'development') {
-      this.logger.log(`[DEV MODE] ✉️ Email to ${email} | OTP: ${otp}`);
+    // Check if SMTP is actively configured in DB or env
+    const hostRow = await this.prisma.appConfig.findFirst({ where: { key: 'smtp_host' } });
+    const host = hostRow?.value || this.config.get<string>('mail.host');
+
+    if (!host) {
+      this.logger.log(`[LOCAL DEV - No SMTP Configured] ✉️ Email to ${email} | OTP: ${otp}`);
       return;
     }
 
@@ -216,14 +220,16 @@ export class MailService {
          Your budget <strong style="color:#0F172A">${budgetName}</strong> has reached
          <strong style="color:${color}">${pct}%</strong> of its limit.
        </p>
-       <div style="background:#F8FAFC;border-radius:12px;padding:16px;margin-bottom:16px">
-         <div style="background:#E2E8F0;border-radius:999px;height:10px;margin-bottom:10px;overflow:hidden">
+       <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:16px;margin-bottom:16px">
+         <div style="background:#E2E8F0;border-radius:999px;height:10px;margin-bottom:12px;overflow:hidden">
            <div style="background:${color};border-radius:999px;height:10px;width:${Math.min(pct, 100)}%"></div>
          </div>
-         <div style="display:flex;justify-content:space-between;font-size:13px">
-           <span style="color:#64748B">Spent: <strong style="color:#0F172A">${spent}</strong></span>
-           <span style="color:#64748B">Limit: <strong style="color:#0F172A">${limit}</strong></span>
-         </div>
+         <table width="100%" cellpadding="0" cellspacing="0">
+           <tr>
+             <td align="left" style="color:#64748B;font-size:13px">Spent: <strong style="color:#0F172A">${spent}</strong></td>
+             <td align="right" style="color:#64748B;font-size:13px">Limit: <strong style="color:#0F172A">${limit}</strong></td>
+           </tr>
+         </table>
        </div>
        <p style="color:#64748B;font-size:14px">Open Cashtro to review your spending and adjust if needed.</p>`
     );
@@ -235,21 +241,23 @@ export class MailService {
        <div class="brand">Monthly Report</div>
        <div class="header-sub">${month}</div>`,
       `<p style="font-size:16px;font-weight:700;color:#0F172A;margin-bottom:20px">Hi ${name}, here's your summary for ${month}:</p>
-       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
-         <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:14px;text-align:center">
-           <div style="font-size:10px;font-weight:700;color:#16A34A;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Income</div>
-           <div style="font-size:16px;font-weight:800;color:#16A34A">${income}</div>
-         </div>
-         <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:14px;text-align:center">
-           <div style="font-size:10px;font-weight:700;color:#DC2626;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Expenses</div>
-           <div style="font-size:16px;font-weight:800;color:#DC2626">${expense}</div>
-         </div>
-         <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:14px;text-align:center">
-           <div style="font-size:10px;font-weight:700;color:${BRAND_NAVY};text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Saved</div>
-           <div style="font-size:16px;font-weight:800;color:${BRAND_NAVY}">${savings}</div>
-         </div>
-       </div>
-       <p style="color:#64748B;font-size:14px">Open Cashtro to see the full breakdown with categories and trends.</p>`
+       <table width="100%" cellpadding="0" cellspacing="10">
+         <tr>
+           <td align="center" style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px;width:33%;">
+             <div style="font-size:10px;font-weight:700;color:#16A34A;text-transform:uppercase;margin-bottom:4px">Income</div>
+             <div style="font-size:15px;font-weight:800;color:#16A34A">${income}</div>
+           </td>
+           <td align="center" style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px;width:33%;">
+             <div style="font-size:10px;font-weight:700;color:#DC2626;text-transform:uppercase;margin-bottom:4px">Expenses</div>
+             <div style="font-size:15px;font-weight:800;color:#DC2626">${expense}</div>
+           </td>
+           <td align="center" style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px;width:33%;">
+             <div style="font-size:10px;font-weight:700;color:${BRAND_NAVY};text-transform:uppercase;margin-bottom:4px">Saved</div>
+             <div style="font-size:15px;font-weight:800;color:${BRAND_NAVY}">${savings}</div>
+           </td>
+         </tr>
+       </table>
+       <p style="color:#64748B;font-size:14px;margin-top:20px">Open Cashtro to see the full breakdown with categories and trends.</p>`
     );
   }
 

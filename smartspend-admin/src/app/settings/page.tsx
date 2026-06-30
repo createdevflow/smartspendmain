@@ -20,6 +20,7 @@ const FEATURE_TOGGLES = [
   {
     group: 'Financial Tools',
     items: [
+      { key: 'feature_wealth_hub', label: 'Wealth Hub', desc: 'Enable stock market and investment features.' },
       { key: 'feature_budget_management', label: 'Budget Management', desc: 'Allow users to create and track budgets.' },
       { key: 'feature_savings_goals', label: 'Savings Goals', desc: 'Allow users to set and track savings goals.' },
       { key: 'feature_export', label: 'Export Features', desc: 'Allow CSV/PDF export of transactions and reports.' },
@@ -50,6 +51,7 @@ const FEATURE_TOGGLES = [
       { key: 'feature_tax_export_active', label: 'Tax Export', desc: 'Allow one-click export for tax season deductibles.' },
       { key: 'feature_panic_button_active', label: 'Shake to Lock (Panic Button)', desc: 'Allow shake gesture to enter private mode.' },
       { key: 'feature_ocr_active', label: 'AI Receipt Scanner', desc: 'Enable OCR receipt scanning via camera.' },
+      { key: 'feature_ai_insights_mini', label: 'Smart Insights', desc: 'Show AI-powered spending insights on the home screen.' },
       { key: 'feature_gamification_active', label: 'Gamification', desc: 'Enable streaks, burn-rate alerts, and achievements.' },
       { key: 'feature_gallery', label: 'Gallery Attachments', desc: 'Allow attaching images to entries.' },
       { key: 'feature_chat', label: 'In-App Messaging', desc: 'Enable private messaging between contacts and cashbook members.' },
@@ -61,6 +63,7 @@ const DEFAULT_SETTINGS = {
   appName: 'Cashtro',
   supportEmail: 'support@cashtro.in',
   defaultPlanSlug: 'free',
+  free_trial_days: 7,
   maxLoginAttempts: 5,
   lockoutDurationMinutes: 15,
   otpExpiryMinutes: 10,
@@ -86,6 +89,7 @@ const DEFAULT_SETTINGS = {
   feature_analytics: true,
   feature_reports: true,
   feature_notifications: true,
+  feature_wealth_hub: true,
   feature_budget_management: true,
   feature_savings_goals: true,
   feature_multi_device_sync: true,
@@ -99,15 +103,23 @@ const DEFAULT_SETTINGS = {
   feature_beta: false,
   feature_whatsapp_active: false,
   feature_ocr_active: false,
+  feature_ai_insights_mini: false,
   feature_gamification_active: false,
   feature_shared_cashbooks_active: false,
   feature_tax_export_active: true,
   feature_panic_button_active: true,
   feature_gallery: true,
   feature_chat: true,
+  download_android_enabled: true,
+  download_android_url: '',
+  download_ios_enabled: false,
+  download_ios_url: '',
+  gemini_api_key: '',
+  razorpay_key_id: '',
+  razorpay_key_secret: '',
 };
 
-type TabId = 'general' | 'features' | 'security' | 'notifications' | 'maintenance';
+type TabId = 'general' | 'features' | 'security' | 'notifications' | 'maintenance' | 'integrations';
 
 
 export default function SettingsPage() {
@@ -150,8 +162,15 @@ export default function SettingsPage() {
 
         // Merge feature toggles from app-config
         if (configRes.data?.data) {
-          Object.entries(configRes.data.data).forEach(([key, value]) => {
-            mappedSettings[key] = value;
+          Object.entries(configRes.data.data).forEach(([key, configObj]: [string, any]) => {
+            const val = typeof configObj === 'object' ? configObj.value : configObj;
+            if (val === 'true') mappedSettings[key] = true;
+            else if (val === 'false') mappedSettings[key] = false;
+            else mappedSettings[key] = val;
+            
+            if (typeof configObj === 'object' && configObj.teaseMode !== undefined) {
+              mappedSettings[`${key}_teaseMode`] = configObj.teaseMode;
+            }
           });
         }
 
@@ -175,14 +194,21 @@ export default function SettingsPage() {
       // Keys that go to app-config (feature toggles)
       const featureKeys = new Set(FEATURE_TOGGLES.flatMap(g => g.items.map(i => i.key)));
       featureKeys.add('maintenance_mode');
+      featureKeys.add('download_android_enabled');
+      featureKeys.add('download_android_url');
+      featureKeys.add('download_ios_enabled');
+      featureKeys.add('download_ios_url');
 
       const regularSettings: { key: string; value: string }[] = [];
-      const featureToggles: { key: string; value: string }[] = [];
+      const featureToggles: { key: string; value: string; teaseMode?: boolean }[] = [];
 
       Object.keys(settings).forEach(key => {
+        if (key.endsWith('_teaseMode')) return; // handled with main key
+        
         const value = String((settings as any)[key]);
         if (featureKeys.has(key)) {
-          featureToggles.push({ key, value });
+          const teaseMode = (settings as any)[`${key}_teaseMode`];
+          featureToggles.push({ key, value, ...(teaseMode !== undefined && { teaseMode }) });
         } else {
           regularSettings.push({ key, value });
         }
@@ -221,19 +247,35 @@ export default function SettingsPage() {
     { id: 'features', label: 'Feature Toggles', icon: <Zap size={16} /> },
     { id: 'security', label: 'Security & Auth', icon: <Shield size={16} /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell size={16} /> },
-    { id: 'maintenance', label: 'Maintenance', icon: <Database size={16} /> },
+    { id: 'integrations', label: 'Integrations', icon: <Database size={16} /> },
+    { id: 'maintenance', label: 'Maintenance', icon: <AlertTriangle size={16} /> },
   ];
 
-  const ToggleRow = ({ label, desc, field, danger = false }: { label: string; desc: string; field: keyof typeof settings; danger?: boolean }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
-      <div style={{ flex: 1, marginRight: '1.5rem' }}>
-        <p style={{ fontWeight: 500, color: danger ? 'var(--danger)' : 'var(--text-primary)', fontSize: '0.875rem' }}>{label}</p>
-        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.125rem', lineHeight: 1.5 }}>{desc}</p>
+  const ToggleRow = ({ label, desc, field, danger = false, hasTease = false }: { label: string; desc: string; field: keyof typeof settings; danger?: boolean; hasTease?: boolean }) => (
+    <div style={{ padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, marginRight: '1.5rem' }}>
+          <p style={{ fontWeight: 500, color: danger ? 'var(--danger)' : 'var(--text-primary)', fontSize: '0.875rem' }}>{label}</p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.125rem', lineHeight: 1.5 }}>{desc}</p>
+        </div>
+        <label className="toggle" style={{ flexShrink: 0 }}>
+          <input type="checkbox" checked={settings[field] === true || settings[field] === 'true'} onChange={e => set(field as string, e.target.checked)} />
+          <span className="toggle-slider" />
+        </label>
       </div>
-      <label className="toggle" style={{ flexShrink: 0 }}>
-        <input type="checkbox" checked={settings[field] === true || settings[field] === 'true'} onChange={e => set(field, e.target.checked)} />
-        <span className="toggle-slider" />
-      </label>
+      
+      {hasTease && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', padding: '0.5rem', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px dashed var(--border)' }}>
+          <div>
+            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Lock size={12} /> Freemium Tease Mode</p>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.125rem' }}>If enabled, free users will see a locked padlocked version of this feature with an upgrade prompt. (The main toggle above must be ON for Pro users to access it).</p>
+          </div>
+          <label className="toggle" style={{ flexShrink: 0, transform: 'scale(0.8)' }}>
+            <input type="checkbox" checked={settings[`${String(field)}_teaseMode`] === true} onChange={e => set(`${String(field)}_teaseMode`, e.target.checked)} />
+            <span className="toggle-slider" />
+          </label>
+        </div>
+      )}
     </div>
   );
 
@@ -297,16 +339,25 @@ export default function SettingsPage() {
                     <input className="input-field" type="email" value={settings.supportEmail} onChange={e => set('supportEmail', e.target.value)} />
                   </div>
                 </div>
-                <div className="input-group" style={{ maxWidth: '50%' }}>
-                  <label className="input-label">Default Plan for New Users</label>
-                  <select className="input-field" value={settings.defaultPlanSlug} onChange={e => set('defaultPlanSlug', e.target.value)}>
-                    {loading ? <option>Loading...</option> : plans.map(p => (
-                      <option key={p.slug} value={p.slug}>{p.name}</option>
-                    ))}
-                  </select>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.375rem' }}>
-                    New users are automatically assigned this plan on registration.
-                  </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                  <div className="input-group">
+                    <label className="input-label">Default Plan for New Users</label>
+                    <select className="input-field" value={settings.defaultPlanSlug} onChange={e => set('defaultPlanSlug', e.target.value)}>
+                      {loading ? <option>Loading...</option> : plans.map(p => (
+                        <option key={p.slug} value={p.slug}>{p.name}</option>
+                      ))}
+                    </select>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.375rem' }}>
+                      New users are automatically assigned this plan on registration.
+                    </p>
+                  </div>
+                  <div className="input-group">
+                    <label className="input-label">Free Trial Days</label>
+                    <input className="input-field" type="number" min={0} value={settings.free_trial_days} onChange={e => set('free_trial_days', Number(e.target.value))} />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.375rem' }}>
+                      Number of days users get full access (0 for none).
+                    </p>
+                  </div>
                 </div>
 
                 <h4 style={{ marginBottom: '0.75rem', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>ACCESS CONTROL</h4>
@@ -351,9 +402,27 @@ export default function SettingsPage() {
                       {group.group}
                     </h4>
                     <div style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', padding: '0 1rem', border: '1px solid var(--border)' }}>
-                      {group.items.map(item => (
-                        <ToggleRow key={item.key} label={item.label} desc={item.desc} field={item.key as keyof typeof settings} />
-                      ))}
+                      {group.items.map(item => {
+                       const isAiFeature = ['feature_ocr_active', 'feature_ai_insights_mini'].includes(item.key);
+                        const hasTeaseSupport = isAiFeature || [
+                          'feature_gamification_active',
+                          'feature_top_categories',
+                          'feature_upcoming_bills',
+                          'feature_shared_cashbooks_active',
+                          'feature_tax_export_active',
+                          'feature_gallery',
+                          'feature_wealth_hub',
+                        ].includes(item.key);
+                        return (
+                          <ToggleRow 
+                            key={item.key} 
+                            label={item.label} 
+                            desc={item.desc} 
+                            field={item.key as keyof typeof settings} 
+                            hasTease={hasTeaseSupport}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -570,6 +639,68 @@ export default function SettingsPage() {
                     Dangerous operations (data wipes, hard deletes) are intentionally disabled in this interface.
                     Use the database directly or Prisma Studio for irreversible changes.
                   </p>
+                </div>
+              </div>
+            )}
+
+            {/* ── Integrations ────────────────────────────────────────── */}
+            {activeTab === 'integrations' && (
+              <div>
+                <h3 style={{ marginBottom: '1.25rem' }}>API Keys & Integrations</h3>
+                
+                <div style={{ marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                  <h4 style={{ marginBottom: '0.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>MOBILE APP STORE DOWNLOAD LINKS</h4>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '1rem' }}>Configure links displayed on the public website landing page. If disabled or empty, the button shows "Coming Soon".</p>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    <div style={{ background: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Google Play Store (Android)</span>
+                        <input type="checkbox" checked={settings.download_android_enabled} onChange={e => set('download_android_enabled', e.target.checked)} />
+                      </div>
+                      <div className="input-group">
+                        <label className="input-label" style={{ fontSize: '0.75rem' }}>Play Store URL or APK Link</label>
+                        <input className="input-field" type="text" placeholder="https://play.google.com/store/apps/details?id=..." value={settings.download_android_url} onChange={e => set('download_android_url', e.target.value)} disabled={!settings.download_android_enabled} />
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Apple App Store (iOS)</span>
+                        <input type="checkbox" checked={settings.download_ios_enabled} onChange={e => set('download_ios_enabled', e.target.checked)} />
+                      </div>
+                      <div className="input-group">
+                        <label className="input-label" style={{ fontSize: '0.75rem' }}>App Store URL</label>
+                        <input className="input-field" type="text" placeholder="https://apps.apple.com/app/id..." value={settings.download_ios_url} onChange={e => set('download_ios_url', e.target.value)} disabled={!settings.download_ios_enabled} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <h4 style={{ marginBottom: '0.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>GOOGLE GEMINI AI</h4>
+                  <div className="input-group">
+                    <label className="input-label">Gemini API Key</label>
+                    <input className="input-field" type="text" placeholder="AIzaSy..." value={settings.gemini_api_key} onChange={e => set('gemini_api_key', e.target.value)} />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>Used for AI Receipt Scanning and Smart Insights.</p>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <h4 style={{ marginBottom: '0.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>RAZORPAY PAYMENT GATEWAY</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="input-group">
+                      <label className="input-label">Razorpay Key ID</label>
+                      <input className="input-field" type="text" placeholder="rzp_live_..." value={settings.razorpay_key_id} onChange={e => set('razorpay_key_id', e.target.value)} />
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">Razorpay Key Secret</label>
+                      <div style={{ position: 'relative' }}>
+                        <input className="input-field" type="password" placeholder="Secret" value={settings.razorpay_key_secret} onChange={e => set('razorpay_key_secret', e.target.value)} style={{ paddingRight: '2.5rem' }} />
+                      </div>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>Used for Plan Upgrades and Subscriptions.</p>
                 </div>
               </div>
             )}

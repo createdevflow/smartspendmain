@@ -294,6 +294,7 @@ const FEATURES = [
   { key: 'pdf_export',               name: 'PDF Export',                 type: 'boolean', defaultValue: 'false', category: 'export',    sortOrder: 3 },
   { key: 'csv_export',               name: 'CSV Export',                 type: 'boolean', defaultValue: 'false', category: 'export',    sortOrder: 4 },
   { key: 'excel_export',             name: 'Excel Export',               type: 'boolean', defaultValue: 'false', category: 'export',    sortOrder: 5 },
+  { key: 'feature_export',           name: 'Export Features',            type: 'boolean', defaultValue: 'true',  category: 'export',    sortOrder: 6 },
   { key: 'receipt_upload',           name: 'Receipt Upload',             type: 'boolean', defaultValue: 'false', category: 'storage',   sortOrder: 6 },
   { key: 'multi_currency',           name: 'Multi-Currency',             type: 'boolean', defaultValue: 'true',  category: 'finance',   sortOrder: 7 },
   { key: 'advanced_analytics',       name: 'Advanced Analytics',         type: 'boolean', defaultValue: 'false', category: 'analytics', sortOrder: 8 },
@@ -321,6 +322,7 @@ const FREE_PLAN = {
     pdf_export:               'false',
     csv_export:               'false',
     excel_export:             'false',
+    feature_export:           'false',
     receipt_upload:           'false',
     multi_currency:           'true',
     advanced_analytics:       'false',
@@ -343,6 +345,7 @@ const PRO_PLAN = {
   description: 'Advanced features for power users',
   tagline: 'Take full control of your finances',
   color: '#3B82F6',
+  priceWeekly: 49,
   priceMonthly: 199,
   priceYearly: 1990,
   features: {
@@ -351,6 +354,7 @@ const PRO_PLAN = {
     pdf_export:               'true',
     csv_export:               'true',
     excel_export:             'true',
+    feature_export:           'true',
     receipt_upload:           'true',
     multi_currency:           'true',
     advanced_analytics:       'true',
@@ -373,6 +377,7 @@ const BUSINESS_PLAN = {
   description: 'For small businesses and teams',
   tagline: 'Complete finance toolkit for your business',
   color: '#8B5CF6',
+  priceWeekly: 149,
   priceMonthly: 499,
   priceYearly: 4990,
   features: {
@@ -381,6 +386,7 @@ const BUSINESS_PLAN = {
     pdf_export:               'true',
     csv_export:               'true',
     excel_export:             'true',
+    feature_export:           'true',
     receipt_upload:           'true',
     multi_currency:           'true',
     advanced_analytics:       'true',
@@ -408,6 +414,7 @@ const APP_CONFIGS = [
   { key: 'otp_expiry_minutes',   value: '10',                   description: 'OTP validity in minutes', isPublic: false },
   { key: 'max_upload_size_mb',   value: '10',                   description: 'Maximum receipt upload size', isPublic: true },
   { key: 'receipt_allowed_types',value: 'image/jpeg,image/png,image/webp,application/pdf', description: 'Allowed MIME types for receipts', isPublic: true },
+  { key: 'free_trial_days',      value: '7',                    description: 'Number of days for free trial', isPublic: true },
 ];
 
 // ─── SEED FUNCTION ────────────────────────────────────────────────────────────
@@ -476,10 +483,11 @@ async function main() {
       description: PRO_PLAN.description,
       tagline:     PRO_PLAN.tagline,
       color:       PRO_PLAN.color,
+      priceWeekly:  PRO_PLAN.priceWeekly,
       priceMonthly: PRO_PLAN.priceMonthly,
       priceYearly:  PRO_PLAN.priceYearly,
     },
-    update: { isDefault: PRO_PLAN.isDefault, isActive: PRO_PLAN.isActive, priceMonthly: PRO_PLAN.priceMonthly, priceYearly: PRO_PLAN.priceYearly },
+    update: { isDefault: PRO_PLAN.isDefault, isActive: PRO_PLAN.isActive, priceWeekly: PRO_PLAN.priceWeekly, priceMonthly: PRO_PLAN.priceMonthly, priceYearly: PRO_PLAN.priceYearly },
   });
 
   for (const [key, value] of Object.entries(PRO_PLAN.features)) {
@@ -505,10 +513,11 @@ async function main() {
       description: BUSINESS_PLAN.description,
       tagline:     BUSINESS_PLAN.tagline,
       color:       BUSINESS_PLAN.color,
+      priceWeekly:  BUSINESS_PLAN.priceWeekly,
       priceMonthly: BUSINESS_PLAN.priceMonthly,
       priceYearly:  BUSINESS_PLAN.priceYearly,
     },
-    update: { isDefault: BUSINESS_PLAN.isDefault, isActive: BUSINESS_PLAN.isActive, priceMonthly: BUSINESS_PLAN.priceMonthly, priceYearly: BUSINESS_PLAN.priceYearly },
+    update: { isDefault: BUSINESS_PLAN.isDefault, isActive: BUSINESS_PLAN.isActive, priceWeekly: BUSINESS_PLAN.priceWeekly, priceMonthly: BUSINESS_PLAN.priceMonthly, priceYearly: BUSINESS_PLAN.priceYearly },
   });
 
   for (const [key, value] of Object.entries(BUSINESS_PLAN.features)) {

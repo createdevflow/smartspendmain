@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { AuditAction } from '@prisma/client';
+import { CacheService } from '../cache/cache.service';
 
 // ── Feature toggle keys for AppConfig ───────────────────────────────────────
 export const APP_FEATURE_KEYS = [
@@ -22,6 +23,10 @@ export const APP_FEATURE_KEYS = [
   'feature_user_registration',
   'feature_profile_editing',
   'feature_account_deletion',
+  'feature_wealth_hub',
+  'feature_upcoming_bills',
+  'feature_top_categories',
+  'feature_ai_insights_mini',
   'maintenance_mode',
   'feature_app_updates',
   'feature_beta',
@@ -34,6 +39,11 @@ export const APP_FEATURE_KEYS = [
   'feature_panic_button_active',
   'feature_gallery',
   'feature_chat',
+  // App store download configuration
+  'download_android_enabled',
+  'download_android_url',
+  'download_ios_enabled',
+  'download_ios_url',
 ];
 
 @Injectable()
@@ -42,6 +52,7 @@ export class AdminService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
+    private cache: CacheService,
   ) {}
 
   // ── Dashboard ────────────────────────────────────────────────────────────────
@@ -156,6 +167,48 @@ export class AdminService {
     };
   }
 
+  async getSoftDeletedUsers(search?: string, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+    const where: any = { deletedAt: { not: null } };
+    if (search) {
+      where.OR = [
+        // Search in mangled emails too (format: deleted_<ts>_<email>)
+        { email: { contains: search, mode: 'insensitive' } },
+        { fullName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        select: {
+          id: true, email: true, fullName: true, phone: true,
+          status: true, role: true, deletedAt: true, createdAt: true, lastLoginAt: true,
+          plan: { select: { name: true, slug: true, color: true } },
+          _count: { select: { cashbooks: true, transactions: true } },
+        },
+        orderBy: { deletedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    // Un-mangle the displayed email/phone for readability
+    const normalized = users.map(u => ({
+      ...u,
+      email: u.email.replace(/^deleted_\d+_/, ''),
+      phone: u.phone ? u.phone.replace(/^deleted_\d+_/, '') : null,
+    }));
+
+    return {
+      data: normalized,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+
+
   async getUserDetail(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -211,6 +264,7 @@ export class AdminService {
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) throw new NotFoundException('Plan not found');
     const updated = await this.prisma.user.update({ where: { id: userId }, data: { planId } });
+    await this.cache.del(`user:features:${userId}`);
     const { passwordHash, encryptionKeySalt, ...safe } = updated;
     return safe;
   }
@@ -235,6 +289,28 @@ export class AdminService {
       data: { isValid: false },
     });
     return { message: 'User account soft-deleted successfully' };
+  }
+
+  async restoreUser(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.deletedAt) throw new BadRequestException('User is not soft-deleted');
+    
+    // Un-mangle email and phone
+    const email = user.email.replace(/^deleted_\d+_/, '');
+    let phone = user.phone;
+    if (phone) phone = phone.replace(/^deleted_\d+_/, '');
+
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        deletedAt: null,
+        status: 'ACTIVE',
+        email,
+        phone,
+      },
+    });
+    return { message: 'User account restored successfully' };
   }
 
   async hardDeleteUser(id: string) {
@@ -319,7 +395,9 @@ export class AdminService {
   }>) {
     const plan = await this.prisma.plan.findUnique({ where: { id } });
     if (!plan) throw new NotFoundException('Plan not found');
-    return this.prisma.plan.update({ where: { id }, data: dto });
+    const updated = await this.prisma.plan.update({ where: { id }, data: dto });
+    await this.cache.delPattern('user:features:*');
+    return updated;
   }
 
   async deletePlan(id: string, fallbackPlanId?: string) {
@@ -425,7 +503,9 @@ export class AdminService {
   }>) {
     const feature = await this.prisma.feature.findUnique({ where: { id } });
     if (!feature) throw new NotFoundException('Feature not found');
-    return this.prisma.feature.update({ where: { id }, data: dto });
+    const updated = await this.prisma.feature.update({ where: { id }, data: dto });
+    await this.cache.delPattern('user:features:*');
+    return updated;
   }
 
   async deleteFeature(id: string) {
@@ -596,6 +676,22 @@ export class AdminService {
       });
       results.push(result);
     }
+
+    const trialSetting = settings.find(s => s.key === 'free_trial_days');
+    if (trialSetting) {
+      const days = parseInt(trialSetting.value, 10);
+      if (!isNaN(days) && days <= 0) {
+        await this.prisma.user.updateMany({ data: { trialExpiresAt: null } });
+      } else if (!isNaN(days) && days > 0) {
+        const users = await this.prisma.user.findMany({ select: { id: true, createdAt: true } });
+        for (const u of users) {
+          const expiry = new Date(u.createdAt);
+          expiry.setDate(expiry.getDate() + days);
+          await this.prisma.user.update({ where: { id: u.id }, data: { trialExpiresAt: expiry } });
+        }
+      }
+    }
+    await this.cache.delPattern('user:features:*');
     return results;
   }
 
@@ -606,16 +702,26 @@ export class AdminService {
       where: { key: { in: APP_FEATURE_KEYS } },
     });
 
-    const configMap: Record<string, string> = {};
+    const configMap: Record<string, { value: string, teaseMode: boolean }> = {};
     for (const key of APP_FEATURE_KEYS) {
       const found = settings.find(s => s.key === key);
-      configMap[key] = found?.value ?? (key === 'maintenance_mode' ? 'false' : 'true');
+      let val = found?.value;
+      if (val === undefined) {
+        if (key.endsWith('_url')) val = '';
+        else if (['maintenance_mode', 'feature_beta', 'download_ios_enabled'].includes(key)) val = 'false';
+        else val = 'true';
+      }
+      configMap[key] = {
+        value: val,
+        teaseMode: found?.teaseMode ?? false,
+      };
     }
 
     return configMap;
   }
 
-  async updateAppConfig(config: { key: string; value: string }[]) {
+  async updateAppConfig(config: { key: string; value: string; teaseMode?: boolean }[]) {
+    console.log('[DEBUG] updateAppConfig called with config:', config);
     if (!config || !Array.isArray(config)) {
       throw new BadRequestException('Invalid config payload: must be an array');
     }
@@ -626,17 +732,24 @@ export class AdminService {
 
     const results: any[] = [];
     for (const item of config) {
+      const updateData: any = { value: item.value };
+      if (item.teaseMode !== undefined) {
+        updateData.teaseMode = item.teaseMode;
+      }
+      
       const result = await this.prisma.appConfig.upsert({
         where: { key: item.key },
-        update: { value: item.value },
+        update: updateData,
         create: {
           key: item.key,
           value: item.value,
+          teaseMode: item.teaseMode ?? false,
           description: `Feature toggle: ${item.key}`,
         },
       });
       results.push(result);
     }
+    await this.cache.delPattern('user:features:*');
     return results;
   }
 

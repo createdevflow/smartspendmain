@@ -37,9 +37,21 @@ export class UsersService {
   }
 
   async deleteAccount(userId: string) {
-    await this.prisma.user.update({ where: { id: userId }, data: { deletedAt: new Date(), status: 'SUSPENDED' } });
-    return { message: 'Account scheduled for deletion. You have 30 days to cancel.' };
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const ts = Date.now();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date(),
+        status: 'SUSPENDED',
+      },
+    });
+    // Invalidate all sessions so the user is logged out everywhere
+    await this.prisma.session.updateMany({ where: { userId }, data: { isValid: false } });
+    return { message: 'Account scheduled for deletion. Contact support within 30 days to restore it.' };
   }
+
 
   async getSessions(userId: string) {
     return this.prisma.session.findMany({ where: { userId, isValid: true, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' }, select: { id: true, deviceName: true, platform: true, ipAddress: true, createdAt: true, expiresAt: true } });

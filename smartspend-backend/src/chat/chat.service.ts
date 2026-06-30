@@ -266,6 +266,14 @@ export class ChatService {
     return msg;
   }
 
+  async getConversationParticipantIds(conversationId: string): Promise<string[]> {
+    const members = await this.prisma.chatMember.findMany({
+      where: { conversationId },
+      select: { userId: true },
+    });
+    return members.map((m) => m.userId);
+  }
+
   async editMessage(messageId: string, senderId: string, newContent: string) {
     const msg = await this.prisma.chatMessage.findUnique({ where: { id: messageId } });
     if (!msg || msg.senderId !== senderId) throw new ForbiddenException('Cannot edit');
@@ -316,5 +324,55 @@ export class ChatService {
       where: { conversationId_userId: { conversationId, userId } },
       data: settings,
     });
+  }
+
+  // ── Mini AI Insight ───────────────────────────────────────────────────────
+  
+  async getMiniInsight(userId: string, cashbookId: string) {
+    const cashbook = await this.prisma.cashbook.findFirst({
+      where: {
+        id: cashbookId,
+        deletedAt: null,
+        OR: [{ userId }, { members: { some: { userId, status: 'accepted' } } }]
+      }
+    });
+    if (!cashbook) throw new NotFoundException('Cashbook not found');
+
+    const now = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(now.getDate() - 7);
+    
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(now.getDate() - 14);
+
+    const [thisWeekTxs, lastWeekTxs] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where: { cashbookId, deletedAt: null, type: 'EXPENSE', date: { gte: sevenDaysAgo } }
+      }),
+      this.prisma.transaction.findMany({
+        where: { cashbookId, deletedAt: null, type: 'EXPENSE', date: { gte: fourteenDaysAgo, lt: sevenDaysAgo } }
+      })
+    ]);
+
+    const thisWeekTotal = thisWeekTxs.reduce((sum, tx) => sum + parseFloat(tx.amount.toString()), 0);
+    const lastWeekTotal = lastWeekTxs.reduce((sum, tx) => sum + parseFloat(tx.amount.toString()), 0);
+
+    if (lastWeekTotal === 0 && thisWeekTotal === 0) {
+      return { insight: "Track your expenses to receive smart financial insights here!" };
+    }
+
+    if (lastWeekTotal === 0) {
+      return { insight: "You're off to a strong start this week! Keep tracking those expenses." };
+    }
+
+    const diffPct = Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100);
+
+    if (diffPct < 0) {
+      return { insight: `Great job! You've spent ${Math.abs(diffPct)}% less this week compared to last week.` };
+    } else if (diffPct > 0) {
+      return { insight: `Watch out! Your spending is up ${diffPct}% this week. Try to stick to your budget!` };
+    } else {
+      return { insight: "Your spending this week is exactly on track with last week." };
+    }
   }
 }

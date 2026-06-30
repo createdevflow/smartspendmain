@@ -41,7 +41,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (!token) { client.disconnect(); return; }
 
       const payload = this.jwtService.verify(token, {
-        secret: this.configService.get<string>('JWT_SECRET'),
+        secret: this.configService.get<string>('jwt.accessSecret') || process.env.JWT_ACCESS_SECRET || this.configService.get<string>('JWT_SECRET'),
       });
 
       const userId = payload.sub;
@@ -107,6 +107,36 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // ── Message Events ────────────────────────────────────────────────────────
 
+  async broadcastNewMessage(message: any) {
+    this.server.to(`conv:${message.conversationId}`).emit('message.new', message);
+    try {
+      const userIds = await this.chatService.getConversationParticipantIds(message.conversationId);
+      for (const uid of userIds) {
+        this.server.to(`user:${uid}`).emit('message.new', message);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  private async broadcastEventToConversation(conversationId: string, event: string, payload: any, clientToExclude?: Socket) {
+    if (clientToExclude) {
+      clientToExclude.to(`conv:${conversationId}`).emit(event, payload);
+    } else {
+      this.server.to(`conv:${conversationId}`).emit(event, payload);
+    }
+    try {
+      const userIds = await this.chatService.getConversationParticipantIds(conversationId);
+      const excludeUid = clientToExclude?.data?.userId;
+      for (const uid of userIds) {
+        if (excludeUid && uid === excludeUid) continue;
+        this.server.to(`user:${uid}`).emit(event, payload);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   @SubscribeMessage('message.send')
   async handleSend(
     @ConnectedSocket() client: Socket,
@@ -115,10 +145,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.data.userId;
     try {
       const message = await this.chatService.createMessage(userId, dto);
-
-      // Emit to all members in this conversation room
-      this.server.to(`conv:${dto.conversationId}`).emit('message.new', message);
-
+      await this.broadcastNewMessage(message);
       return { success: true, message };
     } catch (e) {
       return { success: false, error: e.message };
@@ -133,7 +160,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.data.userId;
     try {
       const message = await this.chatService.editMessage(dto.messageId, userId, dto.content);
-      this.server.to(`conv:${message.conversationId}`).emit('message.edited', {
+      await this.broadcastEventToConversation(message.conversationId, 'message.edited', {
         messageId: message.id,
         conversationId: message.conversationId,
         content: message.content,
@@ -153,7 +180,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.data.userId;
     try {
       const message = await this.chatService.deleteMessage(dto.messageId, userId);
-      this.server.to(`conv:${message.conversationId}`).emit('message.deleted', {
+      await this.broadcastEventToConversation(message.conversationId, 'message.deleted', {
         messageId: message.id,
         conversationId: message.conversationId,
       });
@@ -171,7 +198,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.data.userId;
     try {
       const result = await this.chatService.reactToMessage(dto.messageId, userId, dto.emoji);
-      this.server.to(`conv:${dto.conversationId}`).emit('message.reaction', {
+      await this.broadcastEventToConversation(dto.conversationId, 'message.reaction', {
         messageId: dto.messageId,
         conversationId: dto.conversationId,
         userId,
@@ -191,7 +218,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const userId = client.data.userId;
     await this.chatService.markRead(dto.conversationId, userId);
-    this.server.to(`conv:${dto.conversationId}`).emit('message.read', {
+    await this.broadcastEventToConversation(dto.conversationId, 'message.read', {
       conversationId: dto.conversationId,
       userId,
       readAt: new Date().toISOString(),
@@ -206,11 +233,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const userId = client.data.userId;
     // Broadcast to other members (not back to sender)
-    client.to(`conv:${dto.conversationId}`).emit('user.typing', {
+    await this.broadcastEventToConversation(dto.conversationId, 'user.typing', {
       conversationId: dto.conversationId,
       userId,
       isTyping: dto.isTyping,
-    });
+    }, client);
     return { success: true };
   }
 

@@ -28,6 +28,17 @@ export class AdminController {
   getDashboard() { return this.adminService.getDashboard(); }
 
   // ── Users ──────────────────────────────────────────────────────────────────
+  @Get('users/deleted')
+  @ApiOperation({ summary: 'List soft-deleted user accounts' })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getSoftDeletedUsers(
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) { return this.adminService.getSoftDeletedUsers(search, Number(page) || 1, Number(limit) || 20); }
+
   @Get('users')
   @ApiOperation({ summary: 'List all users with optional filters' })
   @ApiQuery({ name: 'search', required: false })
@@ -42,6 +53,7 @@ export class AdminController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) { return this.adminService.getUsers(search, status, role, Number(page) || 1, Number(limit) || 20); }
+
 
   @Get('users/:id')
   @ApiOperation({ summary: 'Get user detail' })
@@ -70,6 +82,13 @@ export class AdminController {
   @ApiOperation({ summary: 'Soft-delete user account' })
   deleteUser(@Param('id') id: string) {
     return this.adminService.deleteUser(id);
+  }
+
+  @Patch('users/:id/restore')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Restore soft-deleted user account' })
+  restoreUser(@Param('id') id: string) {
+    return this.adminService.restoreUser(id);
   }
 
   @Delete('users/:id/hard')

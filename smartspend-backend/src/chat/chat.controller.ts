@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, Request } from '@nestjs/common';
 import { ChatService } from './chat.service';
+import { ChatGateway } from './chat.gateway';
 import { SendMessageDto, CreateConversationDto, SendContactRequestDto } from './dto/chat.dto';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
@@ -7,7 +8,10 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 @ApiBearerAuth('JWT')
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(
+    private readonly chatService: ChatService,
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   // ── Contacts ────────────────────────────────────────────────────────
 
@@ -72,6 +76,13 @@ export class ChatController {
     return this.chatService.getMessages(id, req.user.sub, cursor, limit ? parseInt(limit) : 30);
   }
 
+  @Post('messages')
+  async sendMessage(@Request() req, @Body() dto: SendMessageDto) {
+    const msg = await this.chatService.createMessage(req.user.sub, dto);
+    await this.chatGateway.broadcastNewMessage(msg);
+    return msg;
+  }
+
   // ── Conversation Settings ────────────────────────────────────────────
 
   @Patch('conversations/:id/mute')
@@ -87,5 +98,12 @@ export class ChatController {
   @Patch('conversations/:id/archive')
   archive(@Request() req, @Param('id') id: string, @Body() body: { isArchived: boolean }) {
     return this.chatService.updateMemberSettings(id, req.user.sub, { isArchived: body.isArchived });
+  }
+
+  // ── AI Insights ──────────────────────────────────────────────────────
+
+  @Get('mini-insight/:cashbookId')
+  getMiniInsight(@Request() req, @Param('cashbookId') cashbookId: string) {
+    return this.chatService.getMiniInsight(req.user.sub, cashbookId);
   }
 }

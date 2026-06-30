@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { CryptoService } from '../crypto/crypto.service';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -10,14 +11,24 @@ export class CashbookMembersService {
   constructor(
     private prisma: PrismaService,
     private mail: MailService,
+    private crypto: CryptoService,
   ) {}
 
-  // ── Check if user is owner of a cashbook ──────────────────────────────────
-  private async assertOwner(userId: string, cashbookId: string) {
+  // ── Check if user can manage members ───────────────────────────────────────
+  private async assertCanManageMembers(userId: string, cashbookId: string) {
     const book = await this.prisma.cashbook.findFirst({
-      where: { id: cashbookId, userId, deletedAt: null },
+      where: { id: cashbookId, deletedAt: null },
+      include: { user: { select: { encryptionKeySalt: true } } },
     });
-    if (!book) throw new ForbiddenException('You are not the owner of this cashbook');
+    if (!book) throw new ForbiddenException('Cashbook not found');
+    
+    if (book.userId === userId) return book; // Owner
+    
+    const member = await this.prisma.cashbookMember.findFirst({
+      where: { cashbookId, userId, status: 'accepted', role: 'EDITOR' },
+    });
+    
+    if (!member) throw new ForbiddenException('You do not have permission to manage members for this cashbook');
     return book;
   }
 
@@ -62,33 +73,45 @@ export class CashbookMembersService {
   }
 
   // ── Invite a member ────────────────────────────────────────────────────────
-  async inviteMember(userId: string, cashbookId: string, dto: { email: string; role: 'EDITOR' | 'VIEWER' }) {
+  async inviteMember(userId: string, cashbookId: string, dto: { email?: string; userId?: string; role: 'EDITOR' | 'VIEWER' }) {
     await this.assertFeatureEnabled();
-    const book = await this.assertOwner(userId, cashbookId);
+    const book = await this.assertCanManageMembers(userId, cashbookId);
 
-    const inviter = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true } });
-    if (inviter?.email.toLowerCase() === dto.email.toLowerCase()) {
+    const inviter = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, encryptionKeySalt: true } });
+    
+    const cleanEmail = dto.email ? dto.email.trim() : `user_${dto.userId}@local`;
+    
+    if (inviter?.email && inviter.email.toLowerCase() === cleanEmail.toLowerCase()) {
       throw new BadRequestException('You cannot invite yourself');
     }
 
-    const existing = await this.prisma.cashbookMember.findUnique({
-      where: { cashbookId_email: { cashbookId, email: dto.email } },
+    const existing = await this.prisma.cashbookMember.findFirst({
+      where: { 
+        cashbookId, 
+        OR: [
+          { email: { equals: cleanEmail, mode: 'insensitive' } },
+          ...(dto.userId ? [{ userId: dto.userId }] : [])
+        ]
+      },
     });
+    
     const token = randomBytes(32).toString('hex');
-    const targetUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const targetUser = dto.userId 
+      ? await this.prisma.user.findUnique({ where: { id: dto.userId } })
+      : await this.prisma.user.findFirst({ where: { email: { equals: cleanEmail, mode: 'insensitive' } } });
 
     let member;
     if (existing) {
       if (existing.status === 'accepted') throw new ConflictException('This user is already a member');
       member = await this.prisma.cashbookMember.update({
         where: { id: existing.id },
-        data: { role: dto.role as any, inviteToken: token, invitedAt: new Date() },
+        data: { role: dto.role as any, inviteToken: token, invitedAt: new Date(), userId: targetUser?.id, email: targetUser?.email || targetUser?.phone || cleanEmail },
       });
     } else {
       member = await this.prisma.cashbookMember.create({
         data: {
           cashbookId,
-          email: dto.email,
+          email: targetUser?.email || targetUser?.phone || cleanEmail,
           role: dto.role as any,
           inviteToken: token,
           userId: targetUser?.id,
@@ -97,6 +120,9 @@ export class CashbookMembersService {
     }
 
     const inviteLink = `https://cashtro.in/join/${token}`;
+    // Decrypt using owner's salt
+    const ownerSalt = book.user?.encryptionKeySalt || '';
+    const bookName = this.crypto.decrypt(book.name, ownerSalt);
 
     if (targetUser) {
       await this.prisma.notification.create({
@@ -104,7 +130,7 @@ export class CashbookMembersService {
           userId: targetUser.id,
           type: 'IN_APP',
           title: 'Cashbook Invite',
-          body: `${inviter?.fullName || 'Someone'} invited you to join '${book.name}' as a ${dto.role.toLowerCase()}.`,
+          body: `${inviter?.fullName || 'Someone'} invited you to join '${bookName}' as a ${dto.role.toLowerCase()}.`,
           data: { cashbookId, token },
           actionUrl: inviteLink,
         },
@@ -112,7 +138,7 @@ export class CashbookMembersService {
     }
 
     // Send email invite (non-fatal if it fails)
-    await this.sendInviteEmail(dto.email, inviter?.fullName || 'Someone', book.name, inviteLink);
+    await this.sendInviteEmail(cleanEmail, inviter?.fullName || 'Someone', bookName, inviteLink);
 
     return { message: 'Invite sent', token };
   }
@@ -120,7 +146,7 @@ export class CashbookMembersService {
   // ── Create generic invite link ─────────────────────────────────────────────
   async createInviteLink(userId: string, cashbookId: string) {
     await this.assertFeatureEnabled();
-    await this.assertOwner(userId, cashbookId);
+    await this.assertCanManageMembers(userId, cashbookId);
 
     const token = randomBytes(16).toString('hex');
 
@@ -141,18 +167,20 @@ export class CashbookMembersService {
   async acceptInvite(userId: string, token: string) {
     const member = await this.prisma.cashbookMember.findUnique({ where: { inviteToken: token } });
     if (!member) throw new NotFoundException('Invalid or expired invite link');
-    if (member.status === 'accepted') throw new ConflictException('Invite already accepted');
+    if (member.status === 'accepted') {
+      return { message: 'You have joined the cashbook', cashbookId: member.cashbookId };
+    }
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-    const isGenericLink = member.email.startsWith('link_') && member.email.endsWith('@shared.local');
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, phone: true } });
+    const isGenericLink = member.email.startsWith('link_') || !member.userId;
 
-    if (!isGenericLink && member.email.toLowerCase() !== user?.email?.toLowerCase()) {
-      throw new ForbiddenException('This invite was sent to a different email address');
+    if (!isGenericLink && member.userId !== userId && member.email.trim().toLowerCase() !== user?.email?.trim().toLowerCase() && member.email.trim() !== user?.phone?.trim()) {
+      throw new ForbiddenException('This invite was sent to a different account');
     }
 
     await this.prisma.cashbookMember.update({
       where: { id: member.id },
-      data: { userId, status: 'accepted', acceptedAt: new Date(), inviteToken: null },
+      data: { userId, status: 'accepted', acceptedAt: new Date() },
     });
 
     return { message: 'You have joined the cashbook', cashbookId: member.cashbookId };
@@ -160,7 +188,7 @@ export class CashbookMembersService {
 
   // ── Remove a member ────────────────────────────────────────────────────────
   async removeMember(userId: string, cashbookId: string, memberId: string) {
-    await this.assertOwner(userId, cashbookId);
+    await this.assertCanManageMembers(userId, cashbookId);
     const member = await this.prisma.cashbookMember.findFirst({ where: { id: memberId, cashbookId } });
     if (!member) throw new NotFoundException('Member not found');
     await this.prisma.cashbookMember.delete({ where: { id: memberId } });
@@ -169,7 +197,7 @@ export class CashbookMembersService {
 
   // ── Update member role ─────────────────────────────────────────────────────
   async updateMemberRole(userId: string, cashbookId: string, memberId: string, role: 'EDITOR' | 'VIEWER') {
-    await this.assertOwner(userId, cashbookId);
+    await this.assertCanManageMembers(userId, cashbookId);
     const member = await this.prisma.cashbookMember.findFirst({ where: { id: memberId, cashbookId } });
     if (!member) throw new NotFoundException('Member not found');
     return this.prisma.cashbookMember.update({ where: { id: memberId }, data: { role: role as any } });

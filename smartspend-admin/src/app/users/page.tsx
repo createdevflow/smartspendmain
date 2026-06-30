@@ -24,18 +24,44 @@ type ActionType = 'status' | 'delete' | 'hard-delete' | 'reset' | 'password' | '
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
+  const [deletedUsers, setDeletedUsers] = useState<any[]>([]);
+  const [deletedMeta, setDeletedMeta] = useState({ total: 0, page: 1, limit: 20, totalPages: 1 });
+  const [activeTab, setActiveTab] = useState<'active' | 'deleted'>('active');
   const [meta, setMeta] = useState({ total: 0, page: 1, limit: 20, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [page, setPage] = useState(1);
-  const [actionUser, setActionUser] = useState<{ user: any; action: ActionType } | null>(null);
+  const [actionUser, setActionUser] = useState<{ user: any; action: ActionType | 'restore' } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
   const [statusValue, setStatusValue] = useState('ACTIVE');
   const [passwordValue, setPasswordValue] = useState('');
   const [impersonateResult, setImpersonateResult] = useState<{ accessToken: string; user: any } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [deletedSearch, setDeletedSearch] = useState('');
+  const [deletedPage, setDeletedPage] = useState(1);
+  const [deletedLoading, setDeletedLoading] = useState(false);
+
+  const fetchDeletedUsers = useCallback(async () => {
+    setDeletedLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(deletedPage),
+        limit: '20',
+        ...(deletedSearch ? { search: deletedSearch } : {}),
+      });
+      const res = await api.get(`/admin/users/deleted?${params}`);
+      const d = res.data?.data;
+      setDeletedUsers(d?.data || []);
+      setDeletedMeta(d?.meta || { total: 0, page: 1, limit: 20, totalPages: 1 });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeletedLoading(false);
+    }
+  }, [deletedPage, deletedSearch]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -58,7 +84,22 @@ export default function UsersPage() {
     }
   }, [page, statusFilter, roleFilter, search]);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (!localStorage.getItem('adminToken')) {
+        window.location.href = '/admin/login';
+        return;
+      }
+      setAuthChecked(true);
+      fetchUsers();
+    }
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    if (authChecked && activeTab === 'deleted') {
+      fetchDeletedUsers();
+    }
+  }, [fetchDeletedUsers, authChecked, activeTab]);
 
   const closeModal = () => {
     setActionUser(null);
@@ -66,6 +107,14 @@ export default function UsersPage() {
     setPasswordValue('');
     setImpersonateResult(null);
   };
+
+  if (!authChecked) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: '#F3F4F6' }}>
+        <div className="skeleton" style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
+      </div>
+    );
+  }
 
   const handleAction = async () => {
     if (!actionUser) return;
@@ -80,6 +129,11 @@ export default function UsersPage() {
         await api.delete(`/admin/users/${actionUser.user.id}`);
         closeModal();
         fetchUsers();
+      } else if (actionUser.action === 'restore') {
+        await api.patch(`/admin/users/${actionUser.user.id}/restore`);
+        closeModal();
+        fetchUsers();
+        fetchDeletedUsers();
       } else if (actionUser.action === 'hard-delete') {
         await api.delete(`/admin/users/${actionUser.user.id}/hard`);
         closeModal();
@@ -128,22 +182,44 @@ export default function UsersPage() {
     <>
       <Sidebar />
       <main className="main-content">
-        {/* Header */}
         <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 className="animate-fade-in">User Management</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>{meta.total.toLocaleString()} total users</p>
+            <p style={{ color: 'var(--text-secondary)' }}>{meta.total.toLocaleString()} total active users</p>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button className="btn btn-secondary" onClick={fetchUsers} style={{ gap: '0.5rem' }}>
+            <button className="btn btn-secondary" onClick={activeTab === 'deleted' ? fetchDeletedUsers : fetchUsers} style={{ gap: '0.5rem' }}>
               <RefreshCw size={15} /> Refresh
             </button>
-            <button className="btn btn-secondary" onClick={exportCSV} style={{ gap: '0.5rem' }}>
-              <Download size={15} /> Export CSV
-            </button>
+            {activeTab === 'active' && (
+              <button className="btn btn-secondary" onClick={exportCSV} style={{ gap: '0.5rem' }}>
+                <Download size={15} /> Export CSV
+              </button>
+            )}
           </div>
         </header>
 
+        {/* Tab Switcher */}
+        <div style={{ display: 'flex', gap: '0', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', width: 'fit-content' }}>
+          {(['active', 'deleted'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '0.625rem 1.25rem', border: 'none', background: 'none', cursor: 'pointer',
+                fontSize: '0.875rem', fontWeight: 600,
+                color: activeTab === tab ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                borderBottom: activeTab === tab ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                transition: 'all 0.15s',
+              }}
+            >
+              {tab === 'active' ? `Active Users (${meta.total})` : `Deleted Users (${deletedMeta.total})`}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'active' && (
+          <>
         {/* Stats row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
           {[
@@ -177,10 +253,11 @@ export default function UsersPage() {
             </div>
             <select className="input-field" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }} style={{ width: '140px', margin: 0 }}>
               <option value="">All Status</option>
-              <option>ACTIVE</option>
-              <option>SUSPENDED</option>
-              <option>BANNED</option>
-              <option>PENDING</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="SUSPENDED">SUSPENDED</option>
+              <option value="BANNED">BANNED</option>
+              <option value="PENDING">PENDING</option>
+              <option value="DELETED">DELETED (Soft)</option>
             </select>
             <select className="input-field" value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1); }} style={{ width: '130px', margin: 0 }}>
               <option value="">All Roles</option>
@@ -303,11 +380,19 @@ export default function UsersPage() {
                             style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}>
                             <RotateCcw size={13} />
                           </button>
-                          <button title="Soft Delete" className="btn btn-secondary"
-                            onClick={() => setActionUser({ user, action: 'delete' })}
-                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', color: '#D97706', borderColor: '#D97706' }}>
-                            <UserX size={13} />
-                          </button>
+                          {user.deletedAt ? (
+                            <button title="Restore Account" className="btn btn-secondary"
+                              onClick={() => setActionUser({ user, action: 'restore' })}
+                              style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', color: '#10B981', borderColor: '#10B981' }}>
+                              <RotateCcw size={13} /> Restore
+                            </button>
+                          ) : (
+                            <button title="Soft Delete" className="btn btn-secondary"
+                              onClick={() => setActionUser({ user, action: 'delete' })}
+                              style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', color: '#D97706', borderColor: '#D97706' }}>
+                              <UserX size={13} />
+                            </button>
+                          )}
                           <button title="Permanent Delete (irreversible)" className="btn btn-secondary"
                             onClick={() => setActionUser({ user, action: 'hard-delete' })}
                             style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}>
@@ -340,13 +425,107 @@ export default function UsersPage() {
                     </button>
                   );
                 })}
-                <button className="btn btn-secondary" onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page === meta.totalPages} style={{ padding: '0.4rem 0.75rem' }}>
-                  <ChevronRight size={15} />
-                </button>
               </div>
             </div>
           )}
         </div>
+          </>) /* end activeTab === 'active' */}
+
+
+        {/* ── Deleted Users View ── */}
+        {activeTab === 'deleted' && (
+          <div className="card glass-panel" style={{ overflow: 'hidden' }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+                <input
+                  className="input-field"
+                  placeholder="Search deleted users..."
+                  value={deletedSearch}
+                  onChange={e => { setDeletedSearch(e.target.value); setDeletedPage(1); }}
+                  style={{ paddingLeft: '2.25rem', margin: 0 }}
+                />
+              </div>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
+                    {['User (Original Email)', 'Plan', 'Cashbooks', 'Deleted On', 'Actions'].map(h => (
+                      <th key={h} style={{ padding: '0.875rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {deletedLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                        {Array.from({ length: 5 }).map((_, j) => (
+                          <td key={j} style={{ padding: '0.875rem 1rem' }}>
+                            <div className="skeleton" style={{ height: '14px', borderRadius: '4px', width: j === 0 ? '160px' : '80px' }} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : deletedUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🗑️</div>
+                        <p style={{ fontWeight: 600 }}>No Deleted Accounts</p>
+                        <p style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>Accounts deleted by users or admins appear here</p>
+                      </td>
+                    </tr>
+                  ) : deletedUsers.map(du => (
+                    <tr key={du.id} style={{ borderBottom: '1px solid var(--border)', opacity: 0.85 }}>
+                      <td style={{ padding: '0.875rem 1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #9CA3AF, #6B7280)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'white', fontWeight: 700, fontSize: '0.875rem' }}>
+                            {du.fullName?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <div>
+                            <p style={{ fontWeight: 500, fontSize: '0.875rem', color: 'var(--text-primary)', textDecoration: 'line-through', textDecorationColor: 'var(--text-secondary)' }}>{du.fullName}</p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{du.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem' }}>
+                        {du.plan ? (
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem', borderRadius: '999px', background: `${du.plan.color}22`, color: du.plan.color }}>{du.plan.name}</span>
+                        ) : <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>No Plan</span>}
+                      </td>
+                      <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{du._count?.cashbooks || 0}</td>
+                      <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{du.deletedAt ? formatDate(du.deletedAt) : '—'}</td>
+                      <td style={{ padding: '0.875rem 1rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button title="Restore Account" className="btn btn-secondary"
+                            onClick={() => setActionUser({ user: du, action: 'restore' })}
+                            style={{ padding: '0.4rem 0.875rem', fontSize: '0.8rem', color: '#059669', borderColor: '#059669', gap: '0.375rem', display: 'flex', alignItems: 'center' }}>
+                            <RotateCcw size={13} /> Restore
+                          </button>
+                          <button title="Permanently Delete" className="btn btn-secondary"
+                            onClick={() => setActionUser({ user: du, action: 'hard-delete' })}
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}>
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {deletedMeta.totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderTop: '1px solid var(--border)' }}>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{deletedMeta.total} deleted accounts total</p>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button className="btn btn-secondary" onClick={() => setDeletedPage(p => Math.max(1, p - 1))} disabled={deletedPage === 1} style={{ padding: '0.4rem 0.75rem' }}><ChevronLeft size={15} /></button>
+                  <button className="btn btn-secondary" onClick={() => setDeletedPage(p => Math.min(deletedMeta.totalPages, p + 1))} disabled={deletedPage === deletedMeta.totalPages} style={{ padding: '0.4rem 0.75rem' }}><ChevronRight size={15} /></button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
 
       {/* ─── Action Modal ─── */}
@@ -354,7 +533,6 @@ export default function UsersPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
           <div className="card" style={{ width: '440px', padding: '1.75rem', boxShadow: 'var(--shadow-xl)' }}>
-
             {/* Status Change */}
             {actionUser.action === 'status' && (
               <>
@@ -399,14 +577,14 @@ export default function UsersPage() {
             {/* Impersonate / Login As */}
             {actionUser.action === 'impersonate' && !impersonateResult && (
               <>
-                <h3 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <LogIn size={18} style={{ color: '#7C3AED' }} /> Login As User
-                </h3>
+                <h3 style={{ marginBottom: '0.5rem', color: '#8B5CF6' }}>Generate Access Token</h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
-                  Generate a 15-minute access token for <strong>{actionUser.user.fullName}</strong> ({actionUser.user.email}).
+                  Generate a temporary API access token for <strong>{actionUser.user.fullName}</strong>.
+                  <br /><br />
+                  <em>Note: Since the consumer Web App is not yet fully integrated, this will simply output a JWT token you can use in Postman or other API clients for testing.</em>
                 </p>
-                <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginBottom: '1.25rem' }}>
-                  <p style={{ color: '#7C3AED', fontSize: '0.8125rem' }}>⚠️ This token expires in 15 minutes. Use it to debug or verify the user's experience.</p>
+                <div style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginBottom: '1.25rem' }}>
+                  <p style={{ color: '#8B5CF6', fontSize: '0.8125rem' }}>🔒 Token is valid for 15 minutes.</p>
                 </div>
               </>
             )}
@@ -442,6 +620,19 @@ export default function UsersPage() {
                 </p>
                 <div style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginBottom: '1.25rem' }}>
                   <p style={{ color: '#D97706', fontSize: '0.8125rem' }}>⚠️ Recoverable from database directly. All sessions will be invalidated.</p>
+                </div>
+              </>
+            )}
+
+            {/* Restore */}
+            {actionUser.action === 'restore' && (
+              <>
+                <h3 style={{ marginBottom: '0.5rem', color: '#10B981' }}>Restore Account</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+                  Restore <strong>{actionUser.user.fullName}</strong>'s account from soft deletion. They will regain access to their data.
+                </p>
+                <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginBottom: '1.25rem' }}>
+                  <p style={{ color: '#10B981', fontSize: '0.8125rem' }}>✅ Data will be available immediately.</p>
                 </div>
               </>
             )}
@@ -502,6 +693,7 @@ export default function UsersPage() {
                   {actionLoading ? 'Processing...'
                     : actionUser.action === 'hard-delete' ? '🚨 Permanently Delete'
                     : actionUser.action === 'delete' ? 'Soft Delete'
+                    : actionUser.action === 'restore' ? 'Restore Account'
                     : actionUser.action === 'reset' ? 'Reset Data'
                     : actionUser.action === 'password' ? 'Change Password'
                     : actionUser.action === 'impersonate' ? 'Generate Token'

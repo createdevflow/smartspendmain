@@ -24,9 +24,31 @@ export class FeaturesService {
     const features: Record<string, string> = {};
     for (const f of allFeatures) features[f.key] = f.defaultValue;
 
+    let activePlan = user?.plan;
+    
+    const trialConfig = await this.prisma.appConfig.findUnique({ where: { key: 'free_trial_days' } });
+    const trialDays = trialConfig ? parseInt(trialConfig.value, 10) : 7;
+    let effectiveTrialExpiresAt = user?.trialExpiresAt;
+    if (!isNaN(trialDays) && trialDays <= 0) {
+      effectiveTrialExpiresAt = null;
+    } else if (!isNaN(trialDays) && trialDays > 0 && user?.createdAt) {
+      effectiveTrialExpiresAt = new Date(user.createdAt);
+      effectiveTrialExpiresAt.setDate(effectiveTrialExpiresAt.getDate() + trialDays);
+    }
+
+    // Free Trial Override
+    if (effectiveTrialExpiresAt && new Date(effectiveTrialExpiresAt) > new Date()) {
+      const highestPlan = await this.prisma.plan.findFirst({
+        where: { isActive: true },
+        orderBy: { sortOrder: 'desc' },
+        include: { features: { include: { feature: true } } },
+      });
+      if (highestPlan) activePlan = highestPlan as any;
+    }
+
     // Override with plan values
-    if (user?.plan?.features) {
-      for (const pf of user.plan.features) {
+    if (activePlan?.features) {
+      for (const pf of activePlan.features) {
         features[pf.feature.key] = pf.value;
       }
     }

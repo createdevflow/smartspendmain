@@ -37,6 +37,12 @@ export class AuthService {
   // ── Register ────────────────────────────────────────────────────────────────
 
   async register(dto: RegisterDto, ip: string, ua: string) {
+    // Check if registration is globally enabled
+    const regToggle = await this.prisma.appConfig.findFirst({ where: { key: 'feature_user_registration' } });
+    if (regToggle && regToggle.value === 'false') {
+      throw new ForbiddenException('New user registration is currently disabled. Please try again later.');
+    }
+
     // Check duplicates
     const existing = await this.prisma.user.findFirst({
       where: {
@@ -55,6 +61,12 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const encryptionKeySalt = this.crypto.generateSalt();
 
+    // Determine trial expiration
+    const trialConfig = await this.prisma.appConfig.findUnique({ where: { key: 'free_trial_days' } });
+    const trialDays = trialConfig ? parseInt(trialConfig.value, 10) : 7;
+    const trialExpiresAt = new Date();
+    trialExpiresAt.setDate(trialExpiresAt.getDate() + trialDays);
+
     // Create user
     const user = await this.prisma.user.create({
       data: {
@@ -65,6 +77,7 @@ export class AuthService {
         encryptionKeySalt,
         planId: freePlan?.id ?? null,
         defaultCurrency: dto.defaultCurrency || 'INR',
+        trialExpiresAt,
       },
     });
 
@@ -89,13 +102,23 @@ export class AuthService {
     }
 
     const searchStr = dto.emailOrPhone.toLowerCase().trim();
+    // Fetch user WITH full plan features for gating
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
           { email: searchStr },
           { phone: searchStr }
-        ],
-        deletedAt: null 
+        ]
+      },
+      include: {
+        plan: {
+          include: {
+            features: {
+              include: { feature: true },
+              orderBy: { feature: { sortOrder: 'asc' } },
+            },
+          },
+        },
       },
     });
 
@@ -105,6 +128,20 @@ export class AuthService {
       await this.cache.incrementBruteForce(bruteKey, LOCKOUT_SECONDS);
       await this.audit.log({ userId: user?.id, action: AuditAction.LOGIN_FAILED, ipAddress: ip, userAgent: ua });
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.deletedAt) {
+      const daysSince = (Date.now() - user.deletedAt.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSince > 30) {
+        throw new ForbiddenException('Account is permanently inaccessible.');
+      }
+      // Restore account
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { deletedAt: null, status: 'ACTIVE' },
+      });
+      user.deletedAt = null;
+      user.status = 'ACTIVE';
     }
 
     if (user.status === 'BANNED') throw new ForbiddenException('This account has been banned.');
@@ -128,7 +165,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: this.sanitizeUser(user),
+      user: await this.formatUserWithEffectiveTrial(user),
     };
   }
 
@@ -291,14 +328,13 @@ export class AuthService {
       include: { plan: { include: { features: { include: { feature: true } } } } },
     });
     if (!user) throw new NotFoundException('User not found');
-    return this.sanitizeUser(user);
+    return this.formatUserWithEffectiveTrial(user);
   }
 
   // ── Private Helpers ──────────────────────────────────────────────────────────
 
   private async sendOtp(userId: string, email: string, name: string, purpose: 'email_verify' | 'password_reset') {
-    const isDev = this.config.get<string>('nodeEnv') === 'development' || process.env.NODE_ENV === 'development';
-    const otpPlain = isDev ? '123456' : this.crypto.generateOtp(6);
+    const otpPlain = this.crypto.generateOtp(6);
     const tokenHash = await bcrypt.hash(otpPlain, 10);
     const expiryMinutes = this.config.get<number>('otp.expiryMinutes', 10);
     const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
@@ -342,6 +378,20 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  private async formatUserWithEffectiveTrial(user: any) {
+    if (!user) return user;
+    const trialConfig = await this.prisma.appConfig.findUnique({ where: { key: 'free_trial_days' } });
+    const trialDays = trialConfig ? parseInt(trialConfig.value, 10) : 7;
+    if (!isNaN(trialDays) && trialDays <= 0) {
+      user.trialExpiresAt = null;
+    } else if (!isNaN(trialDays) && trialDays > 0 && user.createdAt) {
+      const expiry = new Date(user.createdAt);
+      expiry.setDate(expiry.getDate() + trialDays);
+      user.trialExpiresAt = expiry;
+    }
+    return this.sanitizeUser(user);
   }
 
   private sanitizeUser(user: any) {

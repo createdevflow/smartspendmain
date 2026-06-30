@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -46,7 +47,9 @@ export default function Dashboard() {
       if (dashRes.data?.data?.monthlyTrend) setMonthlyTrend(dashRes.data.data.monthlyTrend);
       if (dashRes.data?.data?.recentEvents) setRecentEvents(dashRes.data.data.recentEvents);
       if (configRes.data?.data?.maintenance_mode !== undefined) {
-        setMaintenanceMode(String(configRes.data.data.maintenance_mode) === 'true');
+        // Handle both actual boolean from DB and string representation
+        const val = configRes.data.data.maintenance_mode;
+        setMaintenanceMode(val === true || val === 'true' || val === 1);
       }
     } catch (e) {
       console.error('Failed to load dashboard data', e);
@@ -56,12 +59,23 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && !localStorage.getItem('adminToken')) {
-      window.location.href = '/admin/login';
-      return;
+    if (typeof window !== 'undefined') {
+      if (!localStorage.getItem('adminToken')) {
+        window.location.href = '/admin/login';
+        return;
+      }
+      setAuthChecked(true);
+      fetchData();
     }
-    fetchData();
   }, []);
+
+  if (!authChecked) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: '#F3F4F6' }}>
+        <div className="skeleton" style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
+      </div>
+    );
+  }
 
   const metricCards = [
     { label: 'Total Users', value: metrics.totalUsers, icon: <Users />, color: 'var(--accent-primary)', bg: 'rgba(59,130,246,0.1)', badge: 'All Time' },

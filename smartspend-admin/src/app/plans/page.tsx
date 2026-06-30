@@ -9,12 +9,12 @@ interface PlanFeature { feature: Feature; value: string; }
 interface Plan {
   id: string; name: string; slug: string; description?: string; tagline?: string;
   color: string; isActive: boolean; isDefault: boolean; sortOrder: number;
-  priceMonthly?: number; priceYearly?: number;
+  priceWeekly?: number; priceMonthly?: number; priceYearly?: number;
   features: PlanFeature[];
   _count: { users: number };
 }
 
-const EMPTY_PLAN = { name: '', slug: '', description: '', tagline: '', color: '#2563EB', isActive: true, isDefault: false, sortOrder: 0, priceMonthly: 0, priceYearly: 0 };
+const EMPTY_PLAN = { name: '', slug: '', description: '', tagline: '', color: '#2563EB', isActive: true, isDefault: false, sortOrder: 0, priceWeekly: 0, priceMonthly: 0, priceYearly: 0 };
 const EMPTY_FEATURE = { key: '', name: '', description: '', type: 'boolean', defaultValue: 'false', unit: '', category: 'general', sortOrder: 0, isVisible: true };
 
 const STANDARD_FEATURES = [
@@ -232,7 +232,7 @@ export default function PlansPage() {
                     </div>
                     <h2 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{plan.name}</h2>
                     <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                      {plan.priceMonthly ? `₹${plan.priceMonthly}/mo` : 'Free'}
+                      {plan.priceMonthly ? `₹${plan.priceWeekly}/wk | ₹${plan.priceMonthly}/mo | ₹${plan.priceYearly}/yr` : 'Free'}
                     </p>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.75rem' }}>
                       <Users size={12} style={{ display: 'inline', verticalAlign: 'text-bottom' }}/> {plan._count.users} Users
@@ -383,7 +383,7 @@ export default function PlansPage() {
               <button className="btn btn-ghost" onClick={() => setPlanModal(m => ({ ...m, open: false }))}><X size={18} /></button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
               <div className="input-group">
                 <label className="input-label">Plan Name *</label>
                 <input className="input-field" value={planModal.data.name} onChange={e => planField('name', e.target.value)} placeholder="e.g. Pro" />
@@ -391,6 +391,13 @@ export default function PlansPage() {
               <div className="input-group">
                 <label className="input-label">Slug *</label>
                 <input className="input-field" value={planModal.data.slug} onChange={e => planField('slug', e.target.value.toLowerCase().replace(/\s+/g, '-'))} placeholder="e.g. pro" />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div className="input-group">
+                <label className="input-label">Weekly Price (₹)</label>
+                <input className="input-field" type="number" value={planModal.data.priceWeekly ?? 0} onChange={e => planField('priceWeekly', Number(e.target.value))} />
               </div>
               <div className="input-group">
                 <label className="input-label">Monthly Price (₹)</label>
@@ -400,6 +407,9 @@ export default function PlansPage() {
                 <label className="input-label">Yearly Price (₹)</label>
                 <input className="input-field" type="number" value={planModal.data.priceYearly ?? 0} onChange={e => planField('priceYearly', Number(e.target.value))} />
               </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
               <div className="input-group">
                 <label className="input-label">Color</label>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>

@@ -60,7 +60,7 @@ export function Sidebar() {
     <>
       <div className="mobile-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-          <img src="/cashtro-icon.png" alt="Cashtro" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+          <img src="/admin/cashtro-icon.png" alt="Cashtro" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
           Cashtro Admin
         </div>
         <button className="btn btn-ghost" onClick={() => setMobileMenuOpen(true)}>
@@ -76,7 +76,7 @@ export function Sidebar() {
         {/* Logo */}
       <div style={{ marginBottom: '1.5rem', paddingBottom: '1.25rem', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <img src="/cashtro-icon.png" alt="Cashtro" style={{
+          <img src="/admin/cashtro-icon.png" alt="Cashtro" style={{
             width: '40px', height: '40px', objectFit: 'contain', flexShrink: 0,
           }} />
           <div>

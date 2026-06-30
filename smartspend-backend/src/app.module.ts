@@ -33,6 +33,8 @@ import { SchedulerModule } from './scheduler/scheduler.module';
 import { ExportModule } from './export/export.module';
 import { AppConfigModule } from './app-config/app-config.module';
 import { ChatModule } from './chat/chat.module';
+import { WealthModule } from './wealth/wealth.module';
+import { PaymentModule } from './payment/payment.module';
 import { MaintenanceMiddleware } from './common/middleware/maintenance.middleware';
 
 @Module({
@@ -90,6 +92,8 @@ import { MaintenanceMiddleware } from './common/middleware/maintenance.middlewar
     ExportModule,
     AppConfigModule,
     ChatModule,
+    WealthModule,
+    PaymentModule,
   ],
   providers: [
     // Global rate limiter

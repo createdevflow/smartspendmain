@@ -56,7 +56,7 @@ export class AnalyticsController {
 
   @Get('burn-rate')
   @ApiOperation({ summary: 'Gamification Burn Rate & Streak' })
-  burnRate(@CurrentUser() user: any) {
-    return this.analyticsService.getBurnRate(user.sub);
+  burnRate(@CurrentUser() user: any, @Query('cashbookId') cashbookId?: string) {
+    return this.analyticsService.getBurnRate(user.sub, cashbookId);
   }
 }

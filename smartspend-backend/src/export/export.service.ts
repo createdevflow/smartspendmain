@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TransactionLabel } from '@prisma/client';
 import { CryptoService } from '../crypto/crypto.service';
 
 @Injectable()
@@ -38,7 +39,7 @@ export class ExportService {
       where: {
         userId,
         type: 'EXPENSE',
-        labels: { has: 'TAX_DEDUCTIBLE' },
+        labels: { has: TransactionLabel.TAX_DEDUCTIBLE },
         date: { gte: startDate, lte: endDate },
         deletedAt: null,
       },
@@ -48,6 +49,10 @@ export class ExportService {
       },
       orderBy: { date: 'asc' },
     });
+
+    if (transactions.length === 0) {
+      throw new Error(`No tax-deductible expenses found for ${year}. Ensure you've marked expenses as "Tax Deductible" in the app.`);
+    }
 
     // Decrypt merchant/notes
     const decrypted = transactions.map(tx => ({

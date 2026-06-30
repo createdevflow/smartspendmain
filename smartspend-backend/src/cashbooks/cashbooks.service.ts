@@ -71,15 +71,25 @@ export class CashbooksService {
   }
 
   async findOne(userId: string, id: string) {
-    const book = await this.prisma.cashbook.findFirst({ where: { id, userId, deletedAt: null } });
+    const book = await this.prisma.cashbook.findFirst({
+      where: {
+        id, deletedAt: null,
+        OR: [
+          { userId },
+          { members: { some: { userId, status: 'accepted' } } }
+        ]
+      },
+    });
     if (!book) throw new NotFoundException('Cashbook not found');
-    const salt = await this.getSalt(userId);
-    const { income, expense } = await this.getBalance(userId, id);
+    const ownerSalt = await this.getSalt(book.userId);
+    const { income, expense } = await this.getBalance(book.userId, id);
     return {
       ...book,
-      name: this.crypto.decrypt(book.name, salt),
-      description: book.description ? this.crypto.decrypt(book.description, salt) : null,
+      name: this.crypto.decrypt(book.name, ownerSalt),
+      description: book.description ? this.crypto.decrypt(book.description, ownerSalt) : null,
       balance: (Number(book.openingBalance) + income - expense).toFixed(2),
+      income: income.toFixed(2),
+      expense: expense.toFixed(2),
     };
   }
 
@@ -146,11 +156,11 @@ export class CashbooksService {
   private async getBalance(userId: string, cashbookId: string) {
     const [incomeAgg, expenseAgg] = await Promise.all([
       this.prisma.transaction.aggregate({
-        where: { cashbookId, userId, type: 'INCOME', deletedAt: null },
+        where: { cashbookId, type: 'INCOME', deletedAt: null },
         _sum: { amountInBookCurrency: true },
       }),
       this.prisma.transaction.aggregate({
-        where: { cashbookId, userId, type: 'EXPENSE', deletedAt: null },
+        where: { cashbookId, type: 'EXPENSE', deletedAt: null },
         _sum: { amountInBookCurrency: true },
       }),
     ]);

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, Allow } from 'class-validator';
 import { MessageType } from '@prisma/client';
 
 export class SendMessageDto {
@@ -21,6 +21,7 @@ export class SendMessageDto {
   mediaUrl?: string;
 
   @IsOptional()
+  @Allow()
   metadata?: Record<string, any>;
 }
 
