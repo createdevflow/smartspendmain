@@ -37,7 +37,7 @@ export default function ScheduledEmailsAdminPage() {
   };
 
   return (
-    <div className="app-layout">
+    <>
       <Sidebar />
       <main className="main-content">
         <div className="page-header">
@@ -98,6 +98,6 @@ export default function ScheduledEmailsAdminPage() {
           )}
         </div>
       </main>
-    </div>
+    </>
   );
 }

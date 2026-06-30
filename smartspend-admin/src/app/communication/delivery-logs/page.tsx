@@ -27,7 +27,7 @@ export default function DeliveryLogsAdminPage() {
   };
 
   return (
-    <div className="app-layout">
+    <>
       <Sidebar />
       <main className="main-content">
         <div className="page-header">
@@ -58,20 +58,16 @@ export default function DeliveryLogsAdminPage() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Campaign / Event</th>
-                    <th>Type</th>
-                    <th>Audience</th>
+                    <th>Campaign ID</th>
                     <th>Delivered Count</th>
-                    <th>Date</th>
+                    <th>Created At</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {logs.map((item) => (
                     <tr key={item.id}>
-                      <td style={{ fontWeight: 600 }}>{item.title}</td>
-                      <td><span className="badge">{item.notifType}</span></td>
-                      <td>{item.audience}</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{item.id}</td>
                       <td style={{ fontWeight: 700, color: item.sentCount > 0 ? '#059669' : 'var(--text-muted)' }}>
                         {item.sentCount > 0 ? `✓ ${item.sentCount} delivered` : '0'}
                       </td>
@@ -85,6 +81,6 @@ export default function DeliveryLogsAdminPage() {
           )}
         </div>
       </main>
-    </div>
+    </>
   );
 }

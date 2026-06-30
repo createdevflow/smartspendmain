@@ -503,8 +503,26 @@ select.input-field {
   border-radius: var(--radius-sm);
 }
 
-/* ── Stats Grid ── */
+/* ── Responsive Grids ── */
 .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.responsive-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.responsive-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.responsive-grid-4 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
@@ -521,6 +539,36 @@ select.input-field {
 .stat-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
+}
+
+@media (max-width: 1200px) {
+  .stats-grid,
+  .responsive-grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .responsive-grid-3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0 !important;
+    padding: 1.25rem !important;
+  }
+  .stats-grid,
+  .responsive-grid-4,
+  .responsive-grid-3,
+  .responsive-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* ── Extra Shadows ── */

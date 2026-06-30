@@ -93,7 +93,7 @@ export default function NewNotificationPage() {
   };
 
   return (
-    <div className="app-layout">
+    <>
       <Sidebar />
       <main className="main-content">
         <div className="page-header">
@@ -116,7 +116,7 @@ export default function NewNotificationPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1.5rem' }}>
+        <div className="responsive-grid-2" style={{ gap: '1.5rem' }}>
           {/* Main Form */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             {/* Content */}
@@ -157,7 +157,7 @@ export default function NewNotificationPage() {
             {/* Notification Type */}
             <div className="card">
               <div className="card-header"><h2 className="card-title">Notification Type</h2></div>
-              <div style={{ padding: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+              <div className="responsive-grid-4" style={{ padding: '1.25rem', gap: '0.75rem' }}>
                 {NOTIF_TYPES.map((t) => (
                   <button key={t.value} onClick={() => set('notifType', t.value)}
                     style={{
@@ -263,6 +263,6 @@ export default function NewNotificationPage() {
           </div>
         </div>
       </main>
-    </div>
+    </>
   );
 }

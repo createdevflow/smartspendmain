@@ -78,7 +78,7 @@ export default function CommunicationCenter() {
   };
 
   return (
-    <div className="app-layout">
+    <>
       <Sidebar />
       <main className="main-content">
         <div className="page-header">
@@ -92,7 +92,7 @@ export default function CommunicationCenter() {
         </div>
 
         {/* Stat Cards */}
-        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: '1.5rem' }}>
+        <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
           {statCards.map((s) => (
             <div key={s.label} className="stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -109,7 +109,7 @@ export default function CommunicationCenter() {
         </div>
 
         {/* Quick Access Tiles */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="responsive-grid-3" style={{ marginBottom: '1.5rem' }}>
           {[
             { label: 'Notification Campaigns', desc: 'Create & manage admin broadcasts', icon: <Bell size={24} />, href: '/communication/notifications', color: '#2563EB' },
             { label: 'New Notification', desc: 'Send to users immediately or schedule', icon: <Send size={24} />, href: '/communication/notifications/new', color: '#059669' },
@@ -199,6 +199,6 @@ export default function CommunicationCenter() {
           )}
         </div>
       </main>
-    </div>
+    </>
   );
 }
