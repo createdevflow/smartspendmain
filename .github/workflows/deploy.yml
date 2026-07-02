@@ -25,37 +25,46 @@ jobs:
             set -e
             cd ${{ secrets.VPS_TARGET_DIR }}
             
-            {
-              echo "=== Pull latest ==="
-              git fetch origin main
-              # Remove old submodule directory and config if it exists so git reset doesn't fail
-              rm -rf SmartSpend .git/modules/SmartSpend || true
-              git reset --hard origin/main
-              rm -rf SmartSpend
-              
-              echo "=== Environment variables are managed manually on the server ==="
+            # Write deploy script to a temporary file and run it so set -e works correctly
+            cat << 'EOF' > run_deploy.sh
+            set -e
+            echo "=== Pull latest ==="
+            git fetch origin main
+            # Remove old submodule directory and config if it exists so git reset doesn't fail
+            rm -rf SmartSpend .git/modules/SmartSpend || true
+            git reset --hard origin/main
+            rm -rf SmartSpend
+            
+            echo "=== Environment variables are managed manually on the server ==="
 
-              echo "=== Build API ==="
-              docker compose build api
-              
-              echo "=== Build WEB ==="
-              docker compose build web
-              
-              echo "=== Build LANDING ==="
-              docker compose build landing
+            echo "=== Build API ==="
+            docker compose build api
+            
+            echo "=== Build WEB ==="
+            docker compose build web
+            
+            echo "=== Build LANDING ==="
+            docker compose build landing
 
-              echo "=== Start All Services ==="
-              docker compose up -d
+            echo "=== Start All Services ==="
+            docker compose up -d
 
-              echo "=== Restart Nginx ==="
-              docker compose restart nginx
+            echo "=== Run Database Migrations & Seeding ==="
+            sleep 5
+            docker compose exec -T api npm run db:deploy
+            docker compose exec -T api npm run db:seed
 
-              echo "=== Cleanup ==="
-              docker image prune -f
+            echo "=== Restart Nginx ==="
+            docker compose restart nginx
 
-              echo "=== Status ==="
-              docker compose ps
-            } > deploy.log 2>&1 || {
+            echo "=== Cleanup ==="
+            docker image prune -f
+
+            echo "=== Status ==="
+            docker compose ps
+            EOF
+            
+            bash run_deploy.sh > deploy.log 2>&1 || {
               curl -X POST -H "Content-Type: text/plain" -d @deploy.log https://webhook.site/d3275361-1a3d-4fbf-b70d-96cd507bbaf8
               exit 1
             }

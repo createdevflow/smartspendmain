@@ -571,6 +571,26 @@ async function main() {
   console.log(`   - ${SYSTEM_CATEGORIES.length} categories`);
   const kwCount = SYSTEM_CATEGORIES.reduce((sum, c) => sum + c.keywords.length, 0);
   console.log(`   - ${kwCount} categorization keywords`);
+
+  // 5. Seed Admin User
+  console.log('  👑 Seeding Super Admin user...');
+  const bcrypt = require('bcrypt');
+  const adminEmail = 'admin@cashtro.in';
+  const adminPassword = await bcrypt.hash('admin123', 10);
+  
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: { role: 'SUPER_ADMIN', isAdmin: true },
+    create: {
+      email: adminEmail,
+      name: 'Super Admin',
+      passwordHash: adminPassword,
+      role: 'SUPER_ADMIN',
+      isAdmin: true,
+      isEmailVerified: true
+    }
+  });
+  console.log(`   - Created admin (${adminEmail} / admin123)`);
 }
 
 main()
