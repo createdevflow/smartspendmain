@@ -65,6 +65,8 @@ jobs:
             EOF
             
             bash run_deploy.sh > deploy.log 2>&1 || {
+              echo "=== API Logs ===" >> deploy.log
+              docker compose logs api >> deploy.log 2>&1
               curl -X POST -H "Content-Type: text/plain" -d @deploy.log https://webhook.site/d3275361-1a3d-4fbf-b70d-96cd507bbaf8
               exit 1
             }

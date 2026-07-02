@@ -580,14 +580,14 @@ async function main() {
   
   await prisma.user.upsert({
     where: { email: adminEmail },
-    update: { role: 'SUPER_ADMIN', isAdmin: true },
+    update: { role: 'SUPER_ADMIN' },
     create: {
       email: adminEmail,
-      name: 'Super Admin',
+      fullName: 'Super Admin',
       passwordHash: adminPassword,
       role: 'SUPER_ADMIN',
-      isAdmin: true,
-      isEmailVerified: true
+      isEmailVerified: true,
+      encryptionKeySalt: require('crypto').randomBytes(16).toString('hex')
     }
   });
   console.log(`   - Created admin (${adminEmail} / admin123)`);
