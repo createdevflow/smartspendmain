@@ -3,6 +3,8 @@ name: Deploy SmartSpend to VPS
 on:
   push:
     branches: ["main"]
+    paths-ignore:
+      - 'SmartSpend/**'
 
 jobs:
   deploy:
@@ -26,6 +28,7 @@ jobs:
             echo "=== Pull latest ==="
             git fetch origin main
             git reset --hard origin/main
+            rm -rf SmartSpend
             
             echo "=== Environment variables are managed manually on the server ==="
 
