@@ -27,6 +27,8 @@ jobs:
 
             echo "=== Pull latest ==="
             git fetch origin main
+            # Remove old submodule directory and config if it exists so git reset doesn't fail
+            rm -rf SmartSpend .git/modules/SmartSpend || true
             git reset --hard origin/main
             rm -rf SmartSpend
             
