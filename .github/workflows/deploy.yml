@@ -22,21 +22,16 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           envs: SERVER_ENV,CLIENT_ENV
           script: |
-            set -e
-            cd ${{ secrets.VPS_TARGET_DIR }}
+            cd ${{ secrets.VPS_TARGET_DIR }} || exit 1
             
-            # Write deploy script to a temporary file and run it so set -e works correctly
             cat << 'EOF' > run_deploy.sh
             set -e
             echo "=== Pull latest ==="
             git fetch origin main
-            # Remove old submodule directory and config if it exists so git reset doesn't fail
             rm -rf SmartSpend .git/modules/SmartSpend || true
             git reset --hard origin/main
             rm -rf SmartSpend
             
-            echo "=== Environment variables are managed manually on the server ==="
-
             echo "=== Build API ==="
             docker compose build api
             
@@ -45,28 +40,34 @@ jobs:
             
             echo "=== Build LANDING ==="
             docker compose build landing
-
-            echo "=== Start All Services ==="
+            
+            echo "=== Start ==="
             docker compose up -d
-
+            
             echo "=== Run Database Migrations & Seeding ==="
             sleep 5
             docker compose exec -T api npm run db:deploy
             docker compose exec -T api npm run db:seed
-
+            
             echo "=== Restart Nginx ==="
             docker compose restart nginx
-
+            
             echo "=== Cleanup ==="
             docker image prune -f
-
+            
             echo "=== Status ==="
             docker compose ps
             EOF
             
-            bash run_deploy.sh > deploy.log 2>&1 || {
-              echo "=== API Logs ===" >> deploy.log
-              docker compose logs api >> deploy.log 2>&1
-              curl -X POST -H "Content-Type: text/plain" -d @deploy.log https://webhook.site/d3275361-1a3d-4fbf-b70d-96cd507bbaf8
-              exit 1
-            }
+            bash run_deploy.sh > deploy.log 2>&1
+            EXIT_CODE=$?
+            
+            echo "=== API Logs ===" >> deploy.log
+            docker compose logs api >> deploy.log 2>&1 || true
+            
+            echo "=== WEB Logs ===" >> deploy.log
+            docker compose logs web >> deploy.log 2>&1 || true
+            
+            curl -X POST -H "Content-Type: text/plain" -d @deploy.log https://webhook.site/d3275361-1a3d-4fbf-b70d-96cd507bbaf8 || true
+            
+            exit $EXIT_CODE
