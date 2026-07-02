@@ -20,7 +20,7 @@
     "test:ci": "jest --ci --coverage --runInBand",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
+    "db:deploy": "prisma db push --accept-data-loss",
     "db:seed": "npx -y tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force"
