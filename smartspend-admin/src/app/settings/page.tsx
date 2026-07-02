@@ -55,6 +55,7 @@ const FEATURE_TOGGLES = [
       { key: 'feature_gamification_active', label: 'Gamification', desc: 'Enable streaks, burn-rate alerts, and achievements.' },
       { key: 'feature_gallery', label: 'Gallery Attachments', desc: 'Allow attaching images to entries.' },
       { key: 'feature_chat', label: 'In-App Messaging', desc: 'Enable private messaging between contacts and cashbook members.' },
+      { key: 'feature_scheduler', label: 'Scheduled Invoices & Messages', desc: 'Allow users to schedule invoice/receipt sharing via email or in-app chat. Adds a schedule icon in Transactions and Chat screens.' },
     ],
   },
 ];
@@ -110,6 +111,7 @@ const DEFAULT_SETTINGS = {
   feature_panic_button_active: true,
   feature_gallery: true,
   feature_chat: true,
+  feature_scheduler: true,
   download_android_enabled: true,
   download_android_url: '',
   download_ios_enabled: false,
@@ -271,7 +273,7 @@ export default function SettingsPage() {
             <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.125rem' }}>If enabled, free users will see a locked padlocked version of this feature with an upgrade prompt. (The main toggle above must be ON for Pro users to access it).</p>
           </div>
           <label className="toggle" style={{ flexShrink: 0, transform: 'scale(0.8)' }}>
-            <input type="checkbox" checked={settings[`${String(field)}_teaseMode`] === true} onChange={e => set(`${String(field)}_teaseMode`, e.target.checked)} />
+            <input type="checkbox" checked={(settings as any)[`${String(field)}_teaseMode`] === true} onChange={e => set(`${String(field)}_teaseMode`, e.target.checked)} />
             <span className="toggle-slider" />
           </label>
         </div>

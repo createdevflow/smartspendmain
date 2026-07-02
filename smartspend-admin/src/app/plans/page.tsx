@@ -18,11 +18,14 @@ const EMPTY_PLAN = { name: '', slug: '', description: '', tagline: '', color: '#
 const EMPTY_FEATURE = { key: '', name: '', description: '', type: 'boolean', defaultValue: 'false', unit: '', category: 'general', sortOrder: 0, isVisible: true };
 
 const STANDARD_FEATURES = [
-  { key: 'max_cashbooks', name: 'Max Cashbooks', type: 'number', defaultValue: '1', unit: 'books', category: 'general', description: 'Maximum number of cashbooks allowed (-1 for unlimited)' },
-  { key: 'max_transactions_monthly', name: 'Max Transactions / Month', type: 'number', defaultValue: '50', unit: 'txns', category: 'general', description: 'Monthly transaction limit (-1 for unlimited)' },
-  { key: 'max_goals', name: 'Max Saving Goals', type: 'number', defaultValue: '1', unit: 'goals', category: 'general', description: 'Maximum number of active saving goals' },
-  { key: 'receipt_scanning', name: 'Receipt Scanning OCR', type: 'boolean', defaultValue: 'false', category: 'integrations', description: 'Enable AI OCR receipt scanning' },
-  { key: 'export_pdf', name: 'PDF Reports', type: 'boolean', defaultValue: 'false', category: 'export', description: 'Allow exporting beautiful PDF reports' },
+  { key: 'max_cashbooks', name: 'Max Cashbooks', type: 'number', defaultValue: '99', unit: 'books', category: 'general', description: 'Maximum number of cashbooks allowed (-1 for unlimited)' },
+  { key: 'max_transactions_monthly', name: 'Max Transactions / Month', type: 'number', defaultValue: '200', unit: 'txns', category: 'general', description: 'Monthly transaction limit (-1 for unlimited)' },
+  { key: 'max_goals', name: 'Max Saving Goals', type: 'number', defaultValue: '10', unit: 'goals', category: 'general', description: 'Maximum number of active saving goals' },
+  { key: 'scheduled_communications', name: 'Scheduled Invoices & Messages', type: 'boolean', defaultValue: 'true', category: 'finance', description: 'Enable scheduling chat messages and financial communications' },
+  { key: 'recurring_transactions', name: 'Recurring Transactions', type: 'boolean', defaultValue: 'true', category: 'finance', description: 'Enable automatic recurring income and expenses' },
+  { key: 'transaction_splits', name: 'Split Transactions', type: 'boolean', defaultValue: 'true', category: 'finance', description: 'Split single transactions across multiple categories' },
+  { key: 'receipt_scanning', name: 'Receipt Scanning OCR', type: 'boolean', defaultValue: 'true', category: 'integrations', description: 'Enable AI OCR receipt scanning' },
+  { key: 'export_pdf', name: 'PDF Reports', type: 'boolean', defaultValue: 'true', category: 'export', description: 'Allow exporting beautiful PDF reports' },
   { key: 'priority_support', name: 'Priority Support', type: 'boolean', defaultValue: 'false', category: 'general', description: 'Access to priority customer support' },
 ];
 

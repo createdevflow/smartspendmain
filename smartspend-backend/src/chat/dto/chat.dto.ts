@@ -9,6 +9,7 @@ export class SendMessageDto {
   @IsString()
   content?: string;
 
+  // Validated against Prisma MessageType enum
   @IsEnum(MessageType)
   type: MessageType = MessageType.TEXT;
 

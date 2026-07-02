@@ -1,106 +1,115 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Menu, X, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
-import { Menu, X, Download } from 'lucide-react';
 
 const NAV_LINKS = [
-  { name: 'How It Works', href: '#story' },
-  { name: 'Features', href: '#features' },
-  { name: 'Pricing', href: '#pricing' },
-  { name: 'FAQ', href: '#faq' },
+  { label: 'Features', href: '#features' },
+  { label: 'Ecosystem', href: '#ecosystem' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'FAQ', href: '#faq' },
 ];
 
 export default function Header() {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    const handler = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => window.removeEventListener('scroll', handler);
   }, []);
 
   return (
     <>
-      <motion.header
-        initial={false}
-        animate={{
-          backgroundColor: isScrolled ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.92)',
-          boxShadow: isScrolled ? '0 4px 30px rgba(0, 0, 0, 0.08)' : '0 2px 20px rgba(0, 0, 0, 0.05)',
-        }}
-        transition={{ duration: 0.3 }}
-        style={{ backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
-        className="fixed top-0 left-0 right-0 z-50 border-b border-slate-200/50"
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled
+            ? 'bg-white/80 backdrop-blur-xl border-b border-gray-100 shadow-sm'
+            : 'bg-transparent'
+        }`}
       >
-        <div className="max-w-7xl mx-auto px-6 md:px-12 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-5 md:px-10 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group py-1">
-            <Image src="/cashtro-logo.png" alt="Cashtro Logo" width={140} height={40} className="object-contain h-9 w-auto" priority />
+          <Link href="/" className="flex items-center group">
+            <Image 
+              src="/cashtro-logo.png" 
+              alt="Cashtro Logo" 
+              width={130} 
+              height={40} 
+              className="h-8 w-auto object-contain"
+            />
           </Link>
 
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8">
-            {NAV_LINKS.map((link) => (
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-1">
+            {NAV_LINKS.map((l) => (
               <Link
-                key={link.name}
-                href={link.href}
-                className="text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors"
+                key={l.label}
+                href={l.href}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-all"
               >
-                {link.name}
+                {l.label}
               </Link>
             ))}
           </nav>
 
           {/* CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <motion.a
+            <Link
               href="#download"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all shadow-md bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-500/20 hover:shadow-blue-500/30"
+              className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/25 transition-all"
             >
-              <Download size={15} /> Download App
-            </motion.a>
+              Get Started Free
+              <ChevronRight size={14} />
+            </Link>
           </div>
 
-          {/* Mobile Menu Toggle */}
+          {/* Mobile menu btn */}
           <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-slate-700 hover:text-blue-600 transition-colors"
-            aria-label="Toggle Menu"
+            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
-      </motion.header>
+      </header>
 
-      {/* Mobile Nav Overlay */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm md:hidden" onClick={() => setMobileMenuOpen(false)}>
-          <div className="absolute top-16 left-0 right-0 bg-white border-b border-slate-200 p-6 shadow-2xl flex flex-col gap-4" onClick={e => e.stopPropagation()}>
-            {NAV_LINKS.map((link) => (
+      {/* Mobile menu */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="fixed top-16 left-0 right-0 z-40 bg-white border-b border-gray-100 shadow-xl md:hidden"
+          >
+            <div className="px-5 py-4 flex flex-col gap-1">
+              {NAV_LINKS.map((l) => (
+                <Link
+                  key={l.label}
+                  href={l.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="px-4 py-3 text-sm font-medium text-gray-700 hover:text-blue-600 rounded-xl hover:bg-blue-50 transition-all"
+                >
+                  {l.label}
+                </Link>
+              ))}
               <Link
-                key={link.name}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-base font-bold text-slate-800 hover:text-blue-600 py-2 border-b border-slate-100"
+                href="#download"
+                onClick={() => setMenuOpen(false)}
+                className="mt-2 w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white text-sm font-semibold px-5 py-3 rounded-xl hover:bg-blue-700 transition-all"
               >
-                {link.name}
+                Get Started Free <ChevronRight size={14} />
               </Link>
-            ))}
-            <a
-              href="#download"
-              onClick={() => setMobileMenuOpen(false)}
-              className="mt-2 flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20"
-            >
-              <Download size={16} /> Download App
-            </a>
-          </div>
-        </div>
-      )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

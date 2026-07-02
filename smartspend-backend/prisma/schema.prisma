@@ -197,6 +197,9 @@ model User {
   sentMessages     ChatMessage[]         @relation("SentMessages")
   messageReactions ChatMessageReaction[] @relation("MessageReactions")
   messageReads     ChatMessageRead[]     @relation("MessageReads")
+  starredMessages  StarredMessage[]      @relation("StarredMessages")
+  scheduledChatMessages ScheduledChatMessage[] @relation("ScheduledMessages")
+  messageReminders MessageReminder[]     @relation("MessageReminders")
 
   // Wealth Hub relations
   watchlists        Watchlist[]
@@ -748,6 +751,11 @@ enum MessageType {
   LOCATION
   CONTACT_CARD
   SYSTEM
+  BUDGET
+  GOAL
+  REPORT
+  INVOICE
+  PASSBOOK
 }
 
 enum MessageStatus {
@@ -762,6 +770,27 @@ enum ConversationType {
   DIRECT
   GROUP
   CASHBOOK_GROUP
+  NOTES_SELF
+}
+
+enum MessageRepeatType {
+  ONCE
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum ChatNotifPref {
+  EVERYTHING
+  MENTION_ONLY
+  MUTE
+  SILENT
+}
+
+enum ChatCategory {
+  PERSONAL
+  FAMILY
+  BUSINESS
 }
 
 model ChatContact {
@@ -808,6 +837,8 @@ model ChatMember {
   isPinned       Boolean          @default(false)
   isArchived     Boolean          @default(false)
   lastReadAt     DateTime?
+  notifPref      ChatNotifPref    @default(EVERYTHING)
+  category       ChatCategory     @default(PERSONAL)
   joinedAt       DateTime         @default(now())
 
   @@unique([conversationId, userId])
@@ -816,26 +847,30 @@ model ChatMember {
 }
 
 model ChatMessage {
-  id             String           @id @default(cuid())
-  conversationId String
-  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  senderId       String
-  sender         User             @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  type           MessageType      @default(TEXT)
-  content        String? // AES-encrypted text content
-  mediaUrl       String? // image/document/voice URL
-  metadata       Json? // for transaction cards, location, etc.
-  replyToId      String?
-  replyTo        ChatMessage?     @relation("Replies", fields: [replyToId], references: [id])
-  replies        ChatMessage[]    @relation("Replies")
-  status         MessageStatus    @default(SENT)
-  isEdited       Boolean          @default(false)
-  editedAt       DateTime?
-  deletedAt      DateTime?
-  createdAt      DateTime         @default(now())
+  id              String           @id @default(cuid())
+  conversationId  String
+  conversation    ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User             @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  type            MessageType      @default(TEXT)
+  content         String? // AES-encrypted text content
+  mediaUrl        String? // image/document/voice URL
+  metadata        Json? // for transaction cards, location, etc.
+  replyToId       String?
+  replyTo         ChatMessage?     @relation("Replies", fields: [replyToId], references: [id])
+  replies         ChatMessage[]    @relation("Replies")
+  forwardedFromId String? // original message id if forwarded
+  status          MessageStatus    @default(SENT)
+  isEdited        Boolean          @default(false)
+  editedAt        DateTime?
+  deletedAt       DateTime?
+  isPinned        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
 
-  reactions ChatMessageReaction[]
-  readBy    ChatMessageRead[]
+  reactions   ChatMessageReaction[]
+  readBy      ChatMessageRead[]
+  starredBy   StarredMessage[]
+  reminders   MessageReminder[]
 
   @@index([conversationId, createdAt])
   @@index([senderId])
@@ -864,6 +899,51 @@ model ChatMessageRead {
 
   @@unique([messageId, userId])
   @@index([messageId])
+}
+
+model StarredMessage {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation("StarredMessages", fields: [userId], references: [id], onDelete: Cascade)
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([userId, messageId])
+  @@index([userId])
+}
+
+model ScheduledChatMessage {
+  id             String            @id @default(cuid())
+  senderId       String
+  sender         User              @relation("ScheduledMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  conversationId String
+  type           MessageType       @default(TEXT)
+  content        String?
+  mediaUrl       String?
+  metadata       Json?
+  scheduledAt    DateTime
+  repeatType     MessageRepeatType @default(ONCE)
+  isSent         Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+
+  @@index([scheduledAt, isSent])
+  @@index([senderId])
+}
+
+model MessageReminder {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation("MessageReminders", fields: [userId], references: [id], onDelete: Cascade)
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  remindAt  DateTime
+  note      String?
+  isSent    Boolean     @default(false)
+  createdAt DateTime    @default(now())
+
+  @@index([remindAt, isSent])
+  @@index([userId])
 }
 
 // --- WEALTH HUB ----------------------------------------------

@@ -307,6 +307,7 @@ const FEATURES = [
   { key: 'priority_support',         name: 'Priority Support',           type: 'boolean', defaultValue: 'false', category: 'security',  sortOrder: 15 },
   { key: 'api_access',               name: 'API Access',                 type: 'boolean', defaultValue: 'false', category: 'security',  sortOrder: 16 },
   { key: 'feature_gallery',          name: 'Gallery Attachments',        type: 'boolean', defaultValue: 'true',  category: 'storage',   sortOrder: 17 },
+  { key: 'scheduled_communications', name: 'Scheduled Invoices & Messages', type: 'boolean', defaultValue: 'false', category: 'finance',   sortOrder: 18 },
 ];
 
 // ─── FREE PLAN ────────────────────────────────────────────────────────────────
@@ -335,6 +336,7 @@ const FREE_PLAN = {
     priority_support:         'false',
     api_access:               'false',
     feature_gallery:          'true',
+    scheduled_communications: 'true',
   },
 };
 
@@ -367,6 +369,7 @@ const PRO_PLAN = {
     priority_support:         'true',
     api_access:               'false',
     feature_gallery:          'true',
+    scheduled_communications: 'true',
   },
 };
 
@@ -399,6 +402,7 @@ const BUSINESS_PLAN = {
     priority_support:         'true',
     api_access:               'true',
     feature_gallery:          'true',
+    scheduled_communications: 'true',
   },
 };
 

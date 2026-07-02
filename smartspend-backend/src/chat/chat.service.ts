@@ -2,9 +2,12 @@ import { Injectable, ForbiddenException, NotFoundException, BadRequestException 
 import { PrismaService } from '../prisma/prisma.service';
 import { ContactStatus, ConversationType, MessageType } from '@prisma/client';
 import { SendMessageDto, CreateConversationDto } from './dto/chat.dto';
+import { Expo } from 'expo-server-sdk';
 
 @Injectable()
 export class ChatService {
+  private expo = new Expo();
+
   constructor(private readonly prisma: PrismaService) {}
 
   // ── Contacts ──────────────────────────────────────────────────────────────
@@ -263,7 +266,55 @@ export class ChatService {
       },
     });
 
+    // Fire & forget push notifications
+    this.sendPushNotificationForMessage(msg).catch(err => {
+      console.error('[Push Notification Error]', err);
+    });
+
     return msg;
+  }
+
+  private async sendPushNotificationForMessage(msg: any) {
+    const participants = await this.prisma.chatMember.findMany({
+      where: { conversationId: msg.conversationId, userId: { not: msg.senderId } },
+      include: {
+        user: {
+          select: { expoPushToken: true, pushNotifications: true, id: true }
+        }
+      }
+    });
+
+    const messages: any[] = [];
+    for (const member of participants) {
+      const user = member.user;
+      if (user.pushNotifications && user.expoPushToken && Expo.isExpoPushToken(user.expoPushToken)) {
+        let body = msg.content;
+        if (msg.type === MessageType.TRANSACTION) body = 'Shared a transaction with you.';
+        else if (msg.type === MessageType.IMAGE) body = 'Sent a photo.';
+        else if (msg.type === MessageType.DOCUMENT) body = 'Sent a document.';
+        else if (msg.type === MessageType.VOICE) body = 'Sent a voice note.';
+        else if (msg.type === MessageType.RECEIPT) body = 'Shared a receipt.';
+
+        messages.push({
+          to: user.expoPushToken,
+          sound: 'default',
+          title: msg.sender.fullName || 'New Message',
+          body,
+          data: { conversationId: msg.conversationId, messageId: msg.id },
+        });
+      }
+    }
+
+    if (messages.length > 0) {
+      const chunks = this.expo.chunkPushNotifications(messages as any[]);
+      for (const chunk of chunks) {
+        try {
+          await this.expo.sendPushNotificationsAsync(chunk);
+        } catch (error) {
+          console.error('Error sending push chunk:', error);
+        }
+      }
+    }
   }
 
   async getConversationParticipantIds(conversationId: string): Promise<string[]> {
@@ -323,6 +374,239 @@ export class ChatService {
     return this.prisma.chatMember.update({
       where: { conversationId_userId: { conversationId, userId } },
       data: settings,
+    });
+  }
+
+  // ── Star Messages ─────────────────────────────────────────────────────────
+
+  async starMessage(userId: string, messageId: string) {
+    return this.prisma.starredMessage.upsert({
+      where: { userId_messageId: { userId, messageId } },
+      update: {},
+      create: { userId, messageId },
+    });
+  }
+
+  async unstarMessage(userId: string, messageId: string) {
+    await this.prisma.starredMessage.deleteMany({ where: { userId, messageId } });
+    return { success: true };
+  }
+
+  async getStarredMessages(userId: string) {
+    const starred = await this.prisma.starredMessage.findMany({
+      where: { userId },
+      include: {
+        message: {
+          include: {
+            sender: { select: { id: true, fullName: true, avatar: true } },
+            conversation: { select: { id: true, name: true, type: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return starred.map((s) => ({ ...s.message, starredAt: s.createdAt }));
+  }
+
+  // ── Pin Messages ──────────────────────────────────────────────────────────
+
+  async pinMessage(userId: string, messageId: string, conversationId: string) {
+    // Verify user is a member
+    const member = await this.prisma.chatMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    if (!member) throw new ForbiddenException('Not a member');
+    return this.prisma.chatMessage.update({ where: { id: messageId }, data: { isPinned: true } });
+  }
+
+  async unpinMessage(userId: string, messageId: string, conversationId: string) {
+    const member = await this.prisma.chatMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    if (!member) throw new ForbiddenException('Not a member');
+    return this.prisma.chatMessage.update({ where: { id: messageId }, data: { isPinned: false } });
+  }
+
+  async getPinnedMessages(conversationId: string, userId: string) {
+    const member = await this.prisma.chatMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    if (!member) throw new ForbiddenException('Not a member');
+    return this.prisma.chatMessage.findMany({
+      where: { conversationId, isPinned: true, deletedAt: null },
+      include: { sender: { select: { id: true, fullName: true, avatar: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // ── Scheduled Messages ────────────────────────────────────────────────────
+
+  async scheduleMessage(senderId: string, dto: {
+    conversationId: string;
+    type: MessageType;
+    content?: string;
+    mediaUrl?: string;
+    metadata?: any;
+    scheduledAt: Date;
+    repeatType?: string;
+  }) {
+    const member = await this.prisma.chatMember.findUnique({
+      where: { conversationId_userId: { conversationId: dto.conversationId, userId: senderId } },
+    });
+    if (!member) throw new ForbiddenException('Not a member');
+
+    return this.prisma.scheduledChatMessage.create({
+      data: {
+        senderId,
+        conversationId: dto.conversationId,
+        type: dto.type,
+        content: dto.content,
+        mediaUrl: dto.mediaUrl,
+        metadata: dto.metadata,
+        scheduledAt: new Date(dto.scheduledAt),
+        repeatType: (dto.repeatType as any) ?? 'ONCE',
+      },
+    });
+  }
+
+  async getScheduledMessages(conversationId: string, userId: string) {
+    const member = await this.prisma.chatMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    if (!member) throw new ForbiddenException('Not a member');
+    return this.prisma.scheduledChatMessage.findMany({
+      where: { conversationId, senderId: userId, isSent: false },
+      orderBy: { scheduledAt: 'asc' },
+    });
+  }
+
+  async cancelScheduledMessage(id: string, userId: string) {
+    const scheduled = await this.prisma.scheduledChatMessage.findUnique({ where: { id } });
+    if (!scheduled || scheduled.senderId !== userId) throw new ForbiddenException('Cannot cancel');
+    await this.prisma.scheduledChatMessage.delete({ where: { id } });
+    return { success: true };
+  }
+
+  // ── Message Reminders ─────────────────────────────────────────────────────
+
+  async addMessageReminder(userId: string, messageId: string, remindAt: Date, note?: string) {
+    return this.prisma.messageReminder.create({
+      data: { userId, messageId, remindAt: new Date(remindAt), note },
+    });
+  }
+
+  async getMessageReminders(userId: string) {
+    return this.prisma.messageReminder.findMany({
+      where: { userId, isSent: false },
+      include: {
+        message: {
+          include: {
+            sender: { select: { id: true, fullName: true } },
+            conversation: { select: { id: true, name: true, type: true } },
+          },
+        },
+      },
+      orderBy: { remindAt: 'asc' },
+    });
+  }
+
+  // ── Notes to Self ─────────────────────────────────────────────────────────
+
+  async getOrCreateNotesConversation(userId: string) {
+    const existing = await this.prisma.chatConversation.findFirst({
+      where: {
+        type: 'NOTES_SELF' as any,
+        members: { some: { userId } },
+      },
+      include: { members: true },
+    });
+    if (existing) return existing;
+
+    return this.prisma.chatConversation.create({
+      data: {
+        type: 'NOTES_SELF' as any,
+        name: 'My Notes',
+        members: { create: [{ userId, role: 'admin' }] },
+      },
+      include: { members: true },
+    });
+  }
+
+  // ── Forward Message ───────────────────────────────────────────────────────
+
+  async forwardMessage(messageId: string, targetConversationIds: string[], userId: string) {
+    const original = await this.prisma.chatMessage.findUnique({ where: { id: messageId } });
+    if (!original) throw new NotFoundException('Message not found');
+
+    const results: any[] = [];
+    for (const convId of targetConversationIds) {
+      const member = await this.prisma.chatMember.findUnique({
+        where: { conversationId_userId: { conversationId: convId, userId } },
+      });
+      if (!member) continue;
+
+      const fwd = await this.prisma.chatMessage.create({
+        data: {
+          conversationId: convId,
+          senderId: userId,
+          type: original.type,
+          content: original.content,
+          mediaUrl: original.mediaUrl,
+          metadata: original.metadata ?? undefined,
+          forwardedFromId: messageId,
+        },
+        include: { sender: { select: { id: true, fullName: true, avatar: true } } },
+      });
+
+      await this.prisma.chatConversation.update({
+        where: { id: convId },
+        data: { lastMessageAt: new Date(), lastMessageText: '↩ Forwarded message' },
+      });
+
+      results.push(fwd as any);
+    }
+    return results;
+  }
+
+  // ── Category & Notif Pref ─────────────────────────────────────────────────
+
+  async updateChatCategory(conversationId: string, userId: string, category: string) {
+    return this.prisma.chatMember.update({
+      where: { conversationId_userId: { conversationId, userId } },
+      data: { category: category as any },
+    });
+  }
+
+  async updateNotifPref(conversationId: string, userId: string, notifPref: string) {
+    return this.prisma.chatMember.update({
+      where: { conversationId_userId: { conversationId, userId } },
+      data: { isMuted: notifPref === 'MUTE' || notifPref === 'SILENT', notifPref: notifPref as any },
+    });
+  }
+
+  // ── Media Gallery ─────────────────────────────────────────────────────────
+
+  async getMediaGallery(conversationId: string, userId: string, mediaType: string) {
+    const member = await this.prisma.chatMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    if (!member) throw new ForbiddenException('Not a member');
+
+    const typeFilters: Record<string, any> = {
+      images: { type: MessageType.IMAGE },
+      documents: { type: MessageType.DOCUMENT },
+      receipts: { type: MessageType.RECEIPT },
+      transactions: { type: MessageType.TRANSACTION },
+      voice: { type: MessageType.VOICE },
+    };
+
+    const filter = typeFilters[mediaType] || {};
+
+    return this.prisma.chatMessage.findMany({
+      where: { conversationId, deletedAt: null, ...filter },
+      include: { sender: { select: { id: true, fullName: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
     });
   }
 

@@ -71,11 +71,39 @@ export class TransactionsService {
 
     const saltCache: Record<string, string> = { [userId]: await this.getSalt(userId) };
 
+    // Fetch pending schedules to check for linked transactions
+    const scheduledEmails = await this.prisma.scheduledEmail.findMany({ where: { userId, status: 'PENDING' }, select: { metadata: true, nextRunAt: true } });
+    const scheduledMessages = await this.prisma.scheduledMessage.findMany({ where: { userId, status: 'PENDING' }, select: { attachmentData: true, nextRunAt: true } });
+    
+    const scheduledTxsMap = new Map<string, Date>();
+    
+    scheduledEmails.forEach(s => {
+      const txId = (s.metadata as any)?.transactionId;
+      if (txId && s.nextRunAt) {
+        const existingDate = scheduledTxsMap.get(txId);
+        if (!existingDate || s.nextRunAt < existingDate) {
+          scheduledTxsMap.set(txId, s.nextRunAt);
+        }
+      }
+    });
+
+    scheduledMessages.forEach(s => {
+      const txId = (s.attachmentData as any)?.transactionId;
+      if (txId && s.nextRunAt) {
+        const existingDate = scheduledTxsMap.get(txId);
+        if (!existingDate || s.nextRunAt < existingDate) {
+          scheduledTxsMap.set(txId, s.nextRunAt);
+        }
+      }
+    });
+
     // Decrypt sensitive fields
     const decrypted = await Promise.all(transactions.map(async tx => {
       const ownerId = tx.cashbook?.userId || tx.userId;
       if (!saltCache[ownerId]) saltCache[ownerId] = await this.getSalt(ownerId);
-      return this.decryptTransaction(tx, saltCache[ownerId]);
+      const decryptedTx = await this.decryptTransaction(tx, saltCache[ownerId]);
+      const nextRunAt = scheduledTxsMap.get(tx.id);
+      return { ...decryptedTx, isScheduled: !!nextRunAt, scheduledAt: nextRunAt };
     }));
 
     return {

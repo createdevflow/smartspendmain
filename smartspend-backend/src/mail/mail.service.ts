@@ -16,8 +16,9 @@ const BASE_CSS = `
   body { background: #EFF4FB; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
   .wrapper { max-width: 480px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; }
   .header { background: #1E3A8A; padding: 28px; text-align: center; }
-  .brand { font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
-  .brand-in { font-size: 15px; color: #93C5FD; font-weight: 600; }
+  .header img.logo { height: 32px; margin-bottom: 8px; filter: brightness(0) invert(1); }
+  .brand { font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; display: none; }
+  .brand-in { font-size: 15px; color: #93C5FD; font-weight: 600; display: none; }
   .header-sub { font-size: 11px; color: #CBD5E1; margin-top: 4px; letter-spacing: 1.2px; text-transform: uppercase; }
   .body { padding: 28px; color: #334155; }
   .footer { background: #F8FAFC; padding: 18px 28px; text-align: center; font-size: 11px; color: #64748B; border-top: 1px solid #E2E8F0; line-height: 1.8; }
@@ -27,7 +28,10 @@ const BASE_CSS = `
 function emailShell(headerContent: string, bodyContent: string, footerContent = '') {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>${BASE_CSS}</style></head><body><div class="wrapper">
-<div class="header">${headerContent}</div>
+<div class="header">
+  <img src="https://cashtro.in/cashtro-logo.png" alt="Cashtro" class="logo" onerror="this.style.display='none'" />
+  ${headerContent}
+</div>
 <div class="body">${bodyContent}</div>
 <div class="footer">${footerContent || `© ${YEAR} Cashtro · <a href="https://cashtro.in">cashtro.in</a><br>Manage · Track · Grow`}</div>
 </div></body></html>`;
@@ -294,10 +298,10 @@ export class MailService {
 
   // ── Custom / Scheduled Email ───────────────────────────────────────────────
 
-  async sendCustomEmail(opts: { to: string | string[]; subject: string; html: string }) {
+  async sendCustomEmail(opts: { to: string | string[]; subject: string; html: string; attachments?: any[] }) {
     const transporter = await this.getTransporter();
     const from = await this.getFrom();
     const recipients = Array.isArray(opts.to) ? opts.to.join(',') : opts.to;
-    await transporter.sendMail({ from, to: recipients, subject: opts.subject, html: opts.html });
+    await transporter.sendMail({ from, to: recipients, subject: opts.subject, html: opts.html, attachments: opts.attachments });
   }
 }

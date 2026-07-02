@@ -112,6 +112,7 @@ export default function CommunicationCenter() {
         <div className="responsive-grid-3" style={{ marginBottom: '1.5rem' }}>
           {[
             { label: 'Notification Campaigns', desc: 'Create & manage admin broadcasts', icon: <Bell size={24} />, href: '/communication/notifications', color: '#2563EB' },
+            { label: 'In-App Chat Hub', desc: 'Monitor platform metrics & broadcasts', icon: <MessageCircle size={24} />, href: '/communication/chat-hub', color: '#0284C7' },
             { label: 'New Notification', desc: 'Send to users immediately or schedule', icon: <Send size={24} />, href: '/communication/notifications/new', color: '#059669' },
             { label: 'Delivery Logs', desc: 'View all delivery history and analytics', icon: <BarChart3 size={24} />, href: '/communication/delivery-logs', color: '#7C3AED' },
           ].map((tile) => (

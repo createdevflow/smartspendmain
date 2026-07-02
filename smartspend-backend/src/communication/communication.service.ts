@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ScheduleRepeat, ScheduleStatus, NotificationCategory } from '@prisma/client';
+import * as fs from 'fs';
+const PDFDocument = require('pdfkit');
 
 @Injectable()
 export class CommunicationService {
@@ -156,16 +158,46 @@ export class CommunicationService {
   async getScheduledMessages(userId: string, conversationId?: string) {
     const where: any = { userId, status: { not: ScheduleStatus.CANCELLED } };
     if (conversationId) where.conversationId = conversationId;
-    return this.prisma.scheduledMessage.findMany({
+    const commMsgs = await this.prisma.scheduledMessage.findMany({
       where,
       orderBy: { scheduledAt: 'asc' },
     });
+
+    const chatWhere: any = { senderId: userId };
+    if (conversationId) chatWhere.conversationId = conversationId;
+    const chatMsgs = await this.prisma.scheduledChatMessage.findMany({
+      where: chatWhere,
+      orderBy: { scheduledAt: 'asc' },
+    });
+
+    const formattedChatMsgs = chatMsgs.map(m => ({
+      id: m.id,
+      userId: m.senderId,
+      conversationId: m.conversationId,
+      content: m.content || `[${m.type}]`,
+      messageType: m.type || 'TEXT',
+      attachmentData: m.metadata || null,
+      scheduledAt: m.scheduledAt,
+      repeat: m.repeatType === 'ONCE' ? 'ONE_TIME' : (m.repeatType as any),
+      status: m.isSent ? 'SENT' : 'PENDING',
+      nextRunAt: m.scheduledAt,
+      createdAt: m.createdAt,
+      source: 'chat',
+    }));
+
+    return [...commMsgs, ...formattedChatMsgs].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
   }
 
   async cancelScheduledMessage(userId: string, id: string) {
     const msg = await this.prisma.scheduledMessage.findFirst({ where: { id, userId } });
-    if (!msg) throw new NotFoundException('Scheduled message not found');
-    return this.prisma.scheduledMessage.update({ where: { id }, data: { status: ScheduleStatus.CANCELLED } });
+    if (msg) {
+      return this.prisma.scheduledMessage.update({ where: { id }, data: { status: ScheduleStatus.CANCELLED } });
+    }
+    const chatMsg = await this.prisma.scheduledChatMessage.findFirst({ where: { id, senderId: userId } });
+    if (chatMsg) {
+      return this.prisma.scheduledChatMessage.delete({ where: { id } });
+    }
+    throw new NotFoundException('Scheduled message not found');
   }
 
   async rescheduleMessage(userId: string, id: string, scheduledAt: string) {
@@ -192,10 +224,31 @@ export class CommunicationService {
 
     for (const email of dueEmails) {
       try {
+        let emailAttachments: any[] = [];
+        
+        // Check if there is a transaction ID in metadata to attach a PDF receipt
+        const metadata = email.metadata as any;
+        if (metadata && metadata.transactionId) {
+          const tx = await this.prisma.transaction.findUnique({
+            where: { id: metadata.transactionId },
+            include: { category: true, cashbook: true, user: { select: { fullName: true, email: true } } }
+          });
+          
+          if (tx) {
+            const pdfBuffer = await this.generateTransactionPdfBuffer(tx);
+            emailAttachments.push({
+              filename: `Cashtro_${tx.type === 'INCOME' ? 'Receipt' : 'Invoice'}_${tx.id.substring(0,6)}.pdf`,
+              content: pdfBuffer,
+              contentType: 'application/pdf'
+            });
+          }
+        }
+
         await this.mail.sendCustomEmail({
           to: email.recipients,
           subject: email.subject,
           html: this.buildEmailHtml(email.body, email.subject),
+          attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
         });
 
         await this.prisma.emailDeliveryLog.create({
@@ -269,7 +322,7 @@ export class CommunicationService {
             conversationId: msg.conversationId,
             senderId: msg.userId,
             content: msg.content,
-            type: 'TEXT',
+            type: (msg.messageType ?? 'TEXT') as any,
             metadata: msg.attachmentData as any,
           },
         });
@@ -497,5 +550,75 @@ export class CommunicationService {
       default:
         return [];
     }
+  }
+
+  // ── PDF Generation Helper ──────────────────────────────────────────────────
+  private async generateTransactionPdfBuffer(tx: any): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ margin: 50 });
+        const buffers: Buffer[] = [];
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => resolve(Buffer.concat(buffers)));
+        
+        const isReceipt = tx.type === 'INCOME';
+        const title = isReceipt ? 'RECEIPT' : 'INVOICE';
+        
+        // Header
+        doc.fontSize(24).fillColor('#1E3A8A').text('Cashtro', { align: 'left' });
+        doc.fontSize(10).fillColor('#64748B').text('Smart Finance Manager', { align: 'left' });
+        
+        doc.moveUp(2);
+        doc.fontSize(20).fillColor('#0F172A').text(title, { align: 'right' });
+        doc.fontSize(10).fillColor('#64748B').text(`ID: ${tx.id.substring(0, 8).toUpperCase()}`, { align: 'right' });
+        doc.text(`Date: ${new Date(tx.date).toLocaleDateString()}`, { align: 'right' });
+        
+        doc.moveDown(2);
+        
+        // Details
+        doc.rect(50, doc.y, 512, 1).fill('#E2E8F0');
+        doc.moveDown(2);
+        
+        doc.fontSize(12).fillColor('#0F172A').text('Billed To / Related To:', { underline: true });
+        doc.moveDown(0.5);
+        doc.fontSize(10).fillColor('#334155').text(tx.user?.fullName || 'User');
+        doc.text(tx.user?.email || '');
+        if (tx.cashbook?.name) {
+          doc.text(`Cashbook: ${tx.cashbook.name}`);
+        }
+        
+        doc.moveDown(2);
+        
+        // Line items table header
+        const tableTop = doc.y;
+        doc.rect(50, tableTop, 512, 24).fill('#F8FAFC');
+        doc.fillColor('#64748B').fontSize(10).font('Helvetica-Bold');
+        doc.text('DESCRIPTION', 60, tableTop + 7);
+        doc.text('CATEGORY', 300, tableTop + 7);
+        doc.text('AMOUNT', 480, tableTop + 7, { align: 'right' });
+        
+        // Line item
+        doc.font('Helvetica').fillColor('#0F172A');
+        const itemY = tableTop + 34;
+        doc.text(tx.note || tx.merchant || 'Transaction', 60, itemY);
+        doc.text(tx.category?.name || '-', 300, itemY);
+        doc.text(`${tx.amount} ${tx.cashbook?.currency || 'INR'}`, 480, itemY, { align: 'right' });
+        
+        doc.rect(50, itemY + 20, 512, 1).fill('#E2E8F0');
+        
+        // Total
+        const totalY = itemY + 30;
+        doc.font('Helvetica-Bold').fontSize(12).text('TOTAL', 300, totalY);
+        doc.fillColor(isReceipt ? '#16A34A' : '#DC2626').text(`${tx.amount} ${tx.cashbook?.currency || 'INR'}`, 480, totalY, { align: 'right' });
+        
+        // Footer
+        doc.fontSize(10).fillColor('#94A3B8').font('Helvetica');
+        doc.text('Thank you for using Cashtro.', 50, 700, { align: 'center', width: 512 });
+        
+        doc.end();
+      } catch (err) {
+        reject(err);
+      }
+    });
   }
 }

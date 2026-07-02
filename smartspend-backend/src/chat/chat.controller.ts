@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Request } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
 import { SendMessageDto, CreateConversationDto, SendContactRequestDto } from './dto/chat.dto';
@@ -98,6 +98,96 @@ export class ChatController {
   @Patch('conversations/:id/archive')
   archive(@Request() req, @Param('id') id: string, @Body() body: { isArchived: boolean }) {
     return this.chatService.updateMemberSettings(id, req.user.sub, { isArchived: body.isArchived });
+  }
+
+  @Patch('conversations/:id/category')
+  updateCategory(@Request() req, @Param('id') id: string, @Body() body: { category: string }) {
+    return this.chatService.updateChatCategory(id, req.user.sub, body.category);
+  }
+
+  @Patch('conversations/:id/notif-pref')
+  updateNotifPref(@Request() req, @Param('id') id: string, @Body() body: { notifPref: string }) {
+    return this.chatService.updateNotifPref(id, req.user.sub, body.notifPref);
+  }
+
+  @Get('conversations/:id/pinned')
+  getPinnedMessages(@Request() req, @Param('id') id: string) {
+    return this.chatService.getPinnedMessages(id, req.user.sub);
+  }
+
+  @Get('conversations/:id/scheduled')
+  getScheduledMessages(@Request() req, @Param('id') id: string) {
+    return this.chatService.getScheduledMessages(id, req.user.sub);
+  }
+
+  @Get('conversations/:id/media')
+  getMediaGallery(@Request() req, @Param('id') id: string, @Query('type') type: string) {
+    return this.chatService.getMediaGallery(id, req.user.sub, type || 'images');
+  }
+
+  // ── Star / Pin Messages ──────────────────────────────────────────────
+
+  @Post('messages/:id/star')
+  starMessage(@Request() req, @Param('id') id: string) {
+    return this.chatService.starMessage(req.user.sub, id);
+  }
+
+  @Post('messages/:id/unstar')
+  unstarMessage(@Request() req, @Param('id') id: string) {
+    return this.chatService.unstarMessage(req.user.sub, id);
+  }
+
+  @Get('messages/starred')
+  getStarredMessages(@Request() req) {
+    return this.chatService.getStarredMessages(req.user.sub);
+  }
+
+  @Post('messages/:id/pin')
+  pinMessage(@Request() req, @Param('id') id: string, @Body() body: { conversationId: string }) {
+    return this.chatService.pinMessage(req.user.sub, id, body.conversationId);
+  }
+
+  @Post('messages/:id/unpin')
+  unpinMessage(@Request() req, @Param('id') id: string, @Body() body: { conversationId: string }) {
+    return this.chatService.unpinMessage(req.user.sub, id, body.conversationId);
+  }
+
+  // ── Scheduled Messages ───────────────────────────────────────────────
+
+  @Post('messages/schedule')
+  scheduleMessage(@Request() req, @Body() body: any) {
+    return this.chatService.scheduleMessage(req.user.sub, body);
+  }
+
+  @Post('scheduled/:id/cancel')
+  cancelScheduled(@Request() req, @Param('id') id: string) {
+    return this.chatService.cancelScheduledMessage(id, req.user.sub);
+  }
+
+  // ── Message Reminders ────────────────────────────────────────────────
+
+  @Post('messages/:id/remind')
+  addReminder(@Request() req, @Param('id') id: string, @Body() body: { remindAt: string; note?: string }) {
+    return this.chatService.addMessageReminder(req.user.sub, id, new Date(body.remindAt), body.note);
+  }
+
+  @Get('reminders')
+  getReminders(@Request() req) {
+    return this.chatService.getMessageReminders(req.user.sub);
+  }
+
+  // ── Forward Message ──────────────────────────────────────────────────
+
+  @Post('messages/:id/forward')
+  forwardMessage(@Request() req, @Param('id') id: string, @Body() body: { conversationIds: string[] }) {
+    return this.chatService.forwardMessage(id, body.conversationIds, req.user.sub);
+  }
+
+  // ── Notes to Self ────────────────────────────────────────────────────
+
+  @Get('notes')
+  getNotesConversation(@Request() req) {
+    return this.chatService.getOrCreateNotesConversation(req.user.sub);
   }
 
   // ── AI Insights ──────────────────────────────────────────────────────

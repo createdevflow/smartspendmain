@@ -322,4 +322,21 @@ export class AdminController {
       throw new BadRequestException(`Failed to send test email: ${error.message || 'Check SMTP configuration'}`);
     }
   }
+
+  // ── Chat Hub Management ───────────────────────────────────────────────────
+  @Get('chat/analytics')
+  @ApiOperation({ summary: 'Get aggregated chat analytics (privacy preserved)' })
+  getChatAnalytics() {
+    return this.adminService.getChatAnalytics();
+  }
+
+  @Post('chat/broadcast')
+  @ApiOperation({ summary: 'Send broadcast message to all users' })
+  sendBroadcastMessage(
+    @CurrentUser() user: any,
+    @Body() body: { title: string; content: string },
+  ) {
+    return this.adminService.sendBroadcastMessage(user.sub, body.title, body.content);
+  }
 }
+
