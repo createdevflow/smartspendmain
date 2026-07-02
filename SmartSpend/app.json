@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "Cashtro",
+    "slug": "SmartSpend",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/cashtro-icon.png",
+    "scheme": "cashtro",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/cashtro-icon.png",
+        "monochromeImage": "./assets/images/cashtro-icon.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.digitalakr.cashtro"
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/cashtro-icon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/cashtro-splash.png",
+          "imageWidth": 280,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          },
+          "ios": {
+            "infoPlist": {
+              "NSAppTransportSecurity": {
+                "NSAllowsArbitraryLoads": true
+              }
+            }
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "703dee0b-5c64-4d90-ade3-d42aa66df4f5"
+      }
+    }
+  }
+}

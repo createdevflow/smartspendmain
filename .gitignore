@@ -28,8 +28,6 @@ Thumbs.db
 docker-compose.override.yml
 
 # Mobile app (not deployed to server)
-SmartSpend/
-smartspend/
 
 # Build outputs (generated at deploy time)
 smartspend-landing/dist/
