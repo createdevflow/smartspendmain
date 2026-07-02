@@ -1,1 +1,0 @@
-import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); async function main() { const d = new Date(); d.setDate(d.getDate() + 7); await prisma.user.updateMany({ data: { trialExpiresAt: d } }); console.log('Updated users'); } main().finally(() => prisma.$disconnect());
