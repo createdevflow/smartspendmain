@@ -68,6 +68,7 @@ jobs:
             echo "=== WEB Logs ===" >> deploy.log
             docker compose logs web >> deploy.log 2>&1 || true
             
-            curl -X POST -H "Content-Type: text/plain" -d @deploy.log https://webhook.site/d3275361-1a3d-4fbf-b70d-96cd507bbaf8 || true
+            tail -n 500 deploy.log > deploy_tail.log
+            curl -X POST -H "Content-Type: text/plain" -d @deploy_tail.log https://webhook.site/d3275361-1a3d-4fbf-b70d-96cd507bbaf8 || true
             
             exit $EXIT_CODE
