@@ -57,6 +57,7 @@ export const APP_FEATURE_KEYS = [
   'force_update_enabled',
   // AI Settings
   'ai_maintenance_mode',
+  'gemini_api_key',
   'ai_gemini_model',
   'ai_max_prompt_length',
   'ai_credit_cost_ocr',

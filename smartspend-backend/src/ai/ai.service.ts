@@ -55,9 +55,9 @@ export class AiService {
 
       // 2. Fetch AI Config
       modelUsed = await this.getConfig('ai_gemini_model', 'gemini-2.5-flash');
-      const apiKey = process.env.GEMINI_API_KEY; // Always from env for security
+      const apiKey = process.env.GEMINI_API_KEY || (await this.getConfig('gemini_api_key', ''));
       if (!apiKey) {
-        throw new InternalServerErrorException('AI Service is not configured properly.');
+        throw new InternalServerErrorException('AI Service is not configured properly (missing Gemini API Key in environment or Admin Settings).');
       }
 
       // 3. Validation
