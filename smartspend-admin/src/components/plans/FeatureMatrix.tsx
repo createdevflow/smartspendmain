@@ -11,7 +11,6 @@ interface FeatureMatrixProps {
 }
 
 export function FeatureMatrix({ plans, features }: FeatureMatrixProps) {
-  // Group features by category
   const groupedFeatures = features.reduce((acc, f) => {
     const cat = f.category || 'general';
     if (!acc[cat]) acc[cat] = [];
@@ -20,25 +19,25 @@ export function FeatureMatrix({ plans, features }: FeatureMatrixProps) {
   }, {} as Record<string, Feature[]>);
 
   const renderValue = (type: string, value?: string) => {
-    if (!value || value === 'false') return <X className="w-5 h-5 text-gray-300 mx-auto" />;
-    if (value === 'true') return <Check className="w-5 h-5 text-green-500 mx-auto" />;
-    if (value === '-1') return <span className="text-gray-900 font-medium">Unlimited</span>;
-    return <span className="text-gray-700 font-medium">{value}</span>;
+    if (!value || value === 'false') return <X size={18} style={{ color: 'var(--text-tertiary)', margin: '0 auto' }} />;
+    if (value === 'true') return <Check size={18} style={{ color: 'var(--success)', margin: '0 auto' }} />;
+    if (value === '-1') return <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Unlimited</span>;
+    return <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{value}</span>;
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="table" style={{ width: '100%' }}>
           <thead>
             <tr>
-              <th className="p-4 border-b border-gray-200 bg-gray-50/50 text-sm font-semibold text-gray-600 w-1/3 min-w-[200px]">
+              <th style={{ width: '30%', minWidth: '200px' }}>
                 Features Comparison
               </th>
               {plans.map((plan) => (
-                <th key={plan.id} className="p-4 border-b border-gray-200 text-center min-w-[140px]">
-                  <div className="text-base font-bold text-gray-900">{plan.name}</div>
-                  <div className="h-1 w-12 mx-auto mt-2 rounded-full" style={{ backgroundColor: plan.color }} />
+                <th key={plan.id} style={{ textAlign: 'center', minWidth: '140px' }}>
+                  <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>{plan.name}</div>
+                  <div style={{ height: '3px', width: '36px', margin: '6px auto 0', borderRadius: '2px', backgroundColor: plan.color || '#2563EB' }} />
                 </th>
               ))}
             </tr>
@@ -50,19 +49,19 @@ export function FeatureMatrix({ plans, features }: FeatureMatrixProps) {
                 <tr>
                   <td
                     colSpan={plans.length + 1}
-                    className="p-3 bg-gray-50 border-y border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider"
+                    style={{ background: 'var(--bg-elevated)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0.625rem 1rem' }}
                   >
                     {category}
                   </td>
                 </tr>
                 {/* Features rows */}
-                {catsFeatures.map((feature, idx) => (
-                  <tr key={feature.key} className={idx !== catsFeatures.length - 1 ? 'border-b border-gray-100' : ''}>
-                    <td className="p-4 text-sm font-medium text-gray-700">{feature.name}</td>
+                {catsFeatures.map((feature) => (
+                  <tr key={feature.key}>
+                    <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{feature.name}</td>
                     {plans.map((plan) => {
-                      const planFeat = plan.features.find((pf) => pf.feature.key === feature.key);
+                      const planFeat = plan.features?.find((pf) => pf.feature?.key === feature.key);
                       return (
-                        <td key={`${plan.id}-${feature.key}`} className="p-4 text-center">
+                        <td key={`${plan.id}-${feature.key}`} style={{ textAlign: 'center' }}>
                           {renderValue(feature.type, planFeat?.value)}
                         </td>
                       );

@@ -27,77 +27,81 @@ interface PlanCardProps {
 
 export function PlanCard({ plan, onEdit, onDelete, onClone }: PlanCardProps) {
   return (
-    <div className="relative flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-      {/* Top Banner (Color Strip) */}
-      <div className="h-2 w-full" style={{ backgroundColor: plan.color }} />
-      
-      <div className="p-6 flex-1 flex flex-col">
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', padding: '0', borderTop: `4px solid ${plan.color || '#2563EB'}` }}>
+      <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
-        <div className="flex justify-between items-start mb-4">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
           <div>
-            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              {plan.name}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                {plan.name}
+              </h3>
               {!plan.isActive && (
-                <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+                <span className="badge badge-gray" style={{ fontSize: '0.6875rem' }}>
                   Draft
                 </span>
               )}
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">{plan.slug}</p>
+            </div>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>{plan.slug}</p>
           </div>
-          <div className="flex gap-1">
+          <div style={{ display: 'flex', gap: '0.25rem' }}>
             <button
               onClick={() => onEdit(plan)}
-              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="btn btn-ghost"
+              style={{ padding: '0.375rem' }}
               title="Edit Plan"
             >
-              <Edit2 className="w-4 h-4" />
+              <Edit2 size={15} />
             </button>
             <button
               onClick={() => onClone(plan.id)}
-              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              className="btn btn-ghost"
+              style={{ padding: '0.375rem', color: 'var(--success)' }}
               title="Duplicate Plan"
             >
-              <Copy className="w-4 h-4" />
+              <Copy size={15} />
             </button>
             <button
               onClick={() => onDelete(plan)}
-              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="btn btn-ghost"
+              style={{ padding: '0.375rem', color: 'var(--danger)' }}
               title="Delete Plan"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 size={15} />
             </button>
           </div>
         </div>
 
         {/* Price & Description */}
-        <div className="mb-6">
-          <div className="flex items-end gap-1 mb-2">
-            <span className="text-3xl font-black text-gray-900">
+        <div style={{ marginBottom: '1.25rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '1.875rem', fontWeight: 800, color: 'var(--text-primary)' }}>
               ₹{plan.priceMonthly || 0}
             </span>
-            <span className="text-gray-500 mb-1">/mo</span>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>/month</span>
           </div>
-          <p className="text-sm text-gray-600 line-clamp-2 min-h-[40px]">
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, minHeight: '36px' }}>
             {plan.description || 'No description provided.'}
           </p>
         </div>
 
         {/* Key Features Preview */}
-        <div className="space-y-3 flex-1">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Top Features</p>
-          <ul className="space-y-2">
+        <div style={{ flex: 1, marginBottom: '1.25rem' }}>
+          <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+            Top Features
+          </p>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {plan.features.slice(0, 5).map((f) => {
               const isEnabled = f.value === 'true' || (f.feature.type === 'number' && parseInt(f.value) > 0) || f.value === '-1';
               return (
-                <li key={f.feature.key} className="flex items-start gap-2 text-sm text-gray-700">
-                  <Check className={`w-4 h-4 mt-0.5 shrink-0 ${isEnabled ? 'text-green-500' : 'text-gray-300'}`} />
-                  <span className={isEnabled ? '' : 'text-gray-400 line-through'}>
+                <li key={f.feature.key} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8125rem', color: 'var(--text-primary)' }}>
+                  <Check size={16} style={{ color: isEnabled ? 'var(--success)' : 'var(--text-tertiary)', flexShrink: 0, marginTop: '2px' }} />
+                  <span style={{ color: isEnabled ? 'var(--text-primary)' : 'var(--text-tertiary)', textDecoration: isEnabled ? 'none' : 'line-through' }}>
                     {f.feature.name}
                     {f.feature.type === 'number' && isEnabled && (
-                      <span className="ml-1 text-gray-500 font-medium">
+                      <strong style={{ marginLeft: '0.25rem', color: 'var(--text-secondary)' }}>
                         ({f.value === '-1' ? 'Unlimited' : f.value})
-                      </span>
+                      </strong>
                     )}
                   </span>
                 </li>
@@ -105,16 +109,16 @@ export function PlanCard({ plan, onEdit, onDelete, onClone }: PlanCardProps) {
             })}
           </ul>
           {plan.features.length > 5 && (
-            <p className="text-xs text-gray-500 font-medium mt-2">
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, marginTop: '0.75rem' }}>
               + {plan.features.length - 5} more features
             </p>
           )}
         </div>
 
         {/* Footer / Users Count */}
-        <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
-          <div className="text-sm text-gray-500">
-            <span className="font-semibold text-gray-900">{plan._count.users}</span> active users
+        <div style={{ paddingTop: '0.875rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+            <strong style={{ color: 'var(--text-primary)' }}>{plan._count?.users || 0}</strong> active users
           </div>
         </div>
       </div>

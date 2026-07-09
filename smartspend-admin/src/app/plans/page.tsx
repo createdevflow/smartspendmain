@@ -74,51 +74,71 @@ export default function PlansPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/50 flex">
+    <>
       <Sidebar />
-      <div className="flex-1 flex flex-col pl-64">
-        
-        {/* Header */}
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
-          <div className="flex items-center justify-between px-8 py-5">
+      <main className="main-content">
+        <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+          {/* Header */}
+          <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
-              <h1 className="text-2xl font-black text-gray-900 tracking-tight">Plans & Pricing</h1>
-              <p className="text-sm text-gray-500 mt-1">Manage subscription tiers and feature limits</p>
+              <h1 className="animate-fade-in" style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>Plans & Pricing</h1>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem', fontSize: '0.875rem' }}>Manage subscription tiers and feature limits across the platform</p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="bg-gray-100 p-1 rounded-xl flex">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ background: 'var(--bg-elevated)', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex' }}>
                 <button
                   onClick={() => setActiveTab('cards')}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${activeTab === 'cards' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                  style={{
+                    padding: '0.375rem 0.875rem',
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    background: activeTab === 'cards' ? 'var(--bg-surface)' : 'transparent',
+                    color: activeTab === 'cards' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    boxShadow: activeTab === 'cards' ? 'var(--shadow-sm)' : 'none',
+                  }}
                 >
                   Cards
                 </button>
                 <button
                   onClick={() => setActiveTab('matrix')}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${activeTab === 'matrix' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                  style={{
+                    padding: '0.375rem 0.875rem',
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    background: activeTab === 'matrix' ? 'var(--bg-surface)' : 'transparent',
+                    color: activeTab === 'matrix' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    boxShadow: activeTab === 'matrix' ? 'var(--shadow-sm)' : 'none',
+                  }}
                 >
                   Feature Matrix
                 </button>
               </div>
               <button
                 onClick={() => setPlanModal({ open: true, mode: 'create', data: EMPTY_PLAN })}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200"
+                className="btn btn-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
               >
-                <Plus className="w-4 h-4" />
+                <Plus size={16} />
                 New Plan
               </button>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* Main Content */}
-        <main className="flex-1 p-8">
+          {/* Main Content */}
           {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+              <div style={{ width: '32px', height: '32px', border: '3px solid var(--border)', borderTopColor: '#2563EB', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
             </div>
           ) : activeTab === 'cards' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
               {plans.map((plan) => (
                 <PlanCard
                   key={plan.id}
@@ -132,8 +152,8 @@ export default function PlansPage() {
           ) : (
             <FeatureMatrix plans={plans} features={features} />
           )}
-        </main>
-      </div>
+        </div>
+      </main>
 
       <PlanEditorDrawer
         open={planModal.open}
@@ -144,6 +164,6 @@ export default function PlansPage() {
         onSave={handleSavePlan}
         saving={saving}
       />
-    </div>
+    </>
   );
 }

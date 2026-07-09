@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationCategory, NotificationType } from '@prisma/client';
+import { Expo } from 'expo-server-sdk';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
+  private readonly expo = new Expo();
 
   constructor(private prisma: PrismaService) {}
 
@@ -199,18 +201,21 @@ export class NotificationsService {
         where: { id: userId },
         select: { expoPushToken: true, pushNotifications: true },
       });
-      if (!user?.expoPushToken || !user.pushNotifications) return;
+      if (!user || user.pushNotifications === false) return;
 
       const devices = await this.prisma.device.findMany({
         where: { userId },
         select: { expoPushToken: true },
       });
-      const tokens = [user.expoPushToken, ...devices.map((d) => d.expoPushToken)]
-        .filter((t): t is string => typeof t === 'string' && t.startsWith('ExponentPushToken'));
+      
+      const rawTokens = [user.expoPushToken, ...devices.map((d) => d.expoPushToken)];
+      const tokens = Array.from(new Set(
+        rawTokens.filter((t): t is string => typeof t === 'string' && Expo.isExpoPushToken(t))
+      ));
 
       if (!tokens.length) return;
       await this.sendExpoPushBatch(tokens, title, body, actionUrl);
-    } catch (e) {
+    } catch (e: any) {
       this.logger.warn(`Push notification failed for user ${userId}: ${e.message}`);
     }
   }
@@ -218,15 +223,27 @@ export class NotificationsService {
   private async sendBulkExpoPush(userIds: string[], title: string, body: string, actionUrl?: string) {
     try {
       const users = await this.prisma.user.findMany({
-        where: { id: { in: userIds }, pushNotifications: true },
+        where: { id: { in: userIds }, NOT: { pushNotifications: false } },
+        select: { expoPushToken: true, id: true },
+      });
+      
+      const activeUserIds = users.map((u) => u.id);
+      const devices = await this.prisma.device.findMany({
+        where: { userId: { in: activeUserIds } },
         select: { expoPushToken: true },
       });
-      const tokens = users
-        .map((u) => u.expoPushToken)
-        .filter((t): t is string => typeof t === 'string' && t.startsWith('ExponentPushToken'));
+
+      const rawTokens = [
+        ...users.map((u) => u.expoPushToken),
+        ...devices.map((d) => d.expoPushToken),
+      ];
+      const tokens = Array.from(new Set(
+        rawTokens.filter((t): t is string => typeof t === 'string' && Expo.isExpoPushToken(t))
+      ));
+
       if (!tokens.length) return;
       await this.sendExpoPushBatch(tokens, title, body, actionUrl);
-    } catch (e) {
+    } catch (e: any) {
       this.logger.warn(`Bulk push failed: ${e.message}`);
     }
   }
@@ -234,21 +251,21 @@ export class NotificationsService {
   private async sendExpoPushBatch(tokens: string[], title: string, body: string, actionUrl?: string) {
     const messages = tokens.map((to) => ({
       to,
+      sound: 'default' as const,
       title,
       body,
-      sound: 'default',
       data: { actionUrl },
     }));
     try {
-      const res = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(messages),
-      });
-      if (!res.ok) {
-        this.logger.warn(`Expo push API returned ${res.status}`);
+      const chunks = this.expo.chunkPushNotifications(messages as any[]);
+      for (const chunk of chunks) {
+        try {
+          await this.expo.sendPushNotificationsAsync(chunk);
+        } catch (error: any) {
+          this.logger.warn(`Error sending push chunk: ${error.message}`);
+        }
       }
-    } catch (e) {
+    } catch (e: any) {
       this.logger.warn(`Expo push batch send failed: ${e.message}`);
     }
   }
