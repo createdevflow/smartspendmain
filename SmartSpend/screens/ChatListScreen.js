@@ -41,7 +41,7 @@ function formatLastSeen(date) {
 function Avatar({ name, size = 50, online, isNotes, isGroup }) {
   if (isNotes) {
     return (
-      <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: '#6366F1' }]}>
+      <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: '#2D8CFF' }]}>
         <Text style={{ fontSize: size * 0.4 }}>📓</Text>
       </View>
     );
@@ -54,7 +54,7 @@ function Avatar({ name, size = 50, online, isNotes, isGroup }) {
     );
   }
   const initial = (name || '?').charAt(0).toUpperCase();
-  const colors = ['#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+  const colors = ['#2D8CFF', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#F26D21', '#EC4899'];
   const color = colors[initial.charCodeAt(0) % colors.length];
   return (
     <View style={{ width: size, height: size, position: 'relative' }}>
@@ -94,9 +94,9 @@ function ConversationItem({ item, userId, onPress, onLongPress, isOnline, lastSe
         <View style={styles.convInfo}>
           <View style={styles.convRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 4 }}>
-              {item.isPinned && <Feather name="bookmark" size={11} color="#6366F1" />}
+              {item.isPinned && <Feather name="bookmark" size={11} color="#2D8CFF" />}
               {item.isMuted && <Feather name="bell-off" size={11} color="#9CA3AF" />}
-              {isNotes && <Feather name="book-open" size={11} color="#6366F1" />}
+              {isNotes && <Feather name="book-open" size={11} color="#2D8CFF" />}
               <Text style={[styles.convName, unread > 0 && styles.convNameUnread]} numberOfLines={1}>
                 {name || 'Unknown'}
               </Text>
@@ -303,10 +303,10 @@ export default function ChatListScreen() {
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('StarredMessages')}>
-            <Feather name="star" size={18} color="#1D4ED8" />
+            <Feather name="star" size={18} color="#2D8CFF" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('ContactRequests')}>
-            <Feather name="user-plus" size={18} color="#1D4ED8" />
+            <Feather name="user-plus" size={18} color="#2D8CFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -352,7 +352,7 @@ export default function ChatListScreen() {
                 <Text style={styles.searchResultName}>{u.fullName}</Text>
                 <Text style={styles.searchResultEmail}>{u.email}</Text>
               </View>
-              <Feather name="message-circle" size={18} color="#1D4ED8" />
+              <Feather name="message-circle" size={18} color="#2D8CFF" />
             </TouchableOpacity>
           ))}
         </View>
@@ -380,7 +380,7 @@ export default function ChatListScreen() {
       <FlatList
         data={listData}
         keyExtractor={(item) => item.key || item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D4ED8" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2D8CFF" />}
         renderItem={({ item }) => {
           if (item.type === 'header') {
             return <Text style={styles.listHeader}>{item.label}</Text>;
@@ -432,19 +432,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 12,
     borderBottomWidth: 0.5, borderBottomColor: '#F3F4F6',
   },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
-  headerSub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  headerTitle: { fontSize: 26, fontWeight: '800', color: '#232333', letterSpacing: -0.5 },
+  headerSub: { fontSize: 12, color: '#747487', marginTop: 2 },
   headerBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center',
   },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#F3F4F6', margin: 12,
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 10, paddingHorizontal: 12, height: 40,
   },
-  searchInput: { flex: 1, fontSize: 15, color: '#111827' },
+  searchInput: { flex: 1, fontSize: 14, color: '#232333', padding: 0 },
 
   tabsRow: { maxHeight: 44, marginBottom: 4 },
   tab: {
@@ -452,23 +452,23 @@ const styles = StyleSheet.create({
     borderRadius: 20, backgroundColor: '#F3F4F6',
     alignSelf: 'flex-start',
   },
-  tabActive: { backgroundColor: '#1D4ED8' },
-  tabText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  tabActive: { backgroundColor: '#2D8CFF' },
+  tabText: { fontSize: 13, fontWeight: '600', color: '#747487' },
   tabTextActive: { color: '#fff' },
 
   notesCard: {
     flexDirection: 'row', alignItems: 'center',
     marginHorizontal: 12, marginTop: 8, marginBottom: 4,
-    backgroundColor: '#F5F3FF', borderRadius: 16,
+    backgroundColor: '#EFF6FF', borderRadius: 16,
     padding: 14, gap: 12,
-    borderWidth: 1, borderColor: '#E0D9FF',
+    borderWidth: 1, borderColor: '#BFDBFE',
   },
   notesIcon: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: '#EDE9FE', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center',
   },
-  notesTitle: { fontSize: 15, fontWeight: '700', color: '#4F46E5' },
-  notesSub: { fontSize: 12, color: '#7C6FCD', marginTop: 2 },
+  notesTitle: { fontSize: 15, fontWeight: '700', color: '#2D8CFF' },
+  notesSub: { fontSize: 12, color: '#747487', marginTop: 2 },
 
   pinnedSection: { borderBottomWidth: 0.5, borderBottomColor: '#F3F4F6', paddingBottom: 8 },
   pinnedLabel: {
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
   },
   pinnedScroll: { paddingLeft: 16 },
   pinnedBubble: { alignItems: 'center', marginRight: 16, marginBottom: 4, width: 60 },
-  pinnedBubbleName: { fontSize: 11, color: '#374151', fontWeight: '600', marginTop: 4, textAlign: 'center' },
+  pinnedBubbleName: { fontSize: 11, color: '#232333', fontWeight: '600', marginTop: 4, textAlign: 'center' },
 
   searchResultsBox: {
     marginHorizontal: 12, backgroundColor: '#fff',
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: '#F3F4F6',
   },
-  searchResultName: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  searchResultName: { fontSize: 15, fontWeight: '600', color: '#232333' },
   searchResultEmail: { fontSize: 12, color: '#9CA3AF' },
 
   listHeader: {
@@ -514,15 +514,15 @@ const styles = StyleSheet.create({
   },
   convInfo: { flex: 1 },
   convRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
-  convName: { fontSize: 16, fontWeight: '600', color: '#111827', flex: 1 },
+  convName: { fontSize: 16, fontWeight: '600', color: '#232333', flex: 1 },
   convNameUnread: { fontWeight: '800' },
   convPreview: { fontSize: 13, color: '#9CA3AF' },
-  convPreviewUnread: { color: '#374151', fontWeight: '600' },
+  convPreviewUnread: { color: '#232333', fontWeight: '600' },
   lastSeen: { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
   convTime: { fontSize: 11, color: '#9CA3AF', marginLeft: 4 },
-  convTimeUnread: { color: '#1D4ED8', fontWeight: '700' },
+  convTimeUnread: { color: '#2D8CFF', fontWeight: '700' },
   badge: {
-    backgroundColor: '#1D4ED8', borderRadius: 10,
+    backgroundColor: '#2D8CFF', borderRadius: 10,
     paddingHorizontal: 6, paddingVertical: 2, minWidth: 20, alignItems: 'center', marginLeft: 6,
   },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },

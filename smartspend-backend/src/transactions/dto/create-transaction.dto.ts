@@ -3,6 +3,7 @@ import {
   IsDateString, IsArray, Min, MaxLength, IsIn,
 } from 'class-validator';
 import { TransactionType, TransactionLabel } from '@prisma/client';
+import { SanitizeHtml } from '../../common/decorators/sanitize.decorator';
 
 export class CreateTransactionDto {
   @IsString() cashbookId: string;
@@ -12,9 +13,10 @@ export class CreateTransactionDto {
   @IsDateString() date: string;
 
   @IsOptional() @IsString() categoryId?: string;
-  @IsOptional() @IsString() @MaxLength(200) merchant?: string;
-  @IsOptional() @IsString() @MaxLength(1000) notes?: string;
-  @IsOptional() @IsString() paymentMethod?: string;
+  @IsOptional() @IsString() @MaxLength(200) @SanitizeHtml() merchant?: string;
+  @IsOptional() @IsString() @MaxLength(1000) @SanitizeHtml() notes?: string;
+  @IsOptional() @IsString() @SanitizeHtml() paymentMethod?: string;
+
 
   @IsOptional() @IsArray() @IsEnum(TransactionLabel, { each: true }) labels?: TransactionLabel[];
   @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];

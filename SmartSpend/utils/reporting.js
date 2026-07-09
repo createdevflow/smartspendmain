@@ -53,13 +53,13 @@ const PDF_STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
-    color: #111827;
+    color: #232333;
     background: #ffffff;
     font-size: 11px;
     line-height: 1.4;
   }
   .pdf-header {
-    border-bottom: 2px solid #1E3A8A;
+    border-bottom: 2px solid #2D8CFF;
     padding-bottom: 20px;
     margin-bottom: 28px;
   }
@@ -72,25 +72,25 @@ const PDF_STYLES = `
   .pdf-brand-name {
     font-size: 22px;
     font-weight: 800;
-    color: #1E3A8A;
+    color: #2D8CFF;
     letter-spacing: -0.5px;
   }
   .pdf-brand-tag {
     font-size: 11px;
     font-weight: 500;
-    color: #64748B;
+    color: #74748B;
     letter-spacing: 1px;
     text-transform: uppercase;
   }
   .pdf-title-block h1 {
     font-size: 18px;
     font-weight: 700;
-    color: #0F172A;
+    color: #232333;
     margin-bottom: 4px;
   }
   .pdf-subtitle {
     font-size: 13px;
-    color: #64748B;
+    color: #74748B;
   }
   .pdf-generated {
     font-size: 11px;
@@ -124,14 +124,14 @@ const PDF_STYLES = `
   }
   .summary-card__value.in  { color: #16A34A; }
   .summary-card__value.out { color: #DC2626; }
-  .summary-card__value.bal { color: #1E3A8A; }
+  .summary-card__value.bal { color: #2D8CFF; }
   table {
     width: 100%;
     border-collapse: collapse;
     font-size: 10px;
   }
   thead th {
-    background: #1E3A8A;
+    background: #2D8CFF;
     color: #ffffff;
     font-weight: 700;
     font-size: 9px;
@@ -147,7 +147,7 @@ const PDF_STYLES = `
   td {
     padding: 6px 8px;
     border-bottom: 1px solid #E2E8F0;
-    color: #374151;
+    color: #232333;
     font-size: 10px;
   }
   td.amount-in  { color: #16A34A; font-weight: 600; text-align: right; }
@@ -168,7 +168,7 @@ const PDF_STYLES = `
     text-transform: uppercase; letter-spacing: 0.3px;
   }
   .note-cell {
-    color: #6B7280;
+    color: #747487;
     font-size: 9px;
     font-style: italic;
   }
@@ -182,7 +182,7 @@ const PDF_STYLES = `
     font-size: 11px;
     color: #94A3B8;
   }
-  .pdf-footer strong { color: #1E3A8A; }
+  .pdf-footer strong { color: #2D8CFF; }
   .empty-row {
     text-align: center;
     color: #94A3B8;

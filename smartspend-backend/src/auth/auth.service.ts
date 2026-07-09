@@ -78,6 +78,11 @@ export class AuthService {
         planId: freePlan?.id ?? null,
         defaultCurrency: dto.defaultCurrency || 'INR',
         trialExpiresAt,
+        aiCredit: {
+          create: {
+            balance: 1000,
+          }
+        }
       },
     });
 

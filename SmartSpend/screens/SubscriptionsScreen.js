@@ -130,7 +130,7 @@ export default function SubscriptionsScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? (
-          <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color="#2D8CFF" style={{ marginTop: 40 }} />
         ) : bills.length === 0 ? (
           <View style={styles.emptyState}>
             <Feather name="calendar" size={48} color="#D1D5DB" />
@@ -143,7 +143,7 @@ export default function SubscriptionsScreen() {
               <View style={styles.cardHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={[styles.iconContainer, { backgroundColor: bill.isManual ? '#EFF6FF' : '#FEF2F2' }]}>
-                    <Feather name={bill.isManual ? 'repeat' : 'cpu'} size={20} color={bill.isManual ? '#2563EB' : '#DC2626'} />
+                    <Feather name={bill.isManual ? 'repeat' : 'cpu'} size={20} color={bill.isManual ? '#2D8CFF' : '#DC2626'} />
                   </View>
                   <View>
                     <Text style={styles.cardTitle}>{bill.merchant}</Text>
@@ -312,8 +312,8 @@ const styles = StyleSheet.create({
   // FAB
   fab: {
     position: 'absolute', bottom: 24, right: 24, width: 56, height: 56, borderRadius: 28,
-    backgroundColor: '#2563EB', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#2563EB', shadowOpacity: 0.3, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8, elevation: 5
+    backgroundColor: '#2D8CFF', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#2D8CFF', shadowOpacity: 0.3, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8, elevation: 5
   },
 
   // Bottom Sheet
@@ -343,9 +343,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: 'rgba(148, 163, 184, 0.25)', backgroundColor: '#FFFFFF',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1
   },
-  freqTabActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
+  freqTabActive: { backgroundColor: '#EFF6FF', borderColor: '#2D8CFF' },
   freqTabText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
-  freqTabTextActive: { color: '#2563EB' },
+  freqTabTextActive: { color: '#2D8CFF' },
   dateSelector: { 
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', 
     borderWidth: 1.5, borderColor: 'rgba(148, 163, 184, 0.25)', borderRadius: 14, 
@@ -353,6 +353,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1
   },
   dateSelectorText: { fontSize: 16, color: '#111827' },
-  submitBtn: { backgroundColor: '#2563EB', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 12 },
+  submitBtn: { backgroundColor: '#2D8CFF', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 12 },
   submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' }
 });

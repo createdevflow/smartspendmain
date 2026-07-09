@@ -36,7 +36,10 @@ import { ChatModule } from './chat/chat.module';
 import { WealthModule } from './wealth/wealth.module';
 import { PaymentModule } from './payment/payment.module';
 import { CommunicationModule } from './communication/communication.module';
+import { BlogModule } from './blog/blog.module';
+import { MediaModule } from './media/media.module';
 import { MaintenanceMiddleware } from './common/middleware/maintenance.middleware';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -72,6 +75,7 @@ import { MaintenanceMiddleware } from './common/middleware/maintenance.middlewar
     CryptoModule,
     MailModule,
     AuditModule,
+    MediaModule,
 
     // ── Feature Modules ──────────────────────────────────────────
     AuthModule,
@@ -96,6 +100,9 @@ import { MaintenanceMiddleware } from './common/middleware/maintenance.middlewar
     WealthModule,
     PaymentModule,
     CommunicationModule,
+    BlogModule,
+    MediaModule,
+    AiModule,
   ],
   providers: [
     // Global rate limiter

@@ -23,7 +23,7 @@ function MessageTypeIcon({ type }) {
     VOICE: 'mic', TRANSACTION: 'trending-up', RECEIPT: 'file-text',
   };
   const colorMap = {
-    TEXT: '#6B7280', IMAGE: '#8B5CF6', DOCUMENT: '#0EA5E9',
+    TEXT: '#6B7280', IMAGE: '#2D8CFF', DOCUMENT: '#0EA5E9',
     VOICE: '#EF4444', TRANSACTION: '#059669', RECEIPT: '#F59E0B',
   };
   return (
@@ -136,13 +136,13 @@ export default function StarredMessagesScreen() {
 
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator color="#1D4ED8" />
+          <ActivityIndicator color="#2D8CFF" />
         </View>
       ) : (
         <FlatList
           data={starred}
           keyExtractor={(item) => item.id}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D4ED8" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2D8CFF" />}
           renderItem={({ item }) => (
             <StarredItem item={item} onNavigate={handleNavigate} onUnstar={handleUnstar} />
           )}

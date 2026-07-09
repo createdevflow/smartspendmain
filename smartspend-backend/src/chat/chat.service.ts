@@ -1,14 +1,22 @@
 import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MediaService } from '../media/media.service';
 import { ContactStatus, ConversationType, MessageType } from '@prisma/client';
 import { SendMessageDto, CreateConversationDto } from './dto/chat.dto';
 import { Expo } from 'expo-server-sdk';
+import { AiService } from '../ai/ai.service';
+import { TransactionsService } from '../transactions/transactions.service';
 
 @Injectable()
 export class ChatService {
   private expo = new Expo();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mediaService: MediaService,
+    private readonly aiService: AiService,
+    private readonly transactionsService: TransactionsService,
+  ) {}
 
   // ── Contacts ──────────────────────────────────────────────────────────────
 
@@ -221,7 +229,8 @@ export class ChatService {
       take: limit,
     });
 
-    return messages.reverse();
+    const reversed = messages.reverse();
+    return Promise.all(reversed.map(m => this.sanitizeMessageMedia(m)));
   }
 
   // ── Messages ──────────────────────────────────────────────────────────────
@@ -232,14 +241,21 @@ export class ChatService {
     });
     if (!member) throw new ForbiddenException('Not a member');
 
+    const sanitized = await this.sanitizeMessageMedia({
+      content: dto.content,
+      mediaUrl: dto.mediaUrl,
+      metadata: dto.metadata,
+      senderId,
+    });
+
     const msg = await this.prisma.chatMessage.create({
       data: {
         conversationId: dto.conversationId,
         senderId,
         type: dto.type,
-        content: dto.content,
-        mediaUrl: dto.mediaUrl,
-        metadata: dto.metadata,
+        content: sanitized.content,
+        mediaUrl: sanitized.mediaUrl,
+        metadata: sanitized.metadata,
         replyToId: dto.replyToId,
       },
       include: {
@@ -602,12 +618,70 @@ export class ChatService {
 
     const filter = typeFilters[mediaType] || {};
 
-    return this.prisma.chatMessage.findMany({
+    const msgs = await this.prisma.chatMessage.findMany({
       where: { conversationId, deletedAt: null, ...filter },
       include: { sender: { select: { id: true, fullName: true } } },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
+    return Promise.all(msgs.map(m => this.sanitizeMessageMedia(m)));
+  }
+
+  private async sanitizeMessageMedia(msg: any): Promise<any> {
+    if (!msg) return msg;
+    let needsUpdate = false;
+    let newContent = msg.content;
+    let newMediaUrl = msg.mediaUrl;
+    let newMetadata = msg.metadata ? (typeof msg.metadata === 'object' ? { ...msg.metadata } : msg.metadata) : {};
+
+    if (newContent && typeof newContent === 'string' && (newContent.startsWith('data:') || newContent.length > 500)) {
+      try {
+        const res = await this.mediaService.uploadBase64(newContent, { module: 'chat', ownerId: msg.senderId });
+        newMediaUrl = res.url;
+        newContent = '';
+        if (typeof newMetadata === 'object') {
+          newMetadata.id = res.id;
+          newMetadata.size = res.size;
+        }
+        needsUpdate = true;
+      } catch (e) {}
+    }
+
+    if (newMediaUrl && typeof newMediaUrl === 'string' && (newMediaUrl.startsWith('data:') || newMediaUrl.length > 500)) {
+      try {
+        const res = await this.mediaService.uploadBase64(newMediaUrl, { module: 'chat', ownerId: msg.senderId });
+        newMediaUrl = res.url;
+        if (typeof newMetadata === 'object') {
+          newMetadata.id = res.id;
+          newMetadata.size = res.size;
+          newMetadata.uri = res.url;
+        }
+        needsUpdate = true;
+      } catch (e) {}
+    }
+
+    if (newMetadata && typeof newMetadata === 'object' && newMetadata.uri && typeof newMetadata.uri === 'string' && (newMetadata.uri.startsWith('data:') || newMetadata.uri.length > 500)) {
+      try {
+        const res = await this.mediaService.uploadBase64(newMetadata.uri, { module: 'chat', ownerId: msg.senderId });
+        newMetadata.uri = res.url;
+        newMetadata.id = res.id;
+        newMetadata.size = res.size;
+        if (!newMediaUrl) newMediaUrl = res.url;
+        needsUpdate = true;
+      } catch (e) {}
+    }
+
+    if (needsUpdate && msg.id) {
+      msg.content = newContent;
+      msg.mediaUrl = newMediaUrl;
+      msg.metadata = newMetadata;
+      this.prisma.chatMessage.update({
+        where: { id: msg.id },
+        data: { content: newContent, mediaUrl: newMediaUrl, metadata: newMetadata },
+      }).catch(() => {});
+    }
+
+    return msg;
   }
 
   // ── Mini AI Insight ───────────────────────────────────────────────────────
@@ -622,41 +696,380 @@ export class ChatService {
     });
     if (!cashbook) throw new NotFoundException('Cashbook not found');
 
+    const cur = cashbook.currency || 'INR';
+    const sym = cur === 'INR' || cur === '₹' ? '₹' : cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur === 'GBP' ? '£' : cur;
+
     const now = new Date();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(now.getDate() - 7);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    const txs = await this.prisma.transaction.findMany({
+      where: { cashbookId, deletedAt: null, date: { gte: thirtyDaysAgo } },
+      include: { category: true }
+    });
+
+    if (txs.length === 0) {
+      return { insight: `Track your expenses in ${cur} to receive smart AI-powered financial insights here!` };
+    }
+
+    let totalIncome = 0;
+    let totalExpense = 0;
+    const categoryTotals: Record<string, number> = {};
+
+    txs.forEach((tx: any) => {
+      const amount = parseFloat(tx.amount.toString());
+      const catName = tx.category?.name || 'Uncategorized';
+      if (tx.type === 'INCOME') totalIncome += amount;
+      else {
+        totalExpense += amount;
+        categoryTotals[catName] = (categoryTotals[catName] || 0) + amount;
+      }
+    });
+
+    const sortedCategories = Object.entries(categoryTotals)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([cat, amt]) => `${cat}: ${sym}${amt.toLocaleString('en-IN')}`)
+      .join(', ');
+
+    const prompt = `User's last 30 days financial data (Currency: ${cur} (${sym})):
+- Total Income: ${sym}${totalIncome.toLocaleString('en-IN')}
+- Total Expense: ${sym}${totalExpense.toLocaleString('en-IN')}
+- Top Expense Categories: ${sortedCategories || 'None'}
+
+Provide a single, short, highly analytical and personalized insight (max 2 sentences). Do not use generic phrases like "You're off to a strong start". Focus on the numbers, ratios, or specific categories.
+CRITICAL: You MUST use the currency symbol '${sym}' (or '${cur}') when referring to any monetary amounts. NEVER use '$' unless the currency is explicitly USD.`;
+
+    const systemInstruction = `You are an elite financial analyst providing short, sharp, and highly analytical insights based strictly on the provided financial data. Always use the user's currency '${sym}' (${cur}). Keep it under 25 words if possible.`;
+
+    try {
+      const aiRes = await this.aiService.generateContent({
+        userId,
+        feature: 'MINI_INSIGHT',
+        prompt,
+        systemInstruction,
+      });
+      const rawPayload = aiRes?.data !== undefined ? aiRes.data : aiRes;
+      let insight = typeof rawPayload === 'string' ? rawPayload : rawPayload?.text || rawPayload?.content || "You're off to a strong start!";
+      insight = insight.replace(/^["']|["']$/g, '').trim();
+      if (sym !== '$' && insight.includes('$')) {
+        insight = insight.replace(/\$/g, sym);
+      }
+      return { insight };
+    } catch (e) {
+      console.error('Failed to generate mini insight', e);
+      return { insight: `Your AI-powered ${cur} financial insight is currently unavailable. Check back later!` };
+    }
+  }
+
+  // ── AI Notes ──────────────────────────────────────────────────────────────
+
+  async analyzeNoteMessage(messageId: string, userId: string) {
+    const msg = await this.prisma.chatMessage.findUnique({
+      where: { id: messageId },
+      include: { conversation: true },
+    });
+    if (!msg || msg.senderId !== userId) throw new NotFoundException('Message not found');
     
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(now.getDate() - 14);
-
-    const [thisWeekTxs, lastWeekTxs] = await Promise.all([
-      this.prisma.transaction.findMany({
-        where: { cashbookId, deletedAt: null, type: 'EXPENSE', date: { gte: sevenDaysAgo } }
-      }),
-      this.prisma.transaction.findMany({
-        where: { cashbookId, deletedAt: null, type: 'EXPENSE', date: { gte: fourteenDaysAgo, lt: sevenDaysAgo } }
-      })
-    ]);
-
-    const thisWeekTotal = thisWeekTxs.reduce((sum, tx) => sum + parseFloat(tx.amount.toString()), 0);
-    const lastWeekTotal = lastWeekTxs.reduce((sum, tx) => sum + parseFloat(tx.amount.toString()), 0);
-
-    if (lastWeekTotal === 0 && thisWeekTotal === 0) {
-      return { insight: "Track your expenses to receive smart financial insights here!" };
+    // Only analyze text messages in NOTES_SELF or My Notes
+    if (msg.type !== 'TEXT' || !msg.content) {
+      throw new BadRequestException('Can only analyze text messages');
+    }
+    
+    const isNotes = msg.conversation.type === 'NOTES_SELF' || msg.conversation.name === 'My Notes';
+    if (!isNotes) {
+      throw new BadRequestException('Can only analyze notes');
     }
 
-    if (lastWeekTotal === 0) {
-      return { insight: "You're off to a strong start this week! Keep tracking those expenses." };
+    const systemInstruction = `You are a financial AI assistant inside the "My Notes" workspace. Analyze the provided note text.
+Return a valid JSON object matching this schema:
+{
+  "isActionable": boolean, // true if there is a clear action to take
+  "summary": string, // short 1-sentence summary
+  "transactions": [
+    { "type": "INCOME"|"EXPENSE", "amount": number, "merchant": string, "date": "YYYY-MM-DD" }
+  ],
+  "tasks": [
+    { "task": string, "dueDate": "YYYY-MM-DD" }
+  ],
+  "budgets": [
+    { "category": string, "limit": number }
+  ],
+  "goals": [
+    { "name": string, "targetAmount": number }
+  ],
+  "tags": [string],
+  "categories": [string]
+}
+If any array is empty, return []. Ensure valid JSON.`;
+
+    try {
+      const aiRes = await this.aiService.generateContent({
+        userId,
+        feature: 'NOTE_ANALYSIS',
+        prompt: msg.content,
+        systemInstruction,
+        expectedJson: true,
+      });
+
+      let aiAnalysis = aiRes?.data !== undefined ? aiRes.data : aiRes;
+      if (typeof aiAnalysis === 'string') {
+        try {
+          aiAnalysis = JSON.parse(aiAnalysis);
+        } catch (e) {
+          throw new BadRequestException('AI returned invalid JSON');
+        }
+      }
+      if (!aiAnalysis || typeof aiAnalysis !== 'object') {
+        aiAnalysis = { isActionable: false, summary: "Note logged and indexed for AI search.", transactions: [], tasks: [], budgets: [], goals: [], tags: [], categories: [] };
+      }
+
+      const existingMeta = (msg.metadata as any) || {};
+      const updatedMeta = { ...existingMeta, aiAnalysis };
+
+      const updatedMsg = await this.prisma.chatMessage.update({
+        where: { id: messageId },
+        data: { metadata: updatedMeta },
+        include: { sender: { select: { id: true, fullName: true, avatar: true } } },
+      });
+
+      // ── AUTOMATICALLY REGISTER TO DESIRED DESTINATIONS IN DATABASE ───────
+      let cashbookId = (msg.metadata as any)?.cashbookId;
+      if (!cashbookId) {
+        const cb = await this.prisma.cashbook.findFirst({
+          where: {
+            deletedAt: null,
+            OR: [{ userId }, { members: { some: { userId, status: 'accepted' } } }],
+          },
+          orderBy: { isDefault: 'desc' },
+        });
+        if (cb) cashbookId = cb.id;
+      }
+      if (!cashbookId) {
+        const newCb = await this.prisma.cashbook.create({
+          data: { userId, name: 'General Cashbook', currency: 'INR', isDefault: true },
+        });
+        cashbookId = newCb.id;
+      }
+
+      if (aiAnalysis.transactions?.length) {
+        for (const tx of aiAnalysis.transactions) {
+          if (tx && tx.amount) {
+            try {
+              let categoryId: string | undefined = undefined;
+              if (tx.category) {
+                const cat = await this.prisma.category.findFirst({
+                  where: {
+                    OR: [
+                      { name: { equals: tx.category, mode: 'insensitive' } },
+                      { name: { contains: tx.category, mode: 'insensitive' } },
+                    ],
+                  },
+                });
+                if (cat) categoryId = cat.id;
+              }
+
+              await this.transactionsService.create(userId, {
+                cashbookId,
+                amount: parseFloat(tx.amount) || 0,
+                currency: 'INR',
+                type: tx.type === 'INCOME' ? 'INCOME' : 'EXPENSE',
+                date: new Date().toISOString(),
+                categoryId,
+                merchant: tx.merchant || 'AI Note Entry',
+                notes: msg.content,
+                paymentMethod: 'cash',
+                tags: tx.category ? [tx.category] : [],
+              } as any);
+            } catch (e) {
+              // Ignore duplicate or failed transaction creation
+            }
+          }
+        }
+      }
+
+      if (aiAnalysis.tasks?.length) {
+        for (const t of aiAnalysis.tasks) {
+          if (t && t.task) {
+            try {
+              let remindAt = new Date();
+              remindAt.setDate(remindAt.getDate() + 1);
+              remindAt.setHours(9, 0, 0, 0);
+              if (t.dueDate && !isNaN(new Date(t.dueDate).getTime())) {
+                remindAt = new Date(t.dueDate);
+              }
+              await this.prisma.messageReminder.create({
+                data: {
+                  userId,
+                  messageId: msg.id,
+                  remindAt,
+                  note: t.task,
+                },
+              });
+            } catch (e) {}
+          }
+        }
+      }
+
+      if (aiAnalysis.budgets?.length) {
+        for (const b of aiAnalysis.budgets) {
+          if (b && (b.amount || b.limit || b.name)) {
+            try {
+              const amount = parseFloat(b.amount || b.limit) || 1000;
+              const name = b.name || b.category || 'Monthly Budget';
+              let categoryId: string | undefined = undefined;
+              if (b.category) {
+                const cat = await this.prisma.category.findFirst({
+                  where: { name: { equals: b.category, mode: 'insensitive' } },
+                });
+                if (cat) categoryId = cat.id;
+              }
+              await this.prisma.budget.create({
+                data: {
+                  userId,
+                  name,
+                  amount,
+                  currency: 'INR',
+                  period: 'MONTHLY',
+                  startDate: new Date(),
+                  categoryId,
+                },
+              });
+            } catch (e) {}
+          }
+        }
+      }
+
+      if (aiAnalysis.goals?.length) {
+        for (const g of aiAnalysis.goals) {
+          if (g && (g.targetAmount || g.name)) {
+            try {
+              const targetAmount = parseFloat(g.targetAmount) || 10000;
+              const name = g.name || 'Savings Goal';
+              await this.prisma.goal.create({
+                data: {
+                  userId,
+                  name,
+                  targetAmount,
+                  currentAmount: parseFloat(g.currentAmount) || 0,
+                  currency: 'INR',
+                },
+              });
+            } catch (e) {}
+          }
+        }
+      }
+
+      let replyContent = `🤖 **AI Assistant Insight**\n`;
+      if (aiAnalysis.summary) {
+        replyContent += `${aiAnalysis.summary}\n\n`;
+      }
+      const actions: string[] = [];
+      if (aiAnalysis.transactions?.length) {
+        actions.push(`✅ Recorded ${aiAnalysis.transactions.length} transaction(s): ` + aiAnalysis.transactions.map((t: any) => `${t.type === 'INCOME' ? '+' : '-'}${t.amount} (${t.merchant || 'General'})`).join(', '));
+      }
+      if (aiAnalysis.tasks?.length) {
+        actions.push(`📋 Created ${aiAnalysis.tasks.length} task(s): ` + aiAnalysis.tasks.map((t: any) => `${t.task}${t.dueDate ? ' (due ' + t.dueDate + ')' : ''}`).join(', '));
+      }
+      if (aiAnalysis.budgets?.length) {
+        actions.push(`💰 Updated ${aiAnalysis.budgets.length} budget limit(s)`);
+      }
+      if (aiAnalysis.goals?.length) {
+        actions.push(`🎯 Tracked ${aiAnalysis.goals.length} goal target(s)`);
+      }
+      if (actions.length > 0) {
+        replyContent += actions.join('\n');
+      } else if (!aiAnalysis.isActionable && !aiAnalysis.summary) {
+        replyContent += `📝 Note logged and indexed for AI search.`;
+      }
+
+      const aiReply = await this.prisma.chatMessage.create({
+        data: {
+          conversationId: msg.conversationId,
+          senderId: userId,
+          type: 'TEXT',
+          content: replyContent.trim(),
+          metadata: { isAiBotResponse: true, replyToMessageId: messageId, aiAnalysis: { ...aiAnalysis, autoRegistered: true } },
+        },
+        include: { sender: { select: { id: true, fullName: true, avatar: true } } },
+      });
+
+      return { msg: updatedMsg, aiReply };
+    } catch (error) {
+      throw new BadRequestException('Failed to analyze note: ' + error.message);
+    }
+  }
+
+  async executeNoteAction(messageId: string, actionType: string, userId: string) {
+    const msg = await this.prisma.chatMessage.findUnique({
+      where: { id: messageId },
+    });
+    if (!msg || msg.senderId !== userId || !msg.content) throw new NotFoundException('Message not found');
+
+    let prompt = '';
+    let systemInstruction = 'You are an AI assistant. Return only the modified text without markdown blocks unless formatting is requested.';
+
+    switch (actionType) {
+      case 'summarize':
+        prompt = `Summarize the following note clearly and concisely in bullet points:\n\n${msg.content}`;
+        break;
+      case 'rewrite':
+        prompt = `Rewrite the following note to be professional and well-structured:\n\n${msg.content}`;
+        break;
+      case 'translate_hindi':
+        prompt = `Translate the following note to Hindi while preserving the formatting:\n\n${msg.content}`;
+        break;
+      case 'translate_spanish':
+        prompt = `Translate the following note to Spanish while preserving the formatting:\n\n${msg.content}`;
+        break;
+      case 'fix_grammar':
+        prompt = `Fix any spelling or grammar mistakes in the following note. Keep the same tone:\n\n${msg.content}`;
+        break;
+      case 'simplify':
+        prompt = `Simplify the following note so it's easy to read:\n\n${msg.content}`;
+        break;
+      case 'expand':
+        prompt = `Expand on the following note and provide more detail:\n\n${msg.content}`;
+        break;
+      default:
+        throw new BadRequestException('Invalid action type');
     }
 
-    const diffPct = Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100);
+    try {
+      const aiRes = await this.aiService.generateContent({
+        userId,
+        feature: 'NOTE_ACTION',
+        prompt,
+        systemInstruction,
+      });
 
-    if (diffPct < 0) {
-      return { insight: `Great job! You've spent ${Math.abs(diffPct)}% less this week compared to last week.` };
-    } else if (diffPct > 0) {
-      return { insight: `Watch out! Your spending is up ${diffPct}% this week. Try to stick to your budget!` };
-    } else {
-      return { insight: "Your spending this week is exactly on track with last week." };
+      const rawPayload = aiRes?.data !== undefined ? aiRes.data : aiRes;
+      const transformedContent = typeof rawPayload === 'string' ? rawPayload : rawPayload?.text || rawPayload?.content || prompt;
+      
+      const updatedMsg = await this.prisma.chatMessage.update({
+        where: { id: messageId },
+        data: {
+          content: transformedContent,
+          isEdited: true,
+          editedAt: new Date(),
+        },
+        include: { sender: { select: { id: true, fullName: true, avatar: true } } },
+      });
+
+      const aiReply = await this.prisma.chatMessage.create({
+        data: {
+          conversationId: msg.conversationId,
+          senderId: userId,
+          type: 'TEXT',
+          content: `✨ **AI Agent Execution Insight**\nAction \`${actionType}\` executed on your note successfully!`,
+          metadata: { isAiBotResponse: true, replyToMessageId: messageId, actionExecuted: actionType },
+        },
+        include: { sender: { select: { id: true, fullName: true, avatar: true } } },
+      });
+
+      return { msg: updatedMsg, aiReply };
+    } catch (error) {
+      throw new BadRequestException('Failed to execute action: ' + error.message);
     }
   }
 }

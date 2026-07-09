@@ -33,7 +33,7 @@ const DEFAULT_CONFIG = {
   feature_whatsapp_active: false,
   feature_ocr_active: false,
   feature_gamification_active: false,
-  feature_shared_cashbooks_active: false,
+  feature_shared_cashbooks_active: true,
   feature_tax_export_active: true,
   feature_panic_button_active: true,
   feature_wealth_hub: true,

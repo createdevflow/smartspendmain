@@ -7,13 +7,17 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ChatService } from './chat.service';
 import { CacheService } from '../cache/cache.service';
 import { SendMessageDto, EditMessageDto, ReactMessageDto } from './dto/chat.dto';
+import { UseGuards } from '@nestjs/common';
+import { WsThrottlerGuard } from './ws-throttler.guard';
 
+@UseGuards(WsThrottlerGuard)
 @WebSocketGateway({
   cors: { origin: '*' },
   namespace: '/chat',
@@ -22,6 +26,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
+  private readonly logger = new Logger(ChatGateway.name);
   private userSocketMap = new Map<string, Set<string>>(); // userId → socketId[]
 
   constructor(
@@ -68,7 +73,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Broadcast presence
       this.server.emit('user.presence', { userId, isOnline: true });
 
-      console.log(`[Chat] Connected: ${userId} (${client.id})`);
+      this.logger.log(`Connected: ${userId} (${client.id})`);
     } catch {
       client.disconnect();
     }
@@ -96,7 +101,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     }
 
-    console.log(`[Chat] Disconnected: ${userId} (${client.id})`);
+    this.logger.log(`Disconnected: ${userId} (${client.id})`);
   }
 
   // ── Helper ────────────────────────────────────────────────────────────────
@@ -120,20 +125,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private async broadcastEventToConversation(conversationId: string, event: string, payload: any, clientToExclude?: Socket) {
-    if (clientToExclude) {
-      clientToExclude.to(`conv:${conversationId}`).emit(event, payload);
-    } else {
-      this.server.to(`conv:${conversationId}`).emit(event, payload);
-    }
+    const excludeUid = clientToExclude?.data?.userId;
     try {
       const userIds = await this.chatService.getConversationParticipantIds(conversationId);
-      const excludeUid = clientToExclude?.data?.userId;
       for (const uid of userIds) {
         if (excludeUid && uid === excludeUid) continue;
         this.server.to(`user:${uid}`).emit(event, payload);
       }
     } catch {
-      // ignore
+      if (clientToExclude) {
+        clientToExclude.to(`conv:${conversationId}`).emit(event, payload);
+      } else {
+        this.server.to(`conv:${conversationId}`).emit(event, payload);
+      }
     }
   }
 

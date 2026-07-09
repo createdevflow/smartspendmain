@@ -10,9 +10,9 @@ export class AnalyticsService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     const baseCurrency = user?.defaultCurrency || 'INR';
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const startOfLastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const endOfLastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59, 999));
 
     const [monthIncome, monthExpense, lastMonthIncome, lastMonthExpense, recentTx, netWorth] = await Promise.all([
       this.sumTransactions(userId, 'INCOME', startOfMonth, now),
@@ -56,8 +56,8 @@ export class AnalyticsService {
     if (period === 'weekly') {
       // Last 7 days
       for (let i = 6; i >= 0; i--) {
-        const from = new Date(now); from.setDate(from.getDate() - i); from.setHours(0, 0, 0, 0);
-        const to = new Date(from); to.setHours(23, 59, 59, 999);
+        const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i, 0, 0, 0, 0));
+        const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i, 23, 59, 59, 999));
         const [income, expense] = await Promise.all([
           this.sumTransactions(userId, 'INCOME', from, to, cashbookId),
           this.sumTransactions(userId, 'EXPENSE', from, to, cashbookId),
@@ -67,8 +67,8 @@ export class AnalyticsService {
     } else if (period === 'monthly') {
       // Last 6 months
       for (let i = 5; i >= 0; i--) {
-        const from = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const to = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+        const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+        const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i + 1, 0, 23, 59, 59, 999));
         const [income, expense] = await Promise.all([
           this.sumTransactions(userId, 'INCOME', from, to, cashbookId),
           this.sumTransactions(userId, 'EXPENSE', from, to, cashbookId),
@@ -78,8 +78,8 @@ export class AnalyticsService {
     } else {
       // Last 5 years
       for (let i = 4; i >= 0; i--) {
-        const from = new Date(now.getFullYear() - i, 0, 1);
-        const to = new Date(now.getFullYear() - i, 11, 31);
+        const from = new Date(Date.UTC(now.getUTCFullYear() - i, 0, 1));
+        const to = new Date(Date.UTC(now.getUTCFullYear() - i, 11, 31, 23, 59, 59, 999));
         const [income, expense] = await Promise.all([
           this.sumTransactions(userId, 'INCOME', from, to, cashbookId),
           this.sumTransactions(userId, 'EXPENSE', from, to, cashbookId),
@@ -92,7 +92,7 @@ export class AnalyticsService {
   }
 
   async getCategoryBreakdown(userId: string, from?: string, to?: string, type = 'EXPENSE') {
-    const fromDate = from ? new Date(from) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const fromDate = from ? new Date(from) : new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
     const toDate = to ? new Date(to) : new Date();
 
     const result = await this.prisma.transaction.groupBy({
@@ -236,11 +236,15 @@ export class AnalyticsService {
     let checkDate = new Date(now);
     checkDate.setDate(checkDate.getDate() - 1);
     
-    for (let i=0; i<365; i++) {
-      const dateStr = checkDate.toISOString().split('T')[0];
-      if (expenseDays.has(dateStr)) break;
-      streak++;
-      checkDate.setDate(checkDate.getDate() - 1);
+    if (expenses.length > 0) {
+      const oldestDateStr = expenses[expenses.length - 1].date.toISOString().split('T')[0];
+      for (let i = 0; i < 365; i++) {
+        const dateStr = checkDate.toISOString().split('T')[0];
+        if (expenseDays.has(dateStr)) break;
+        if (dateStr < oldestDateStr) break;
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
     }
 
     // 2. Calculate Burn Rate (Days Left = Balance / Avg Daily Spend)
@@ -267,9 +271,13 @@ export class AnalyticsService {
     const last30Spend = Number(last30Agg._sum.amountInBookCurrency || 0);
     const avgDailySpend = last30Spend / 30;
 
-    let daysLeft = 999;
+    let daysLeft = 0;
     if (avgDailySpend > 0) {
-      daysLeft = Math.floor(netWorth / avgDailySpend);
+      daysLeft = Math.max(0, Math.floor(netWorth / avgDailySpend));
+    } else if (netWorth > 0 && expenses.length > 0) {
+      daysLeft = 365;
+    } else {
+      daysLeft = 0;
     }
 
     return {

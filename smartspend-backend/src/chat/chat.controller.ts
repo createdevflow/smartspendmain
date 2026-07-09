@@ -100,6 +100,60 @@ export class ChatController {
     return this.chatService.updateMemberSettings(id, req.user.sub, { isArchived: body.isArchived });
   }
 
+  // ── AI Notes ────────────────────────────────────────────────────────
+
+  @Post('messages/:id/analyze')
+  async analyzeNoteMessage(@Request() req, @Param('id') id: string) {
+    const result = await this.chatService.analyzeNoteMessage(id, req.user.sub);
+    const msg = (result as any).msg || result;
+    const aiReply = (result as any).aiReply;
+
+    await this.chatGateway.server.to(`conv_${msg.conversationId}`).emit('message.edited', {
+      messageId: msg.id,
+      conversationId: msg.conversationId,
+      content: msg.content,
+      editedAt: msg.editedAt,
+      metadata: msg.metadata,
+    });
+    await this.chatGateway.server.to(`conv:${msg.conversationId}`).emit('message.edited', {
+      messageId: msg.id,
+      conversationId: msg.conversationId,
+      content: msg.content,
+      editedAt: msg.editedAt,
+      metadata: msg.metadata,
+    });
+    if (aiReply) {
+      await this.chatGateway.broadcastNewMessage(aiReply);
+    }
+    return { success: true, data: msg, aiReply };
+  }
+
+  @Post('messages/:id/action')
+  async executeNoteAction(@Request() req, @Param('id') id: string, @Body() body: { action: string }) {
+    const result = await this.chatService.executeNoteAction(id, body.action, req.user.sub);
+    const msg = (result as any).msg || result;
+    const aiReply = (result as any).aiReply;
+
+    await this.chatGateway.server.to(`conv_${msg.conversationId}`).emit('message.edited', {
+      messageId: msg.id,
+      conversationId: msg.conversationId,
+      content: msg.content,
+      editedAt: msg.editedAt,
+      metadata: msg.metadata,
+    });
+    await this.chatGateway.server.to(`conv:${msg.conversationId}`).emit('message.edited', {
+      messageId: msg.id,
+      conversationId: msg.conversationId,
+      content: msg.content,
+      editedAt: msg.editedAt,
+      metadata: msg.metadata,
+    });
+    if (aiReply) {
+      await this.chatGateway.broadcastNewMessage(aiReply);
+    }
+    return { success: true, data: msg, aiReply };
+  }
+
   @Patch('conversations/:id/category')
   updateCategory(@Request() req, @Param('id') id: string, @Body() body: { category: string }) {
     return this.chatService.updateChatCategory(id, req.user.sub, body.category);

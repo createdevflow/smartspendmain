@@ -2,49 +2,63 @@
 
 export const theme = {
   colors: {
-    // Dark Theme Foundation
-    background: '#0F172A',
-    surface: '#1E293B',
-    surfaceElevated: '#334155',
+    // Brand Foundation
+    background: '#FFFFFF',
+    surface: '#FCFCFD',
+    surfaceElevated: '#F8FAFC',
     
-    // Primary Accents
-    primary: '#3B82F6',
-    primaryHover: '#2563EB',
-    primaryGlow: 'rgba(59, 130, 246, 0.4)',
+    // Primary Accents (Blue #2D8CFF) — 15-20% of UI
+    primary: '#2D8CFF',
+    primaryHover: '#1D7AF0',
+    primaryPressed: '#1668D8',
+    primaryGlow: 'rgba(45, 140, 255, 0.4)',
     
-    // Secondary Accents
-    secondary: '#8B5CF6',
+    // Blue Shades (Derived from #2D8CFF)
+    primary50: '#EFF6FF',
+    primary100: '#DBEAFE',
+    primary200: '#BFDBFE',
+    primary500: '#2D8CFF',
+    primary600: '#1D7AF0',
+    primary700: '#1668D8',
     
-    // Status
-    success: '#10B981',
-    successBg: 'rgba(16, 185, 129, 0.1)',
-    warning: '#F59E0B',
-    warningBg: 'rgba(245, 158, 11, 0.1)',
-    danger: '#EF4444',
-    dangerBg: 'rgba(239, 68, 68, 0.1)',
+    // Accent (Orange #F26D21) — ~5% of UI
+    accent: '#F26D21',
+    accentBg: 'rgba(242, 109, 33, 0.1)',
+    secondary: '#F26D21',
+    
+    // Status & Semantic
+    success: '#16A34A',
+    successBg: 'rgba(22, 163, 74, 0.1)',
+    warning: '#F26D21',
+    warningBg: 'rgba(242, 109, 33, 0.1)',
+    danger: '#DC2626',
+    dangerBg: 'rgba(220, 38, 38, 0.1)',
+    info: '#2D8CFF',
+    infoBg: 'rgba(45, 140, 255, 0.1)',
     
     // Typography
-    textPrimary: '#FFFFFF',
-    textSecondary: '#94A3B8',
-    textTertiary: '#64748B',
+    textPrimary: '#232333',
+    textSecondary: '#747487',
+    textTertiary: '#94A3B8',
     
     // UI Elements
-    border: 'rgba(255, 255, 255, 0.1)',
-    borderFocus: 'rgba(59, 130, 246, 0.5)',
+    border: 'rgba(116, 116, 135, 0.2)',
+    borderFocus: 'rgba(45, 140, 255, 0.5)',
   },
   
   gradients: {
-    primary: ['#3B82F6', '#8B5CF6'],
-    success: ['#10B981', '#059669'],
-    card: ['rgba(30, 41, 59, 0.8)', 'rgba(30, 41, 59, 0.4)'],
+    primary: ['#2D8CFF', '#1D7AF0'],
+    accent: ['#F26D21', '#E05A10'],
+    success: ['#16A34A', '#15803D'],
+    card: ['#FFFFFF', '#FCFCFD'],
   },
   
   typography: {
-    h1: { fontSize: 32, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.5 },
-    h2: { fontSize: 24, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.5 },
-    h3: { fontSize: 20, fontWeight: '600', color: '#FFFFFF' },
-    body: { fontSize: 16, color: '#94A3B8' },
-    caption: { fontSize: 13, color: '#64748B' },
+    h1: { fontSize: 32, fontWeight: '700', color: '#232333', letterSpacing: -0.5 },
+    h2: { fontSize: 24, fontWeight: '600', color: '#232333', letterSpacing: -0.5 },
+    h3: { fontSize: 20, fontWeight: '600', color: '#232333' },
+    body: { fontSize: 16, color: '#747487' },
+    caption: { fontSize: 13, color: '#747487' },
   },
   
   spacing: {

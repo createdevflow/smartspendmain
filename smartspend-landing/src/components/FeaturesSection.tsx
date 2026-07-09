@@ -4,7 +4,7 @@ import { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import {
   BookOpen, BarChart3, Target, MessageCircle, TrendingUp, Camera,
-  Users, Shield, Zap, Bell, Award, Globe
+  Users, Shield, Zap, Bell, Award, Globe, FileText
 } from 'lucide-react';
 
 const FEATURES = [
@@ -40,9 +40,9 @@ const FEATURES = [
   },
   {
     icon: BarChart3,
-    color: 'from-indigo-500 to-violet-600',
-    bg: 'bg-indigo-50',
-    iconColor: 'text-indigo-600',
+    color: 'from-blue-500 to-blue-700',
+    bg: 'bg-blue-50',
+    iconColor: 'text-blue-600',
     title: 'AI-Powered Analytics',
     sub: 'Spending intelligence at a glance',
     desc: 'Cashtro\'s AI analyzes your spending patterns, surfaces actionable insights, and helps you optimize where money goes. Real-time charts, category breakdowns, and trend forecasting.',
@@ -149,24 +149,39 @@ const FEATURES = [
     color: 'from-pink-500 to-rose-600',
     bg: 'bg-pink-50',
     iconColor: 'text-pink-600',
-    title: 'In-App Messaging',
-    sub: 'Finance conversations, kept private',
-    desc: 'Chat with cashbook members, share receipts, and discuss finances securely inside Cashtro. No third-party apps needed — everything stays in your financial workspace.',
+    title: 'Cashtro Chat',
+    sub: 'Real-time financial messaging & collaboration',
+    desc: 'Discuss expenses, attach receipts, split bills, and settle balances instantly with family, roommates, or team members. Everything stays secure inside your financial workspace.',
     visual: (
-      <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 space-y-2">
-        {[
-          { from: 'You', msg: 'Added ₹5,000 for groceries 🛒', mine: true },
-          { from: 'Priya', msg: 'Got it! I\'ll add the electricity bill.', mine: false },
-          { from: 'You', msg: 'Rent split done — sharing the receipt now.', mine: true },
-        ].map((m, i) => (
-          <div key={i} className={`flex ${m.mine ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-[10px] font-medium ${
-              m.mine ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'
-            }`}>
-              {m.msg}
+      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 space-y-3">
+        <div className="flex items-center justify-between pb-2.5 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-pink-500 text-white flex items-center justify-center text-xs font-bold shadow-sm">💬</div>
+            <div>
+              <div className="text-xs font-bold text-gray-800">Goa Trip Expense Group</div>
+              <div className="text-[9px] text-emerald-600 font-semibold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> 4 active members
+              </div>
             </div>
           </div>
-        ))}
+          <span className="text-[9px] bg-pink-50 text-pink-600 border border-pink-100 px-2.5 py-0.5 rounded-full font-bold">Cashtro Chat</span>
+        </div>
+        <div className="space-y-2">
+          <div className="flex justify-start">
+            <div className="max-w-[82%] bg-gray-100 px-3 py-2 rounded-2xl rounded-bl-sm text-[10px] text-gray-800 font-medium">
+              Attached hotel invoice of ₹12,400 🏨. Splitting 4 ways!
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <div className="max-w-[85%] bg-gradient-to-r from-pink-500 to-rose-600 text-white px-3.5 py-2.5 rounded-2xl rounded-br-sm text-[10px] font-medium shadow-md">
+              <div className="flex items-center gap-1.5 mb-1.5 opacity-95 border-b border-white/20 pb-1 text-[9px]">
+                <span>⚡ Auto-Split Bill</span>
+                <span className="font-bold">₹3,100 / person</span>
+              </div>
+              Approved! Added to Goa Trip Cashbook ✅
+            </div>
+          </div>
+        </div>
       </div>
     ),
     side: 'right' as const,
@@ -200,6 +215,51 @@ const FEATURES = [
       </div>
     ),
     side: 'left' as const,
+  },
+  {
+    icon: FileText,
+    color: 'from-violet-500 to-purple-600',
+    bg: 'bg-violet-50',
+    iconColor: 'text-violet-600',
+    title: 'Inbuilt Smart Invoicing',
+    sub: 'Professional, GST-ready invoices in seconds',
+    desc: 'Create stunning, professional invoices on the fly. Auto-calculate taxes, GST breakdowns, and line items. Share digital PDF invoices directly with clients or track pending settlements inside Cashtro.',
+    visual: (
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3.5">
+        <div className="flex justify-between items-center pb-2.5 border-b border-gray-100">
+          <div>
+            <div className="text-xs font-black text-gray-900">INVOICE #INV-2026-08</div>
+            <div className="text-[10px] text-gray-400">Issued today • Due in 7 days</div>
+          </div>
+          <span className="bg-emerald-50 text-emerald-600 border border-emerald-200/60 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+            ✓ GST Verified
+          </span>
+        </div>
+        <div className="space-y-2 text-[11px]">
+          <div className="flex justify-between text-gray-600 font-medium">
+            <span>Consulting & Brand Strategy</span>
+            <span className="font-bold text-gray-800">₹45,000</span>
+          </div>
+          <div className="flex justify-between text-gray-500 text-[10px]">
+            <span>IGST @ 18%</span>
+            <span className="font-semibold text-gray-700">₹8,100</span>
+          </div>
+          <div className="flex justify-between pt-2 border-t border-gray-100 font-black text-xs text-gray-900">
+            <span>Total Payable</span>
+            <span style={{ color: '#2D8CFF', fontWeight: 900 }}>₹53,100</span>
+          </div>
+        </div>
+        <div className="flex gap-2 pt-1">
+          <div className="flex-1 text-white text-[10px] font-bold py-2 rounded-xl text-center shadow-md" style={{ background: 'linear-gradient(135deg, #2D8CFF, #1D7AF0)' }}>
+            Share Invoice PDF
+          </div>
+          <div className="bg-gray-100 text-gray-700 text-[10px] font-bold px-3.5 py-2 rounded-xl text-center">
+            Mark Paid
+          </div>
+        </div>
+      </div>
+    ),
+    side: 'right' as const,
   },
 ];
 
@@ -253,10 +313,10 @@ export default function FeaturesSection() {
           </div>
           <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight mb-4">
             Built for real life,<br />
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">not just a demo.</span>
+            <span style={{ background: 'linear-gradient(135deg, #2D8CFF, #F26D21)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>not just a demo.</span>
           </h2>
           <p className="text-gray-500 text-xl max-w-2xl mx-auto">
-            Six powerful features working together in one beautiful app.
+            Everything you need working seamlessly together in one beautiful financial workspace.
           </p>
         </div>
 

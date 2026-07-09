@@ -54,7 +54,9 @@ const FEATURE_TOGGLES = [
       { key: 'feature_ai_insights_mini', label: 'Smart Insights', desc: 'Show AI-powered spending insights on the home screen.' },
       { key: 'feature_gamification_active', label: 'Gamification', desc: 'Enable streaks, burn-rate alerts, and achievements.' },
       { key: 'feature_gallery', label: 'Gallery Attachments', desc: 'Allow attaching images to entries.' },
-      { key: 'feature_chat', label: 'In-App Messaging', desc: 'Enable private messaging between contacts and cashbook members.' },
+      { key: 'feature_chat', label: 'Cashtro Chat (In-App Messaging)', desc: 'Enable private messaging between contacts and cashbook members.' },
+      { key: 'feature_invoices', label: 'Inbuilt Smart Invoicing', desc: 'Allow users to create invoices, GST billing, and professional estimates.' },
+      { key: 'feature_payment_reminders', label: 'Payment Reminders', desc: 'Allow users to track amounts to receive or pay with due date reminders.' },
       { key: 'feature_scheduler', label: 'Scheduled Invoices & Messages', desc: 'Allow users to schedule invoice/receipt sharing via email or in-app chat. Adds a schedule icon in Transactions and Chat screens.' },
     ],
   },
@@ -106,22 +108,26 @@ const DEFAULT_SETTINGS = {
   feature_ocr_active: false,
   feature_ai_insights_mini: false,
   feature_gamification_active: false,
-  feature_shared_cashbooks_active: false,
+  feature_shared_cashbooks_active: true,
   feature_tax_export_active: true,
   feature_panic_button_active: true,
   feature_gallery: true,
   feature_chat: true,
+  feature_invoices: true,
+  feature_payment_reminders: true,
   feature_scheduler: true,
   download_android_enabled: true,
   download_android_url: '',
   download_ios_enabled: false,
   download_ios_url: '',
+  min_app_version: '1.0.0',
+  force_update_enabled: false,
   gemini_api_key: '',
   razorpay_key_id: '',
   razorpay_key_secret: '',
 };
 
-type TabId = 'general' | 'features' | 'security' | 'notifications' | 'maintenance' | 'integrations';
+type TabId = 'general' | 'features' | 'security' | 'notifications' | 'maintenance' | 'integrations' | 'ai';
 
 
 export default function SettingsPage() {
@@ -200,6 +206,8 @@ export default function SettingsPage() {
       featureKeys.add('download_android_url');
       featureKeys.add('download_ios_enabled');
       featureKeys.add('download_ios_url');
+      featureKeys.add('min_app_version');
+      featureKeys.add('force_update_enabled');
 
       const regularSettings: { key: string; value: string }[] = [];
       const featureToggles: { key: string; value: string; teaseMode?: boolean }[] = [];
@@ -250,6 +258,7 @@ export default function SettingsPage() {
     { id: 'security', label: 'Security & Auth', icon: <Shield size={16} /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell size={16} /> },
     { id: 'integrations', label: 'Integrations', icon: <Database size={16} /> },
+    { id: 'ai', label: 'AI Management', icon: <Zap size={16} /> },
     { id: 'maintenance', label: 'Maintenance', icon: <AlertTriangle size={16} /> },
   ];
 
@@ -630,6 +639,68 @@ export default function SettingsPage() {
                   >
                     <Database size={15} /> Open Prisma Studio
                   </button>
+                </div>
+
+                <div style={{ marginTop: '2.5rem' }}>
+                  <h3 style={{ marginBottom: '1.25rem' }}>Platform Controls</h3>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="input-group">
+                      <label className="input-label">Minimum App Version</label>
+                      <input 
+                        className="input-field" 
+                        type="text" 
+                        value={settings.min_app_version} 
+                        onChange={e => set('min_app_version', e.target.value)} 
+                        placeholder="e.g. 1.0.2"
+                      />
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.375rem' }}>
+                        Users on older versions will see the force update screen.
+                      </p>
+                    </div>
+                  </div>
+
+                  <ToggleRow
+                    label="Force Update Active"
+                    desc="If enabled, all users below the Minimum App Version will be completely blocked and forced to update."
+                    field="force_update_enabled"
+                    danger
+                  />
+                  
+                  <h4 style={{ marginBottom: '0.75rem', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>APP DOWNLOAD LINKS</h4>
+                  
+                  <ToggleRow
+                    label="Enable Android App Download"
+                    desc="Show the download banner for Android devices."
+                    field="download_android_enabled"
+                  />
+                  <div className="input-group" style={{ marginBottom: '1.5rem', marginTop: '-0.5rem' }}>
+                    <input 
+                      className="input-field" 
+                      type="url" 
+                      value={settings.download_android_url} 
+                      onChange={e => set('download_android_url', e.target.value)} 
+                      placeholder="https://play.google.com/store/apps/details?id=..."
+                    />
+                  </div>
+
+                  <ToggleRow
+                    label="Enable iOS App Download"
+                    desc="Show the download banner for iOS devices."
+                    field="download_ios_enabled"
+                  />
+                  <div className="input-group" style={{ marginBottom: '1rem', marginTop: '-0.5rem' }}>
+                    <input 
+                      className="input-field" 
+                      type="url" 
+                      value={settings.download_ios_url} 
+                      onChange={e => set('download_ios_url', e.target.value)} 
+                      placeholder="https://apps.apple.com/app/id..."
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '2rem' }}>
                   <a href="/logs" className="btn btn-secondary" style={{ gap: '0.5rem', textDecoration: 'none' }}>
                     <Lock size={15} /> View Audit Logs
                   </a>
@@ -707,6 +778,79 @@ export default function SettingsPage() {
               </div>
             )}
 
+            {/* ── AI Management ────────────────────────────────────────── */}
+            {activeTab === 'ai' && (
+              <div>
+                <h3 style={{ marginBottom: '1.25rem' }}>AI Management & Security</h3>
+                
+                <div style={{ marginBottom: '1.5rem', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>AI Configuration</h4>
+                  
+                  <ToggleRow label="Enable AI Maintenance Mode" desc="Temporarily disable all AI features across the app." field="ai_maintenance_mode" danger />
+
+                  <div className="input-group" style={{ marginTop: '1rem' }}>
+                    <label className="input-label">Gemini Model</label>
+                    <select className="input-field" value={settings.ai_gemini_model || 'gemini-2.5-flash'} onChange={e => set('ai_gemini_model', e.target.value)}>
+                      <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default/Free)</option>
+                      <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                      <option value="gemini-1.5-pro">Gemini 1.5 Pro (Paid)</option>
+                    </select>
+                  </div>
+
+                  <div className="input-group" style={{ marginTop: '1rem' }}>
+                    <label className="input-label">Max Prompt Length (Characters)</label>
+                    <input className="input-field" type="number" value={settings.ai_max_prompt_length || 50000} onChange={e => set('ai_max_prompt_length', e.target.value)} />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1.5rem', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>Credit System Costs</h4>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="input-group">
+                      <label className="input-label">Receipt OCR Cost</label>
+                      <input className="input-field" type="number" value={settings.ai_credit_cost_ocr || 2} onChange={e => set('ai_credit_cost_ocr', e.target.value)} />
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">Financial Insight Cost</label>
+                      <input className="input-field" type="number" value={settings.ai_credit_cost_insight || 1} onChange={e => set('ai_credit_cost_insight', e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1.5rem', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>Safety Thresholds</h4>
+                  
+                  <div className="input-group">
+                    <label className="input-label">Harassment</label>
+                    <select className="input-field" value={settings.ai_safety_harassment || 'BLOCK_MEDIUM_AND_ABOVE'} onChange={e => set('ai_safety_harassment', e.target.value)}>
+                      <option value="BLOCK_LOW_AND_ABOVE">Block Low and Above (Strictest)</option>
+                      <option value="BLOCK_MEDIUM_AND_ABOVE">Block Medium and Above</option>
+                      <option value="BLOCK_ONLY_HIGH">Block Only High</option>
+                      <option value="BLOCK_NONE">Block None</option>
+                    </select>
+                  </div>
+                  <div className="input-group">
+                    <label className="input-label">Hate Speech</label>
+                    <select className="input-field" value={settings.ai_safety_hate || 'BLOCK_MEDIUM_AND_ABOVE'} onChange={e => set('ai_safety_hate', e.target.value)}>
+                      <option value="BLOCK_LOW_AND_ABOVE">Block Low and Above (Strictest)</option>
+                      <option value="BLOCK_MEDIUM_AND_ABOVE">Block Medium and Above</option>
+                      <option value="BLOCK_ONLY_HIGH">Block Only High</option>
+                      <option value="BLOCK_NONE">Block None</option>
+                    </select>
+                  </div>
+                  <div className="input-group">
+                    <label className="input-label">Dangerous Content</label>
+                    <select className="input-field" value={settings.ai_safety_dangerous || 'BLOCK_MEDIUM_AND_ABOVE'} onChange={e => set('ai_safety_dangerous', e.target.value)}>
+                      <option value="BLOCK_LOW_AND_ABOVE">Block Low and Above (Strictest)</option>
+                      <option value="BLOCK_MEDIUM_AND_ABOVE">Block Medium and Above</option>
+                      <option value="BLOCK_ONLY_HIGH">Block Only High</option>
+                      <option value="BLOCK_NONE">Block None</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>

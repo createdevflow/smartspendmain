@@ -29,7 +29,7 @@ export class AppConfigController {
       let rawValue = found?.value;
       if (rawValue === undefined) {
         if (key.endsWith('_url')) rawValue = '';
-        else if (['maintenance_mode', 'feature_beta', 'feature_whatsapp_active', 'feature_ocr_active', 'feature_gamification_active', 'feature_shared_cashbooks_active', 'download_ios_enabled'].includes(key)) rawValue = 'false';
+        else if (['maintenance_mode', 'feature_beta', 'feature_whatsapp_active', 'feature_ocr_active', 'feature_gamification_active', 'download_ios_enabled'].includes(key)) rawValue = 'false';
         else rawValue = 'true';
       }
       if (rawValue === 'true') config[key] = true;

@@ -5,6 +5,7 @@ import {
   Platform, UIManager, FlatList, Modal, Pressable, RefreshControl, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useBooks } from '../context/BooksContext';
@@ -21,6 +22,9 @@ import { BlurView } from 'expo-blur';
 import { useRef } from 'react';
 import SchedulerModal from '../components/SchedulerModal';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { TourStep, useTourGuide } from '../components/onboarding/TourGuide';
+import { useOnboarding } from '../context/OnboardingContext';
+import { useEffect } from 'react';
 
 if (
   Platform.OS === 'android' &&
@@ -48,15 +52,34 @@ function formatTime(iso) {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function TransactionsScreen() {
-  const { activeBook } = useBooks();
-  const { transactions, addTransaction, updateTransaction, deleteTransaction, privateMode, gstEnabled, refreshTransactions } = useTransactions();
+  const navigation = useNavigation();
+  const isFocused = useIsFocused();
+  const { activeBook, loading: booksLoading, refreshBooks } = useBooks();
+  const {
+    transactions,
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+    privateMode,
+    gstEnabled,
+    refreshTransactions,
+    loading: txLoading,
+  } = useTransactions();
+
+  useEffect(() => {
+    if (isFocused) {
+      refreshTransactions();
+      if (refreshBooks) refreshBooks();
+    }
+  }, [isFocused, refreshTransactions, refreshBooks]);
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     await refreshTransactions();
+    if (refreshBooks) await refreshBooks();
     setRefreshing(false);
-  }, [refreshTransactions]);
+  }, [refreshTransactions, refreshBooks]);
 
   const [editData, setEditData] = useState(null);
   const quickEntryRef = useRef(null);
@@ -83,12 +106,18 @@ export default function TransactionsScreen() {
   const [schedulerTx, setSchedulerTx] = useState(null);
   const [showScheduler, setShowScheduler] = useState(false);
 
+  // Tour hooks
+  const { startTour, activeTour, endTour } = useTourGuide();
+  const { shouldShowTour, markTourSeen } = useOnboarding();
+
   const currencySymbol = getCurrencySymbol(activeBook ? activeBook.currency : null);
 
   const bookTransactions = useMemo(() => {
-    if (!activeBook) return [];
+    if (!activeBook) {
+      return [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
     return transactions
-      .filter((t) => t.cashbookId === activeBook.id)
+      .filter((t) => !t.cashbookId || t.cashbookId === activeBook.id || activeBook.isDefault || activeBook.name?.includes('General'))
       .sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [transactions, activeBook]);
 
@@ -113,6 +142,18 @@ export default function TransactionsScreen() {
 
   // Reset to page 1 when filters change
   React.useEffect(() => { setCurrentPage(1); }, [typeFilter, fromDate, toDate, activeBook]);
+
+  // Trigger tour when visiting screen
+  useEffect(() => {
+    if (isFocused && shouldShowTour('after_first_tx')) {
+      const t = setTimeout(() => { startTour('after_first_tx'); markTourSeen('after_first_tx'); }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [isFocused, shouldShowTour, startTour, markTourSeen]);
+
+  useEffect(() => {
+    if (!isFocused && activeTour === 'after_first_tx') endTour();
+  }, [isFocused, activeTour, endTour]);
 
   const shownTransactions = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
@@ -226,9 +267,24 @@ export default function TransactionsScreen() {
                 <Text style={styles.title}>Transactions</Text>
                 <Text style={styles.subtitle}>{activeBook.name}</Text>
               </View>
-              <TouchableOpacity style={styles.filterToggleBtn} onPress={() => setShowFilters(v => !v)}>
-                <Feather name="sliders" size={16} color={showFilters ? "#2563EB" : "#64748B"} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TourStep id="tx_export">
+                  <TouchableOpacity style={styles.filterToggleBtn} onPress={() => exportModalRef.current?.present?.()}
+                  >
+                    <Feather name="download" size={18} color="#747487" />
+                  </TouchableOpacity>
+                </TourStep>
+                <TourStep id="tx_wealth">
+                  <TouchableOpacity style={styles.filterToggleBtn} onPress={() => navigation.navigate('Wealth')}>
+                    <Feather name="trending-up" size={18} color="#747487" />
+                  </TouchableOpacity>
+                </TourStep>
+                <TourStep id="tx_invoice">
+                  <TouchableOpacity style={styles.filterToggleBtn} onPress={() => navigation.navigate('Invoices')}>
+                    <Feather name="file-text" size={18} color="#747487" />
+                  </TouchableOpacity>
+                </TourStep>
+              </View>
             </View>
 
             {/* ── Balance summary strip ── */}
@@ -256,141 +312,183 @@ export default function TransactionsScreen() {
             </View>
 
             {/* ── Type filter chips ── */}
-            <View style={styles.filterRow}>
-              {[
-                { key: 'all', label: 'All' },
-                { key: 'in',  label: '↓ Cash In' },
-                { key: 'out', label: '↑ Cash Out' },
-              ].map(({ key, label }) => (
-                <TouchableOpacity
-                  key={key}
-                  style={[
-                    styles.filterChip,
-                    typeFilter === key && styles.filterChipActive,
-                    typeFilter === key && key === 'in' && styles.filterChipIn,
-                    typeFilter === key && key === 'out' && styles.filterChipOut,
-                  ]}
-                  onPress={() => setTypeFilter(key)}
-                >
-                  <Text style={[
-                    styles.filterChipText,
-                    typeFilter === key && styles.filterChipTextActive,
-                    typeFilter === key && key === 'in' && { color: '#16A34A' },
-                    typeFilter === key && key === 'out' && { color: '#DC2626' },
-                  ]}>
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-
-              {/* Date range buttons */}
-              {/* Date range buttons */}
-              {showFilters && (
-                <>
-                  <TouchableOpacity style={styles.dateChip} onPress={() => openDatePicker('from')}>
-                    <Feather name="calendar" size={12} color="#6B7280" />
-                    <Text style={styles.dateChipText}>{fromDate ? formatDate(fromDate) : 'From'}</Text>
+            <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
+              <TourStep id="tx_search">
+                <View style={[styles.filterRow, { paddingHorizontal: 0, marginBottom: 0 }]}>
+                  <TouchableOpacity 
+                    style={[styles.filterToggleBtn, { paddingHorizontal: 12, marginRight: 8, backgroundColor: showFilters ? '#EFF6FF' : '#F9FAFB' }]} 
+                    onPress={() => setShowFilters(v => !v)}
+                  >
+                    <Feather name="sliders" size={16} color={showFilters ? "#2D8CFF" : "#747487"} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.dateChip} onPress={() => openDatePicker('to')}>
-                    <Feather name="calendar" size={12} color="#6B7280" />
-                    <Text style={styles.dateChipText}>{toDate ? formatDate(toDate) : 'To'}</Text>
-                  </TouchableOpacity>
-                  {(fromDate || toDate) && (
-                    <TouchableOpacity onPress={() => { setFromDate(null); setToDate(null); }}>
-                      <Text style={{ color: '#2563EB', fontSize: 12, fontWeight: '600', marginLeft: 4 }}>Clear</Text>
+                  {[
+                    { key: 'all', label: 'All' },
+                    { key: 'in',  label: '↓ Cash In' },
+                    { key: 'out', label: '↑ Cash Out' },
+                  ].map(({ key, label }) => (
+                    <TouchableOpacity
+                      key={key}
+                      style={[
+                        styles.filterChip,
+                        typeFilter === key && styles.filterChipActive,
+                        typeFilter === key && key === 'in' && styles.filterChipIn,
+                        typeFilter === key && key === 'out' && styles.filterChipOut,
+                      ]}
+                      onPress={() => setTypeFilter(key)}
+                    >
+                      <Text style={[
+                        styles.filterChipText,
+                        typeFilter === key && styles.filterChipTextActive,
+                        typeFilter === key && key === 'in' && { color: '#16A34A' },
+                        typeFilter === key && key === 'out' && { color: '#DC2626' },
+                      ]}>
+                        {label}
+                      </Text>
                     </TouchableOpacity>
+                  ))}
+
+                  {/* Date range buttons */}
+                  {showFilters && (
+                    <>
+                      <TouchableOpacity style={styles.dateChip} onPress={() => openDatePicker('from')}>
+                        <Feather name="calendar" size={12} color="#747487" />
+                        <Text style={styles.dateChipText}>{fromDate ? formatDate(fromDate) : 'From'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.dateChip} onPress={() => openDatePicker('to')}>
+                        <Feather name="calendar" size={12} color="#747487" />
+                        <Text style={styles.dateChipText}>{toDate ? formatDate(toDate) : 'To'}</Text>
+                      </TouchableOpacity>
+                      {(fromDate || toDate) && (
+                        <TouchableOpacity onPress={() => { setFromDate(null); setToDate(null); }}>
+                          <Text style={{ color: '#2D8CFF', fontSize: 12, fontWeight: '600', marginLeft: 4 }}>Clear</Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
                   )}
-                </>
-              )}
+                </View>
+              </TourStep>
             </View>
 
             {/* ── Transaction list ── */}
-            <FlatList
-              data={shownTransactions}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TxCard
-                  t={item}
-                  currencySymbol={currencySymbol}
-                  privateMode={privateMode}
-                  onEdit={activeBook?.memberRole === 'VIEWER' ? null : (tx) => {
-                    setEditData(tx);
-                    setSheetType(tx.type === 'INCOME' ? 'in' : 'out');
-                    quickEntryRef.current?.present();
-                  }}
-                  onDelete={activeBook?.memberRole === 'VIEWER' ? null : (id) => handleDelete(id)}
-                  onInvoice={(t) => setInvoiceMenuTx(t)}
-                  onSchedule={schedulerEnabled ? (t) => { setSchedulerTx(t); setShowScheduler(true); } : null}
-                />
-              )}
-              contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 20 }}
-              showsVerticalScrollIndicator={false}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
-              ListEmptyComponent={() => (
-                <View style={styles.emptyListCard}>
-                  <Text style={{ fontSize: 36, marginBottom: 12 }}>📭</Text>
-                  <Text style={styles.emptyListTitle}>No entries yet</Text>
-                  <Text style={styles.emptyListText}>Tap + Cash In or + Cash Out to record your first entry.</Text>
-                </View>
-              )}
-              ListFooterComponent={() => (
-                <>
-                  {/* Pagination controls */}
-                  {filteredTransactions.length > PAGE_SIZE && (
-                    <View style={styles.paginationRow}>
-                      <TouchableOpacity
-                        style={[styles.pageBtn, currentPage === 1 && styles.pageBtnDisabled]}
-                        onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        <Feather name="chevron-left" size={16} color={currentPage === 1 ? '#CBD5E1' : '#2563EB'} />
-                        <Text style={[styles.pageBtnText, currentPage === 1 && styles.pageBtnTextDisabled]}>Prev</Text>
-                      </TouchableOpacity>
-
-                      <View style={styles.pageIndicator}>
-                        <Text style={styles.pageIndicatorText}>
-                          {currentPage} / {totalPages}
-                        </Text>
-                        <Text style={styles.pageIndicatorSub}>
-                          {filteredTransactions.length} total
-                        </Text>
+            <TourStep id="tx_list" style={{ flex: 1 }}>
+              <FlatList
+                data={shownTransactions}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TxCard
+                    t={item}
+                    currencySymbol={currencySymbol}
+                    privateMode={privateMode}
+                    onEdit={activeBook?.memberRole === 'VIEWER' ? null : (tx) => {
+                      setEditData(tx);
+                      setSheetType(tx.type === 'INCOME' ? 'in' : 'out');
+                      quickEntryRef.current?.present();
+                    }}
+                    onDelete={activeBook?.memberRole === 'VIEWER' ? null : (id) => handleDelete(id)}
+                    onInvoice={(t) => setInvoiceMenuTx(t)}
+                    onSchedule={schedulerEnabled ? (t) => { setSchedulerTx(t); setShowScheduler(true); } : null}
+                  />
+                )}
+                contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 20 }}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2D8CFF" />}
+                ListEmptyComponent={() => (
+                  (booksLoading || txLoading) ? (
+                    <View style={{ gap: 12 }}>
+                      <View style={{ width: '100%', height: 100, backgroundColor: '#E2E8F0', borderRadius: 20 }} />
+                      <View style={{ width: '100%', height: 100, backgroundColor: '#E2E8F0', borderRadius: 20 }} />
+                      <View style={{ width: '100%', height: 100, backgroundColor: '#E2E8F0', borderRadius: 20 }} />
+                    </View>
+                  ) : (
+                    <View style={styles.emptyListCard}>
+                      <View style={{ width: 64, height: 64, backgroundColor: '#EFF6FF', borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                        <Text style={{ fontSize: 32 }}>💸</Text>
                       </View>
-
-                      <TouchableOpacity
-                        style={[styles.pageBtn, currentPage === totalPages && styles.pageBtnDisabled]}
-                        onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                      >
-                        <Text style={[styles.pageBtnText, currentPage === totalPages && styles.pageBtnTextDisabled]}>Next</Text>
-                        <Feather name="chevron-right" size={16} color={currentPage === totalPages ? '#CBD5E1' : '#2563EB'} />
-                      </TouchableOpacity>
+                      <Text style={styles.emptyListTitle}>No transactions yet</Text>
+                      <Text style={styles.emptyListText}>Your cashbook is empty. Record your first expense or income to get started.</Text>
+                      
+                      {(!activeBook || activeBook.memberRole !== 'VIEWER') && (
+                        <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
+                          <TouchableOpacity 
+                            style={{ flex: 1, backgroundColor: '#DC2626', paddingVertical: 12, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                            onPress={() => { setSheetType('out'); quickEntryRef.current?.present(); }}
+                          >
+                            <Feather name="minus" size={16} color="#fff" />
+                            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Expense</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={{ flex: 1, backgroundColor: '#16A34A', paddingVertical: 12, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+                            onPress={() => { setSheetType('in'); quickEntryRef.current?.present(); }}
+                          >
+                            <Feather name="plus" size={16} color="#fff" />
+                            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Income</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
-                  )}
+                  )
+                )}
+                ListFooterComponent={() => (
+                  <>
+                    {/* Pagination controls */}
+                    {filteredTransactions.length > PAGE_SIZE && (
+                      <View style={styles.paginationRow}>
+                        <TouchableOpacity
+                          style={[styles.pageBtn, currentPage === 1 && styles.pageBtnDisabled]}
+                          onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          <Feather name="chevron-left" size={16} color={currentPage === 1 ? '#CBD5E1' : '#2D8CFF'} />
+                          <Text style={[styles.pageBtnText, currentPage === 1 && styles.pageBtnTextDisabled]}>Prev</Text>
+                        </TouchableOpacity>
 
-                  {/* Export card */}
-                  <View style={styles.exportCard}>
-                    <Text style={styles.exportTitle}>Export & Reports</Text>
-                    <View style={styles.exportBtns}>
-                      <TouchableOpacity style={[styles.exportBtn, { flex: 1, backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => exportModalRef.current?.present()}>
-                        <Feather name="download" size={16} color="#1D4ED8" />
-                        <Text style={[styles.exportBtnText, { color: '#1D4ED8' }]}>Export Transactions</Text>
-                      </TouchableOpacity>
+                        <View style={styles.pageIndicator}>
+                          <Text style={styles.pageIndicatorText}>
+                            {currentPage} / {totalPages}
+                          </Text>
+                          <Text style={styles.pageIndicatorSub}>
+                            {filteredTransactions.length} total
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={[styles.pageBtn, currentPage === totalPages && styles.pageBtnDisabled]}
+                          onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                        >
+                          <Text style={[styles.pageBtnText, currentPage === totalPages && styles.pageBtnTextDisabled]}>Next</Text>
+                          <Feather name="chevron-right" size={16} color={currentPage === totalPages ? '#CBD5E1' : '#2D8CFF'} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {/* Export card */}
+                    <View style={styles.exportCard}>
+                      <Text style={styles.exportTitle}>Export & Reports</Text>
+                      <View style={styles.exportBtns}>
+                        <TouchableOpacity style={[styles.exportBtn, { flex: 1, backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => exportModalRef.current?.present()}>
+                          <Feather name="download" size={16} color="#2D8CFF" />
+                          <Text style={[styles.exportBtnText, { color: '#2D8CFF' }]}>Export Transactions</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
-                </>
-              )}
-            />
+                  </>
+                )}
+              />
+            </TourStep>
 
             {/* ── Bottom CTA buttons ── */}
-            {activeBook?.memberRole !== 'VIEWER' && (
-              <BlurView intensity={60} tint="light" style={styles.fabContainer}>
+            {(!activeBook || activeBook.memberRole !== 'VIEWER') && (
+              <View style={styles.fabContainer}>
                 <TouchableOpacity style={[styles.fabBtn, styles.fabOut]} onPress={() => handleOpenAdd('out')} activeOpacity={0.9}>
-                  <Text style={styles.fabText}>- Expense</Text>
+                  <Feather name="minus" size={18} color="#fff" style={{ marginRight: 6 }} />
+                  <Text style={styles.fabText}>Expense</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.fabBtn, styles.fabIn]} onPress={() => handleOpenAdd('in')} activeOpacity={0.9}>
-                  <Text style={styles.fabText}>+ Income</Text>
+                  <Feather name="plus" size={18} color="#fff" style={{ marginRight: 6 }} />
+                  <Text style={styles.fabText}>Income</Text>
                 </TouchableOpacity>
-              </BlurView>
+              </View>
             )}
           </>
         )}
@@ -457,7 +555,7 @@ export default function TransactionsScreen() {
               }
             }, 500);
           }}>
-            <Feather name="share-2" size={18} color="#111827" />
+            <Feather name="share-2" size={18} color="#232333" />
             <Text style={styles.menuText}>Share Receipt Image</Text>
           </TouchableOpacity>
           
@@ -466,7 +564,7 @@ export default function TransactionsScreen() {
             setInvoiceMenuTx(null);
             await generateInvoicePdf(activeBook, [tx]);
           }}>
-            <Feather name="download" size={18} color="#111827" />
+            <Feather name="download" size={18} color="#232333" />
             <Text style={styles.menuText}>Download PDF</Text>
           </TouchableOpacity>
         </View>
@@ -505,9 +603,9 @@ const styles = StyleSheet.create({
   // Empty state
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  emptyText: { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 22 },
-  dateText: { fontSize: 16, color: '#111827' },
+  emptyTitle: { fontSize: 20, fontWeight: '700', color: '#232333', marginBottom: 8 },
+  emptyText: { fontSize: 14, color: '#747487', textAlign: 'center', lineHeight: 22 },
+  dateText: { fontSize: 16, color: '#232333' },
   modalBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
   tooltipMenu: {
     position: 'absolute', top: '40%', left: '10%', right: '10%',
@@ -515,25 +613,25 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1, shadowRadius: 24, elevation: 20,
   },
-  tooltipTitle: { fontSize: 14, fontWeight: '700', color: '#6B7280', padding: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', marginBottom: 4 },
+  tooltipTitle: { fontSize: 14, fontWeight: '700', color: '#747487', padding: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', marginBottom: 4 },
   menuItem: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
-  menuText: { fontSize: 16, color: '#111827', fontWeight: '500' },
+  menuText: { fontSize: 16, color: '#232333', fontWeight: '500' },
   
   // Date Picker Modal
   datePickerModalOverlay: { flex: 1, justifyContent: 'flex-end' },
   datePickerModalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: Platform.OS === 'ios' ? 20 : 0 },
   datePickerModalHeader: { flexDirection: 'row', justifyContent: 'flex-end', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  datePickerDoneText: { color: '#4F46E5', fontSize: 16, fontWeight: '700' },
+  datePickerDoneText: { color: '#2D8CFF', fontSize: 16, fontWeight: '700' },
 
   // Header
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8,
   },
-  title: { fontSize: 22, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  title: { fontSize: 22, fontWeight: '800', color: '#232333', letterSpacing: -0.5 },
+  subtitle: { fontSize: 13, color: '#747487', marginTop: 2 },
   filterToggleBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#EEF2FF',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#EFF6FF',
     alignItems: 'center', justifyContent: 'center',
   },
 
@@ -557,25 +655,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 9999,
     backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E7EB',
   },
-  filterChipActive: { borderColor: '#4F46E5', backgroundColor: '#EEF2FF' },
+  filterChipActive: { borderColor: '#2D8CFF', backgroundColor: '#EFF6FF' },
   filterChipIn: { borderColor: '#16A34A', backgroundColor: '#DCFCE7' },
   filterChipOut: { borderColor: '#DC2626', backgroundColor: '#FEE2E2' },
-  filterChipText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  filterChipTextActive: { color: '#4F46E5' },
+  filterChipText: { fontSize: 13, fontWeight: '600', color: '#747487' },
+  filterChipTextActive: { color: '#2D8CFF' },
   dateChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999,
     backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E7EB',
   },
-  dateChipText: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
+  dateChipText: { fontSize: 12, color: '#747487', fontWeight: '500' },
 
   // Transaction card
   scroll: { flex: 1, paddingHorizontal: 20 },
   txCard: {
     backgroundColor: '#fff', borderRadius: 16, marginBottom: 10,
-    padding: 14, borderLeftWidth: 3,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
+    padding: 14,
   },
   txMain: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   txEmojiBox: {
@@ -584,13 +680,13 @@ const styles = StyleSheet.create({
   },
   txEmoji: { fontSize: 20 },
   txInfo: { flex: 1 },
-  txName: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  txName: { fontSize: 15, fontWeight: '700', color: '#232333' },
   txMeta: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
-  txNote: { fontSize: 12, color: '#6B7280', marginTop: 4, fontStyle: 'italic' },
+  txNote: { fontSize: 12, color: '#747487', marginTop: 4, fontStyle: 'italic' },
   txRight: { alignItems: 'flex-end' },
   txAmount: { fontSize: 16, fontWeight: '800', letterSpacing: -0.5 },
   txGstBadge: {
-    fontSize: 10, color: '#6B7280', backgroundColor: '#F3F4F6',
+    fontSize: 10, color: '#747487', backgroundColor: '#F3F4F6',
     paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4,
   },
   txActions: {
@@ -601,7 +697,7 @@ const styles = StyleSheet.create({
   catTagText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
   actionIcon: {
     width: 32, height: 32, borderRadius: 8,
-    backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center',
   },
   actionIconDanger: { backgroundColor: '#FEE2E2' },
 
@@ -610,8 +706,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', paddingVertical: 48, paddingHorizontal: 24,
     backgroundColor: '#fff', borderRadius: 16, marginTop: 8,
   },
-  emptyListTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 6 },
-  emptyListText: { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 22 },
+  emptyListTitle: { fontSize: 17, fontWeight: '700', color: '#232333', marginBottom: 6 },
+  emptyListText: { fontSize: 14, color: '#747487', textAlign: 'center', lineHeight: 22 },
 
   // Pagination
   paginationRow: {
@@ -619,7 +715,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: 14, marginVertical: 10,
     paddingHorizontal: 8, paddingVertical: 6,
     borderWidth: 1, borderColor: '#DBEAFE',
-    shadowColor: '#1E3A8A', shadowOffset: { width: 0, height: 1 },
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
   },
   pageBtn: {
@@ -628,10 +724,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
   },
   pageBtnDisabled: { backgroundColor: '#F9FAFB' },
-  pageBtnText: { color: '#2563EB', fontWeight: '700', fontSize: 13 },
+  pageBtnText: { color: '#2D8CFF', fontWeight: '700', fontSize: 13 },
   pageBtnTextDisabled: { color: '#CBD5E1' },
   pageIndicator: { alignItems: 'center' },
-  pageIndicatorText: { fontSize: 14, fontWeight: '700', color: '#1E293B' },
+  pageIndicatorText: { fontSize: 14, fontWeight: '700', color: '#232333' },
   pageIndicatorSub: { fontSize: 10, color: '#94A3B8', fontWeight: '500', marginTop: 1 },
 
   // Export card
@@ -639,26 +735,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: 16, padding: 16, marginTop: 8,
     borderWidth: 1, borderColor: '#DBEAFE',
   },
-  exportTitle: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 12 },
+  exportTitle: { fontSize: 13, fontWeight: '600', color: '#232333', marginBottom: 12 },
   exportBtns: { flexDirection: 'row', gap: 10 },
   exportBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 12, borderRadius: 10,
     backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE',
   },
-  exportBtnText: { color: '#2563EB', fontWeight: '700', fontSize: 13 },
+  exportBtnText: { color: '#2D8CFF', fontWeight: '700', fontSize: 13 },
 
   // Floating Action Buttons
   fabContainer: {
     position: 'absolute',
-    bottom: 0, left: 0, right: 0,
+    bottom: 16, left: 20, right: 20,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 20,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    overflow: 'hidden',
+    gap: 16,
   },
   fabBtn: {
     flex: 1,

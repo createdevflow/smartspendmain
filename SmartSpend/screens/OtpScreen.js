@@ -99,7 +99,7 @@ export default function OtpScreen({ route, navigation }) {
             </View>
 
             <TouchableOpacity style={styles.verifyBtn} onPress={handleVerify} disabled={loading}>
-      <LinearGradient colors={['#2563EB', '#1D4ED8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.verifyGradient}>
+      <LinearGradient colors={['#2D8CFF', '#2D8CFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.verifyGradient}>
                 {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.verifyBtnText}>Verify Code</Text>}
               </LinearGradient>
             </TouchableOpacity>
@@ -190,8 +190,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   otpInputActive: {
-    borderColor: '#2563EB',
-    backgroundColor: '#DBEAFE',
+    borderColor: '#2D8CFF',
+    backgroundColor: '#EFF6FF',
   },
   verifyBtn: {
     height: 56,

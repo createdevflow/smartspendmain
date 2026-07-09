@@ -1,5 +1,16 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
+
+// Maps Prisma error codes to HTTP status codes with user-friendly messages
+const PRISMA_ERROR_MAP: Record<string, { status: number; message: string; code: string }> = {
+  P2002: { status: HttpStatus.CONFLICT, message: 'A record with this information already exists', code: 'DUPLICATE_ENTRY' },
+  P2025: { status: HttpStatus.NOT_FOUND, message: 'The requested resource was not found', code: 'NOT_FOUND' },
+  P2003: { status: HttpStatus.BAD_REQUEST, message: 'Invalid reference — related resource does not exist', code: 'INVALID_REFERENCE' },
+  P2014: { status: HttpStatus.BAD_REQUEST, message: 'This operation would violate a required relationship', code: 'RELATION_VIOLATION' },
+  P2016: { status: HttpStatus.NOT_FOUND, message: 'Required record not found', code: 'RECORD_NOT_FOUND' },
+  P2022: { status: HttpStatus.BAD_REQUEST, message: 'Invalid database column reference', code: 'INVALID_COLUMN' },
+};
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -24,6 +35,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = resp.message || exceptionResponse;
         code = resp.code || resp.error || 'HTTP_ERROR';
       }
+    } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+      // Map known Prisma error codes — never expose Prisma internals to client
+      const mapped = PRISMA_ERROR_MAP[exception.code];
+      if (mapped) {
+        status = mapped.status;
+        message = mapped.message;
+        code = mapped.code;
+      } else {
+        // Unknown Prisma error — log internally, return generic 500
+        this.logger.error(`Unhandled Prisma error [${exception.code}]: ${exception.message}`, exception.stack);
+        message = 'A database error occurred. Please try again.';
+        code = 'DATABASE_ERROR';
+      }
+    } else if (exception instanceof Prisma.PrismaClientValidationError) {
+      status = HttpStatus.BAD_REQUEST;
+      message = 'Invalid data provided';
+      code = 'VALIDATION_ERROR';
+      this.logger.warn(`Prisma validation error: ${exception.message}`);
     } else if (exception instanceof Error) {
       // Don't expose internal errors to client
       this.logger.error(`Unhandled error: ${exception.message}`, exception.stack);

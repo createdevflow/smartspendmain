@@ -29,6 +29,7 @@ export default function LoginPage() {
       const token = res.data?.data?.accessToken;
       if (token) {
         localStorage.setItem('adminToken', token);
+        localStorage.setItem('admin_token', token);
         router.push('/');
       } else {
         setError('Login failed: Invalid credentials.');

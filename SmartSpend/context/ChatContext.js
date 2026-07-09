@@ -108,7 +108,7 @@ export function ChatProvider({ children }) {
       socketRef.current?.disconnect();
       setIsConnected(false);
     };
-  }, [user]);
+  }, [user?.id]);
 
   // ── API helpers ──────────────────────────────────────────────────────────
   const fetchConversations = useCallback(async () => {
@@ -129,16 +129,45 @@ export function ChatProvider({ children }) {
 
   // ── Socket emitters ──────────────────────────────────────────────────────
   const sendMessage = useCallback(async (dto) => {
+    let payload = { ...dto };
+    try {
+      if (payload.content && typeof payload.content === 'string' && (payload.content.startsWith('data:') || payload.content.length > 500)) {
+        const uploadRes = await api.post('/media/upload-base64', { base64: payload.content, module: 'chat' });
+        const url = uploadRes.data?.data?.url || uploadRes.data?.url;
+        if (url) {
+          payload.mediaUrl = url;
+          payload.content = '';
+          if (payload.metadata && typeof payload.metadata === 'object') {
+            payload.metadata.uri = url;
+            payload.metadata.size = uploadRes.data?.data?.size;
+            payload.metadata.id = uploadRes.data?.data?.id;
+          }
+        }
+      }
+      if (payload.metadata?.uri && typeof payload.metadata.uri === 'string' && (payload.metadata.uri.startsWith('data:') || payload.metadata.uri.length > 500)) {
+        const uploadRes = await api.post('/media/upload-base64', { base64: payload.metadata.uri, module: 'chat' });
+        const url = uploadRes.data?.data?.url || uploadRes.data?.url;
+        if (url) {
+          payload.metadata.uri = url;
+          payload.metadata.size = uploadRes.data?.data?.size;
+          payload.metadata.id = uploadRes.data?.data?.id;
+          if (!payload.mediaUrl) payload.mediaUrl = url;
+        }
+      }
+    } catch (err) {
+      console.warn('Proactive base64 media upload failed:', err);
+    }
+
     if (socketRef.current?.connected) {
       return new Promise((resolve, reject) => {
-        socketRef.current.emit('message.send', dto, (response) => {
+        socketRef.current.emit('message.send', payload, (response) => {
           if (response?.success) resolve(response.message);
           else reject(new Error(response?.error || 'Failed to send'));
         });
       });
     }
     // Reliable REST fallback when socket disconnected
-    const res = await api.post('/chat/messages', dto);
+    const res = await api.post('/chat/messages', payload);
     return res.data?.data || res.data;
   }, []);
 
@@ -189,6 +218,16 @@ export function ChatProvider({ children }) {
     return res.data?.data;
   }, [fetchConversations]);
 
+  const analyzeNoteMessage = useCallback(async (messageId) => {
+    const res = await api.post(`/chat/messages/${messageId}/analyze`);
+    return Object.assign(res.data?.data || {}, { aiReply: res.data?.aiReply });
+  }, []);
+
+  const executeNoteAction = useCallback(async (messageId, action) => {
+    const res = await api.post(`/chat/messages/${messageId}/action`, { action });
+    return Object.assign(res.data?.data || {}, { aiReply: res.data?.aiReply });
+  }, []);
+
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
 
   return (
@@ -210,6 +249,8 @@ export function ChatProvider({ children }) {
       sendContactRequest,
       acceptContactRequest,
       startConversation,
+      analyzeNoteMessage,
+      executeNoteAction,
       socket: socketRef.current,
     }}>
       {children}

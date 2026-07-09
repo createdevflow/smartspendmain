@@ -3,6 +3,8 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { api } from "../utils/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthContext } from "./AuthContext";
+import { useOnboarding } from "./OnboardingContext";
+import * as FileSystem from 'expo-file-system/legacy';
 
 const TransactionsContext = createContext(null);
 const STORAGE_KEY = "@smartspend_transactions_v1";
@@ -18,22 +20,29 @@ export function TransactionsProvider({ children }) {
   const [useCustomCategories, setUseCustomCategories] = useState(false);
   const [customCategories, setCustomCategories] = useState({ in: [], out: [] });
   const [loading, setLoading] = useState(true);
+  const { updateChecklist } = useOnboarding();
+
+  useEffect(() => {
+    if (monthlyBudget > 0 || savingsGoal > 0) {
+      updateChecklist('firstGoal');
+    }
+  }, [monthlyBudget, savingsGoal, updateChecklist]);
 
   const refreshCategories = useCallback(async () => {
     try {
       if (user) {
         const res = await api.get('/categories');
         const all = res.data?.data || res.data || [];
-        const custom = all.filter(c => c.isCustom || c.userId);
+        const custom = all.filter(c => c.isCustom || c.userId || c.isSystem === false);
         setCustomCategories({
-          in: custom.filter(c => c.type === 'income' || c.type === 'INCOME').map(c => ({ id: c.id, label: c.name, emoji: c.emoji || '💰', color: c.color || '#16A34A', bg: `${c.color || '#16A34A'}15`, type: c.type })),
-          out: custom.filter(c => c.type === 'expense' || c.type === 'EXPENSE').map(c => ({ id: c.id, label: c.name, emoji: c.emoji || '🛒', color: c.color || '#DC2626', bg: `${c.color || '#DC2626'}15`, type: c.type })),
+          in: custom.filter(c => ['income', 'INCOME', 'both', 'BOTH'].includes(c.type)).map(c => ({ id: c.id, label: c.name, emoji: c.emoji || '💰', color: c.color || '#16A34A', bg: `${c.color || '#16A34A'}15`, type: c.type })),
+          out: custom.filter(c => ['expense', 'EXPENSE', 'both', 'BOTH'].includes(c.type)).map(c => ({ id: c.id, label: c.name, emoji: c.emoji || '🛒', color: c.color || '#DC2626', bg: `${c.color || '#DC2626'}15`, type: c.type })),
         });
       }
     } catch (e) {
       console.log("Failed to load categories", e);
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     (async () => {
@@ -45,8 +54,10 @@ export function TransactionsProvider({ children }) {
           // Handle both paginated {data: [], meta: {}} and plain array responses
           if (Array.isArray(payload)) {
             setTransactions(payload);
+            if (payload.length > 0) updateChecklist('firstTransaction');
           } else if (payload?.data && Array.isArray(payload.data)) {
             setTransactions(payload.data);
+            if (payload.data.length > 0) updateChecklist('firstTransaction');
           } else {
             setTransactions([]);
           }
@@ -79,7 +90,7 @@ export function TransactionsProvider({ children }) {
         setLoading(false);
       }
     })();
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (loading) return;
@@ -111,6 +122,18 @@ export function TransactionsProvider({ children }) {
 
   const addTransaction = async (tx) => {
     try {
+      let receiptKey = tx.receiptImage;
+      if (receiptKey) {
+        if (receiptKey.startsWith('file://')) {
+          const base64 = await FileSystem.readAsStringAsync(receiptKey, { encoding: 'base64' });
+          const res = await api.post('/media/upload-base64', { base64: `data:image/jpeg;base64,${base64}`, module: 'transactions' });
+          receiptKey = res.data?.data?.url || res.data?.url || receiptKey;
+        } else if (receiptKey.startsWith('data:')) {
+          const res = await api.post('/media/upload-base64', { base64: receiptKey, module: 'transactions' });
+          receiptKey = res.data?.data?.url || res.data?.url || receiptKey;
+        }
+      }
+
       const payload = {
         cashbookId: tx.bookId,
         type: tx.type === "in" ? "INCOME" : "EXPENSE",
@@ -126,6 +149,7 @@ export function TransactionsProvider({ children }) {
         sgst: tx.sgst,
         igst: tx.igst,
         labels: tx.isTaxDeductible ? ['TAX_DEDUCTIBLE'] : [],
+        receiptKey: receiptKey || undefined,
       };
 
       // clean up undefined values
@@ -137,6 +161,10 @@ export function TransactionsProvider({ children }) {
 
       const res = await api.post('/transactions', payload);
       setTransactions((prev) => [res.data.data, ...prev]);
+      
+      // Update checklist
+      updateChecklist('firstTransaction');
+      
       return res.data.data;
     } catch(e) {
       console.log('Error adding tx:', e.response?.data || e.message);
@@ -147,6 +175,18 @@ export function TransactionsProvider({ children }) {
   // FIXED: Changed api.put → api.patch to match backend PATCH /transactions/:id
   const updateTransaction = async (id, tx) => {
     try {
+      let receiptKey = tx.receiptImage;
+      if (receiptKey && !receiptKey.startsWith('http')) {
+        if (receiptKey.startsWith('file://')) {
+          const base64 = await FileSystem.readAsStringAsync(receiptKey, { encoding: 'base64' });
+          const res = await api.post('/media/upload-base64', { base64: `data:image/jpeg;base64,${base64}`, module: 'transactions' });
+          receiptKey = res.data?.data?.url || res.data?.url || receiptKey;
+        } else if (receiptKey.startsWith('data:')) {
+          const res = await api.post('/media/upload-base64', { base64: receiptKey, module: 'transactions' });
+          receiptKey = res.data?.data?.url || res.data?.url || receiptKey;
+        }
+      }
+
       const payload = {
         type: tx.type === "in" ? "INCOME" : (tx.type === "out" ? "EXPENSE" : tx.type),
         amount: tx.amount,
@@ -161,6 +201,7 @@ export function TransactionsProvider({ children }) {
         sgst: tx.sgst,
         igst: tx.igst,
         labels: tx.isTaxDeductible ? ['TAX_DEDUCTIBLE'] : [],
+        receiptKey: receiptKey || undefined,
       };
 
       Object.keys(payload).forEach(key => {
@@ -204,7 +245,7 @@ export function TransactionsProvider({ children }) {
     } catch (e) {
       console.log('Failed to refresh transactions', e);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const clearAllTransactions = () => {
     setTransactions([]);

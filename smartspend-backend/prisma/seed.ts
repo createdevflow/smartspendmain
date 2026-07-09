@@ -308,6 +308,10 @@ const FEATURES = [
   { key: 'api_access',               name: 'API Access',                 type: 'boolean', defaultValue: 'false', category: 'security',  sortOrder: 16 },
   { key: 'feature_gallery',          name: 'Gallery Attachments',        type: 'boolean', defaultValue: 'true',  category: 'storage',   sortOrder: 17 },
   { key: 'scheduled_communications', name: 'Scheduled Invoices & Messages', type: 'boolean', defaultValue: 'false', category: 'finance',   sortOrder: 18 },
+  { key: 'feature_chat',             name: 'Cashtro Chat',               type: 'boolean', defaultValue: 'true',  category: 'finance',   sortOrder: 19 },
+  { key: 'feature_invoices',         name: 'Inbuilt Smart Invoicing',    type: 'boolean', defaultValue: 'true',  category: 'finance',   sortOrder: 20 },
+  { key: 'feature_payment_reminders', name: 'Payment Reminders',         type: 'boolean', defaultValue: 'true',  category: 'finance',   sortOrder: 21 },
+  { key: 'feature_ocr_active',       name: 'AI Receipt Scanner',         type: 'boolean', defaultValue: 'false', category: 'storage',   sortOrder: 22 },
 ];
 
 // ─── FREE PLAN ────────────────────────────────────────────────────────────────
@@ -337,6 +341,10 @@ const FREE_PLAN = {
     api_access:               'false',
     feature_gallery:          'true',
     scheduled_communications: 'true',
+    feature_chat:             'true',
+    feature_invoices:         'true',
+    feature_payment_reminders:'true',
+    feature_ocr_active:       'false',
   },
 };
 
@@ -370,6 +378,10 @@ const PRO_PLAN = {
     api_access:               'false',
     feature_gallery:          'true',
     scheduled_communications: 'true',
+    feature_chat:             'true',
+    feature_invoices:         'true',
+    feature_payment_reminders:'true',
+    feature_ocr_active:       'true',
   },
 };
 
@@ -403,6 +415,10 @@ const BUSINESS_PLAN = {
     api_access:               'true',
     feature_gallery:          'true',
     scheduled_communications: 'true',
+    feature_chat:             'true',
+    feature_invoices:         'true',
+    feature_payment_reminders:'true',
+    feature_ocr_active:       'true',
   },
 };
 

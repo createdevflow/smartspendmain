@@ -8,10 +8,15 @@ import { ChatController } from './chat.controller';
 import { ChatScheduler } from './chat.scheduler';
 import { PrismaModule } from '../prisma/prisma.module';
 
+import { AiModule } from '../ai/ai.module';
+import { TransactionsModule } from '../transactions/transactions.module';
+
 @Module({
   imports: [
     PrismaModule,
     ConfigModule,
+    AiModule,
+    TransactionsModule,
     JwtModule.register({}),
     ScheduleModule.forRoot(),
   ],

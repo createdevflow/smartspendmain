@@ -1,6 +1,6 @@
 // components/TransactionCard.js
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import colors from "../theme/colors";
 import { formatDate, formatTime } from "../utils/dateUtils";
@@ -33,9 +33,27 @@ export default function TransactionCard({
           </View>
 
           <View>
-            <Text style={styles.category} numberOfLines={1}>
-              {tx.category || (isIn ? "Cash-in" : "Cash-out")}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.category} numberOfLines={1}>
+                {tx.category || (isIn ? "Cash-in" : "Cash-out")}
+              </Text>
+              {(tx.receiptUrl || tx.receiptKey) && (
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(tx.receiptUrl || tx.receiptKey)}
+                >
+                  {String(tx.receiptUrl || tx.receiptKey).toLowerCase().endsWith('.pdf') ? (
+                    <View style={{ backgroundColor: '#EFF6FF', borderRadius: 4, padding: 4 }}>
+                      <Feather name="file-text" size={14} color={colors.primary} />
+                    </View>
+                  ) : (
+                    <Image 
+                      source={{ uri: tx.receiptUrl || tx.receiptKey }} 
+                      style={{ width: 24, height: 24, borderRadius: 4, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#F3F4F6' }} 
+                    />
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
             <Text style={styles.meta}>
               {formatDate(tx.date)} · {formatTime(tx.date)} ·{" "}
               {tx.paymentMethod || "No method"}

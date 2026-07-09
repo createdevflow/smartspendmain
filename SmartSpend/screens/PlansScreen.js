@@ -69,7 +69,7 @@ export default function PlansScreen({ navigation }) {
           email: user?.email || '',
           name: user?.fullName || '',
         },
-        theme: { color: plan.color || '#2563EB' }
+        theme: { color: plan.color || '#2D8CFF' }
       };
 
       setCheckoutOptions(options);
@@ -114,7 +114,7 @@ export default function PlansScreen({ navigation }) {
           <View style={{ width: 40 }} />
         </View>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="large" color="#2563EB" />
+          <ActivityIndicator size="large" color="#2D8CFF" />
         </View>
       </SafeAreaView>
     );
@@ -132,13 +132,16 @@ export default function PlansScreen({ navigation }) {
 
       {/* Free Trial Banner */}
       {user?.trialExpiresAt && new Date(user.trialExpiresAt) > new Date() && (
-        <View style={{ backgroundColor: '#DBEAFE', padding: 12, marginHorizontal: 16, marginTop: 16, borderRadius: 12, borderWidth: 1, borderColor: '#93C5FD' }}>
-          <Text style={{ color: '#1E3A8A', fontWeight: '600', fontSize: 13, textAlign: 'center' }}>
-            🎉 Free Trial Active
-          </Text>
-          <Text style={{ color: '#1E3A8A', fontSize: 12, textAlign: 'center', marginTop: 4 }}>
-            Ends on {new Date(user.trialExpiresAt).toLocaleDateString()}
-          </Text>
+        <View style={styles.trialBanner}>
+          <View style={{ flexDirection: 'column', gap: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.trialEmoji}>🎉</Text>
+              <Text style={styles.trialText}>Free trial enjoy all pro features</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+              <Text style={{ fontSize: 10, color: '#2D8CFF', marginLeft: 24, textDecorationLine: 'underline' }}>*T&C apply (See Terms in Settings)</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -162,9 +165,9 @@ export default function PlansScreen({ navigation }) {
           const isCurrentPlan = user?.plan?.id === plan.id;
           
           return (
-            <View key={plan.id} style={[styles.planCard, isCurrentPlan && styles.currentPlanCard, { borderTopColor: plan.color || "#2563EB" }]}>
+            <View key={plan.id} style={[styles.planCard, isCurrentPlan && styles.currentPlanCard, { borderTopColor: plan.color || "#2D8CFF" }]}>
               {isCurrentPlan && (
-                <View style={[styles.currentBadge, { backgroundColor: plan.color || "#2563EB" }]}>
+                <View style={[styles.currentBadge, { backgroundColor: plan.color || "#2D8CFF" }]}>
                   <Text style={styles.currentBadgeText}>CURRENT PLAN</Text>
                 </View>
               )}
@@ -224,7 +227,7 @@ export default function PlansScreen({ navigation }) {
               <TouchableOpacity
                 style={[
                   styles.subscribeBtn,
-                  isCurrentPlan ? styles.subscribeBtnDisabled : { backgroundColor: plan.color || "#2563EB" }
+                  isCurrentPlan ? styles.subscribeBtnDisabled : { backgroundColor: plan.color || "#2D8CFF" }
                 ]}
                 disabled={isCurrentPlan || subscribingTo === plan.id}
                 onPress={() => handleSubscribe(plan)}

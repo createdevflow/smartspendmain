@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-primary: #2563EB;
-  --color-brand-primary-dark: #1D4ED8;
-  --color-brand-accent: #6366F1;
-  --color-brand-bg: #F5F7FB;
-  --color-brand-card: #FFFFFF;
-  --color-brand-text-main: #0F172A;
-  --color-brand-text-muted: #64748B;
+  --color-brand-primary: #2D8CFF;
+  --color-brand-primary-dark: #1D7AF0;
+  --color-brand-accent: #F26D21;
+  --color-brand-bg: #FFFFFF;
+  --color-brand-card: #FCFCFD;
+  --color-brand-text-main: #232333;
+  --color-brand-text-muted: #747487;
 
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
@@ -15,7 +15,7 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #0F172A;
+  --foreground: #232333;
 }
 
 html {
@@ -47,7 +47,7 @@ body {
 
 /* Gradient text */
 @utility gradient-text {
-  background: linear-gradient(135deg, #2563EB 0%, #6366F1 50%, #8B5CF6 100%);
+  background: linear-gradient(135deg, #2D8CFF 0%, #1D7AF0 50%, #F26D21 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -55,16 +55,16 @@ body {
 
 /* Scroll-driven story line */
 @utility story-line {
-  background: linear-gradient(180deg, #2563EB 0%, #6366F1 50%, #8B5CF6 100%);
+  background: linear-gradient(180deg, #2D8CFF 0%, #1D7AF0 50%, #F26D21 100%);
 }
 
 /* Glow effects */
 @utility glow-blue {
-  box-shadow: 0 0 60px rgba(37, 99, 235, 0.3), 0 0 120px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 60px rgba(45, 140, 255, 0.3), 0 0 120px rgba(45, 140, 255, 0.1);
 }
 
 @utility glow-indigo {
-  box-shadow: 0 0 60px rgba(99, 102, 241, 0.3), 0 0 120px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 60px rgba(242, 109, 33, 0.3), 0 0 120px rgba(242, 109, 33, 0.1);
 }
 
 /* Animated gradient border */
@@ -74,7 +74,7 @@ body {
 }
 
 @utility animated-border {
-  background: linear-gradient(135deg, #2563EB, #6366F1, #8B5CF6, #2563EB);
+  background: linear-gradient(135deg, #2D8CFF, #1D7AF0, #F26D21, #2D8CFF);
   background-size: 300% 300%;
   animation: gradient-border 4s ease infinite;
 }
@@ -111,8 +111,8 @@ body {
 /* Grid pattern */
 @utility grid-pattern {
   background-image: 
-    linear-gradient(rgba(37, 99, 235, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(37, 99, 235, 0.04) 1px, transparent 1px);
+    linear-gradient(rgba(45, 140, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 140, 255, 0.04) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 

@@ -3,17 +3,16 @@ import React, { useMemo, useState, useContext, useEffect, useRef, useCallback } 
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, Alert, Pressable, Platform,
-  KeyboardAvoidingView, RefreshControl, Dimensions
+  KeyboardAvoidingView, RefreshControl, Dimensions, Linking
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-chart-kit';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { useBooks } from '../context/BooksContext';
 import { useTransactions } from '../context/TransactionsContext';
-import { useChat } from '../context/ChatContext';
 import SwipeTabsWrapper from '../components/SwipeTabsWrapper';
 import QuickEntrySheet from '../components/QuickEntrySheet';
 import TxCard from '../components/TxCard';
@@ -26,16 +25,21 @@ import InvoiceTicket from '../components/InvoiceTicket';
 import { BlurView } from 'expo-blur';
 import { api } from '../utils/api';
 import SchedulerModal from '../components/SchedulerModal';
+import { TourStep, useTourGuide } from '../components/onboarding/TourGuide';
+import { useOnboarding } from '../context/OnboardingContext';
+import GettingStartedChecklist from '../components/onboarding/GettingStartedChecklist';
+import CelebrationOverlay from '../components/onboarding/CelebrationOverlay';
+import WhatsNewModal from '../components/onboarding/WhatsNewModal';
 
 // ─── Insight mini-card ─────────────────────────────────────────────────────────
 function InsightCard({ icon, label, value, color, onPress }) {
   return (
-    <TouchableOpacity style={styles.insightCard} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
-      <View style={[styles.insightIcon, { backgroundColor: `${color}18` }]}>
-        <Feather name={icon} size={18} color={color} />
+    <TouchableOpacity style={[styles.insightCard, { borderLeftColor: color }]} onPress={onPress}>
+      <View style={[styles.insightIconWrap, { backgroundColor: color + '15' }]}>
+        <Feather name={icon} size={16} color={color} />
       </View>
       <Text style={styles.insightLabel}>{label}</Text>
-      <Text style={[styles.insightValue, { color }]}>{value}</Text>
+      <Text style={styles.insightVal}>{value}</Text>
     </TouchableOpacity>
   );
 }
@@ -53,7 +57,7 @@ function SetValueModal({ visible, title, currentValue, onSave, onClose }) {
         <Pressable style={styles.modalBackdrop} onPress={onClose} />
         <View style={styles.centerModal}>
           <Text style={styles.centerModalTitle}>{title}</Text>
-          <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 16, lineHeight: 20 }}>
+          <Text style={{ fontSize: 13, color: '#747487', marginBottom: 16, lineHeight: 20 }}>
             Enter the amount to set for your {title.toLowerCase().replace('set ', '')}.
           </Text>
           <TextInput
@@ -67,7 +71,7 @@ function SetValueModal({ visible, title, currentValue, onSave, onClose }) {
           />
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
             <TouchableOpacity style={styles.centerModalCancel} onPress={onClose}>
-              <Text style={{ color: '#4B5563', fontWeight: '600', fontSize: 15 }}>Cancel</Text>
+              <Text style={{ color: '#747487', fontWeight: '600', fontSize: 15 }}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.centerModalSave}
@@ -86,9 +90,37 @@ function SetValueModal({ visible, title, currentValue, onSave, onClose }) {
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { user } = useContext(AuthContext);
-  const { books, activeBook, addBook, setActiveBook, refreshBooks } = useBooks();
-  const { transactions, addTransaction, getBookBalance, privateMode, monthlyBudget, setMonthlyBudget, savingsGoal, setSavingsGoal, refreshTransactions } = useTransactions();
+  const { books, activeBook, addBook, setActiveBook, refreshBooks, loading: booksLoading } = useBooks();
+  const { transactions, addTransaction, getBookBalance, privateMode, monthlyBudget, setMonthlyBudget, savingsGoal, setSavingsGoal, refreshTransactions, loading: txLoading } = useTransactions();
   const { hasAccess: isFeatureEnabled, getFeatureTease } = useFeatureAccess();
+  
+  const { startTour, activeTour, endTour } = useTourGuide();
+  const isFocused = useIsFocused();
+  const { hasSeenWelcome, seenFeatures, markFeatureSeen, shouldShowTour, markTourSeen, isChecklistComplete } = useOnboarding();
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  useEffect(() => {
+    // Show celebration when checklist becomes complete for the first time
+    if (isChecklistComplete && !seenFeatures.checklistDone) {
+      setShowCelebration(true);
+      markFeatureSeen('checklistDone');
+    }
+  }, [isChecklistComplete, seenFeatures.checklistDone]);
+
+  useEffect(() => {
+    // Auto-start home tour after welcome & data load — give modals time to settle
+    if (isFocused && shouldShowTour('home') && booksLoading === false) {
+      const timer = setTimeout(() => {
+        startTour('home');
+        markTourSeen('home');
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [isFocused, hasSeenWelcome, booksLoading, shouldShowTour, startTour, markTourSeen]);
+
+  useEffect(() => {
+    if (!isFocused && activeTour === 'home') endTour();
+  }, [isFocused, activeTour, endTour]);
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = React.useCallback(async () => {
@@ -102,7 +134,6 @@ export default function HomeScreen() {
 
   const [sheetType, setSheetType] = useState('out');
   const quickEntryRef = useRef(null);
-  const { totalUnread } = useChat();
   const [createVisible, setCreateVisible] = useState(false);
   const [bookName, setBookName] = useState('');
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
@@ -156,7 +187,13 @@ export default function HomeScreen() {
       if (!isFeatureEnabled('feature_ai_insights_mini') || !active?.id) return;
       try {
         const res = await api.get(`/chat/mini-insight/${active.id}`);
-        if (res.data?.insight) setMiniInsight(res.data.insight);
+        let insight = res.data?.data?.insight || res.data?.insight;
+        if (insight) {
+          if (sym !== '$' && insight.includes('$')) {
+            insight = insight.replace(/\$/g, sym);
+          }
+          setMiniInsight(insight);
+        }
       } catch (err) {}
     };
 
@@ -256,10 +293,11 @@ export default function HomeScreen() {
     useCallback(() => {
       const fetchNotifs = async () => {
         try {
-          const res = await api.get('/notifications');
-          const raw = res.data?.items || res.data?.data || res.data;
+          const res = await api.get('/notifications?limit=50');
+          const payload = res.data?.data || res.data;
+          const raw = payload?.items || payload;
           const notifs = Array.isArray(raw) ? raw : [];
-          const unread = typeof res.data?.unreadCount === 'number' ? res.data.unreadCount : notifs.filter(n => !n?.isRead).length;
+          const unread = typeof payload?.unreadCount === 'number' ? payload.unreadCount : notifs.filter(n => !n?.isRead).length;
           setUnreadCount(unread);
         } catch (e) {
           console.error("HomeScreen loadNotifs error", e);
@@ -277,7 +315,8 @@ export default function HomeScreen() {
       category: data.category, note: data.note, paymentMethod: data.paymentMethod,
       isGstApplied: data.isGstApplied, gstRate: data.gstRate,
       cgst: data.cgst, sgst: data.sgst, igst: data.igst,
-      isTaxDeductible: data.isTaxDeductible
+      isTaxDeductible: data.isTaxDeductible,
+      receiptImage: data.receiptImage,
     });
     quickEntryRef.current?.dismiss();
   };
@@ -285,7 +324,7 @@ export default function HomeScreen() {
   // ── Create first book ──
   const handleCreateFirstBook = async () => {
     if (!bookName.trim()) return;
-    const nb = await addBook({ name: bookName.trim(), color: '#1D4ED8' });
+    const nb = await addBook({ name: bookName.trim(), color: '#2D8CFF' });
     if (nb) { setActiveBook(nb.id); setCreateVisible(false); setBookName(''); }
   };
 
@@ -297,7 +336,7 @@ export default function HomeScreen() {
           style={styles.scroll}
           contentContainerStyle={{ paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2D8CFF" />}
         >
           {/* ── Greeting header ── */}
           <View style={styles.header}>
@@ -308,55 +347,64 @@ export default function HomeScreen() {
               </Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+              {(isFeatureEnabled('feature_payment_reminders') || getFeatureTease('feature_payment_reminders')) && (
+                <TouchableOpacity
+                  style={styles.privateBadge}
+                  onPress={() => {
+                    if (!isFeatureEnabled('feature_payment_reminders')) {
+                      Alert.alert('Premium Feature', 'Payment Reminders are available on Pro plans. Upgrade to track receivables and payables!', [{ text: 'Cancel', style: 'cancel' }, { text: 'Upgrade', onPress: () => navigation.navigate('Plans') }]);
+                      return;
+                    }
+                    navigation.navigate('PaymentReminder');
+                  }}
+                >
+                  <Feather name="clock" size={18} color="#2D8CFF" />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={styles.privateBadge}
                 onPress={() => navigation.navigate('Notifications')}
               >
-                <Feather name="bell" size={18} color="#1D4ED8" />
+                <Feather name="bell" size={18} color="#2D8CFF" />
                 {unreadCount > 0 && (
-                  <View style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: '#DC2626', borderWidth: 2, borderColor: '#EEF2FF' }} />
+                  <View style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: '#DC2626', borderWidth: 2, borderColor: '#EFF6FF' }} />
                 )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.privateBadge}
-                onPress={() => navigation.navigate('Chat')}
-              >
-                <View style={{ position: 'relative' }}>
-                  <Feather name="message-circle" size={20} color="#1D4ED8" />
-                  {totalUnread > 0 && (
-                    <View style={{
-                      position: 'absolute', top: -6, right: -8,
-                      backgroundColor: '#EF4444', borderRadius: 8,
-                      minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center',
-                      paddingHorizontal: 3, borderWidth: 2, borderColor: '#EEF2FF'
-                    }}>
-                      <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>
-                        {totalUnread > 99 ? '99+' : totalUnread}
-                      </Text>
-                    </View>
-                  )}
-                </View>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* ── Free Trial Banner ── */}
           {showTrialBanner && isTrialActive && (
-            <View style={{ backgroundColor: '#DBEAFE', padding: 12, borderRadius: 12, marginHorizontal: 20, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#BFDBFE' }}>
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Feather name="zap" size={16} color="#2563EB" />
-                <Text style={{ fontSize: 13, color: '#1E3A8A', fontWeight: '600' }}>
-                  Free Trial Active (ends {new Date(user.trialExpiresAt).toLocaleDateString()})
-                </Text>
+            <View style={{ backgroundColor: '#EFF6FF', padding: 12, borderRadius: 12, marginHorizontal: 20, marginBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#BFDBFE' }}>
+              <View style={{ flex: 1, flexDirection: 'column', gap: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Feather name="zap" size={16} color="#2D8CFF" />
+                  <Text style={{ fontSize: 13, color: '#232333', fontWeight: '600' }}>
+                  Free trial enjoy all pro features
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+                  <Text style={{ fontSize: 10, color: '#2D8CFF', marginLeft: 24, textDecorationLine: 'underline' }}>*T&C apply (See Terms in Settings)</Text>
+                </TouchableOpacity>
               </View>
               <TouchableOpacity onPress={() => setShowTrialBanner(false)} style={{ padding: 4 }}>
-                <Feather name="x" size={16} color="#1E3A8A" />
+                <Feather name="x" size={16} color="#747487" />
               </TouchableOpacity>
             </View>
           )}
 
           {/* ── No cashbook state ── */}
-          {!active ? (
+          {/* ── Loading Skeleton ── */}
+          {booksLoading || txLoading ? (
+            <View style={{ paddingHorizontal: 20 }}>
+              <View style={{ width: '100%', height: 160, backgroundColor: '#E2E8F0', borderRadius: 24, marginBottom: 16 }} />
+              <View style={{ flexDirection: 'row', gap: 16, marginBottom: 24 }}>
+                <View style={{ flex: 1, height: 100, backgroundColor: '#E2E8F0', borderRadius: 20 }} />
+                <View style={{ flex: 1, height: 100, backgroundColor: '#E2E8F0', borderRadius: 20 }} />
+              </View>
+              <View style={{ width: '100%', height: 200, backgroundColor: '#E2E8F0', borderRadius: 24 }} />
+            </View>
+          ) : !active ? (
             <View style={styles.emptyCard}>
               <Text style={{ fontSize: 48, marginBottom: 16 }}>📒</Text>
               <Text style={styles.emptyTitle}>Create your first cashbook</Text>
@@ -378,26 +426,42 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              {isFeatureEnabled('feature_ai_insights_mini') && miniInsight ? (
-                <View style={{ backgroundColor: '#EEF2FF', borderRadius: 16, padding: 16, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={{ backgroundColor: '#C7D2FE', padding: 10, borderRadius: 12 }}>
-                    <Feather name="cpu" size={20} color="#4338CA" />
+              {isFeatureEnabled('feature_ai_insights_mini') || (transactions && transactions.length > 0) ? (
+                <TouchableOpacity
+                  style={{ backgroundColor: '#EFF6FF', borderRadius: 16, padding: 16, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#BFDBFE' }}
+                  onPress={() => navigation.navigate('AIInsights')}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ backgroundColor: '#BFDBFE', padding: 10, borderRadius: 12 }}>
+                    <Feather name="cpu" size={20} color="#2D8CFF" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, color: '#4338CA', fontWeight: '800', marginBottom: 2 }}>Smart Insight</Text>
-                    <Text style={{ fontSize: 13, color: '#312E81', lineHeight: 18 }}>{miniInsight}</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <Text style={{ fontSize: 13, color: '#2D8CFF', fontWeight: '800' }}>Smart Insight & Analytics</Text>
+                      {user && typeof user.creditsLimit === 'number' && user.creditsLimit > 0 && user.creditsLimit !== Infinity && (
+                        <View style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                          <Text style={{ fontSize: 10, color: '#1E40AF', fontWeight: '700' }}>
+                            ⚡ {Math.max(0, user.creditsLimit - (user.creditsUsed || 0))} left
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 13, color: '#232333', lineHeight: 18 }}>
+                      {miniInsight || (transactions?.length > 0 ? `You have ${transactions.length} recorded transactions across your cashbooks. Tap to view dedicated AI Smart Analytics & Predictions!` : `Welcome to AI Assistant! Tap here to analyze your finances in ${sym} instantly.`)}
+                    </Text>
                   </View>
-                </View>
+                  <Feather name="chevron-right" size={18} color="#2D8CFF" />
+                </TouchableOpacity>
               ) : getFeatureTease('feature_ai_insights_mini') ? (
                 <TouchableOpacity 
                   style={{ backgroundColor: '#F3F4F6', borderRadius: 16, padding: 16, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#E5E7EB' }}
-                  onPress={() => Alert.alert('Premium Feature', 'AI Smart Insights are only available on Pro plans. Upgrade to get daily financial analysis!', [{ text: 'Cancel', style: 'cancel' }, { text: 'Upgrade to Pro' }])}
+                  onPress={() => Alert.alert('Premium Feature', 'AI Smart Insights are only available on Pro plans. Upgrade to get daily financial analysis!', [{ text: 'Cancel', style: 'cancel' }, { text: 'Upgrade to Pro', onPress: () => navigation.navigate('Plans') }])}
                 >
                   <View style={{ backgroundColor: '#E5E7EB', padding: 10, borderRadius: 12 }}>
                     <Feather name="lock" size={20} color="#9CA3AF" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, color: '#6B7280', fontWeight: '800', marginBottom: 2 }}>AI Smart Insight Locked</Text>
+                    <Text style={{ fontSize: 13, color: '#747487', fontWeight: '800', marginBottom: 2 }}>AI Smart Insight Locked</Text>
                     <Text style={{ fontSize: 13, color: '#9CA3AF', lineHeight: 18 }}>Upgrade to Pro to see personalized daily insights about your spending patterns.</Text>
                   </View>
                   <Feather name="chevron-right" size={16} color="#9CA3AF" />
@@ -413,7 +477,7 @@ export default function HomeScreen() {
                       <Text style={{ fontSize: 16, fontWeight: '700', color: '#14532D' }}>No Spend Streak</Text>
                     </View>
                     <View style={{ backgroundColor: '#16A34A', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
-                      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>🔥 {gamification.streak} Days</Text>
+                      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>🔥 {gamification.streak || 0} Days</Text>
                     </View>
                   </View>
                   
@@ -422,11 +486,13 @@ export default function HomeScreen() {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View>
                       <Text style={{ fontSize: 12, color: '#166534', fontWeight: '600' }}>Burn Rate (Avg/Day)</Text>
-                      <Text style={{ fontSize: 18, fontWeight: '800', color: '#14532D' }}>{sym}{Math.round(gamification.avgDailySpend)}</Text>
+                      <Text style={{ fontSize: 18, fontWeight: '800', color: '#14532D' }}>{sym}{Math.round(gamification.avgDailySpend || 0)}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={{ fontSize: 12, color: '#166534', fontWeight: '600' }}>Runway Left</Text>
-                      <Text style={{ fontSize: 18, fontWeight: '800', color: '#14532D' }}>{gamification.burnRateDaysLeft} Days</Text>
+                      <Text style={{ fontSize: 18, fontWeight: '800', color: '#14532D' }}>
+                        {gamification.burnRateDaysLeft === 999 || gamification.burnRateDaysLeft <= 0 ? '0 Days' : `${gamification.burnRateDaysLeft} Days`}
+                      </Text>
                     </View>
                   </View>
                 </View>
@@ -450,44 +516,55 @@ export default function HomeScreen() {
               ) : null}
 
               {/* ─── 1. Hero Balance Card ─── */}
-              <View style={styles.heroCard}>
-                <Text style={styles.heroLabel}>Available Balance</Text>
-                <Text style={styles.heroBalance}>
-                  {privateMode ? '••••••' : `${sym}${Math.abs(balance.balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                </Text>
-                <View style={styles.heroDelta}>
-                  <View style={styles.heroDeltaItem}>
-                    <Feather name="arrow-down-left" size={13} color="#16A34A" />
-                    <Text style={[styles.heroDeltaText, { color: '#16A34A' }]}>
-                      {privateMode ? '••' : `+${sym}${thisMonth.income.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
-                    </Text>
-                    <Text style={styles.heroDeltaMeta}> this month</Text>
+              <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
+                <TourStep id="balance">
+                  <View style={[styles.heroCard, { marginHorizontal: 0, marginBottom: 0 }]}>
+                    <Text style={styles.heroLabel}>Available Balance</Text>
+                  <Text style={styles.heroBalance}>
+                    {privateMode ? '••••••' : `${sym}${Math.abs(balance.balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  </Text>
+                  <View style={styles.heroDelta}>
+                    <View style={styles.heroDeltaItem}>
+                      <Feather name="arrow-down-left" size={13} color="#A7F3D0" />
+                      <Text style={[styles.heroDeltaText, { color: '#A7F3D0' }]}>
+                        {privateMode ? '••' : `+${sym}${thisMonth.income.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
+                      </Text>
+                      <Text style={styles.heroDeltaMeta}> this month</Text>
+                    </View>
+                    <View style={styles.heroDeltaItem}>
+                      <Feather name="arrow-up-right" size={13} color="#FECACA" />
+                      <Text style={[styles.heroDeltaText, { color: '#FECACA' }]}>
+                        {privateMode ? '••' : `−${sym}${thisMonth.expense.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
+                      </Text>
+                      <Text style={styles.heroDeltaMeta}> this month</Text>
+                    </View>
                   </View>
-                  <View style={styles.heroDeltaItem}>
-                    <Feather name="arrow-up-right" size={13} color="#DC2626" />
-                    <Text style={[styles.heroDeltaText, { color: '#DC2626' }]}>
-                      {privateMode ? '••' : `−${sym}${thisMonth.expense.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
-                    </Text>
-                    <Text style={styles.heroDeltaMeta}> this month</Text>
                   </View>
-                </View>
+                </TourStep>
+              </View>
+
+              {/* ─── Getting Started Checklist ─── */}
+              <View style={{ marginHorizontal: 20, marginBottom: 24 }}>
+                <GettingStartedChecklist />
               </View>
 
               {/* ─── 2. Quick Actions ─── */}
               <View style={styles.section}>
-                <View style={styles.quickActions}>
-                  {[
-                    { label: 'View All', icon: 'list', color: '#1D4ED8', bg: '#EFF6FF', action: () => navigation.navigate('Transactions') },
-                    { label: 'Cashbooks', icon: 'book-open', color: '#2563EB', bg: '#DBEAFE', action: () => navigation.navigate('Books') },
-                  ].map((q) => (
-                    <TouchableOpacity key={q.label} style={styles.quickAction} onPress={q.action} activeOpacity={0.8}>
-                      <View style={[styles.quickActionIcon, { backgroundColor: q.bg }]}>
-                        <Feather name={q.icon} size={22} color={q.color} />
-                      </View>
-                      <Text style={styles.quickActionLabel}>{q.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <TourStep id="quick_actions">
+                  <View style={styles.quickActions}>
+                    {[
+                      { label: 'View All', icon: 'list', color: '#2D8CFF', bg: '#EFF6FF', action: () => navigation.navigate('Transactions') },
+                      { label: 'Cashbooks', icon: 'book-open', color: '#2D8CFF', bg: '#DBEAFE', action: () => navigation.navigate('Books') },
+                    ].map((q) => (
+                      <TouchableOpacity key={q.label} style={styles.quickAction} onPress={q.action} activeOpacity={0.8}>
+                        <View style={[styles.quickActionIcon, { backgroundColor: q.bg }]}>
+                          <Feather name={q.icon} size={22} color={q.color} />
+                        </View>
+                        <Text style={styles.quickActionLabel}>{q.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </TourStep>
               </View>
 
               {/* ─── 3. Insights Row ─── */}
@@ -499,7 +576,7 @@ export default function HomeScreen() {
                       icon="pie-chart"
                       label="Budget Used"
                       value={budgetPct !== null ? `${budgetPct}%` : 'Set budget'}
-                      color="#1D4ED8"
+                      color="#2D8CFF"
                       onPress={() => setBudgetModalVisible(true)}
                     />
                   )}
@@ -565,7 +642,7 @@ export default function HomeScreen() {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <Text style={[styles.sectionLabel, { marginBottom: 0 }]}>Upcoming Bills</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('Subscriptions')}>
-                      <Text style={{ color: '#2563EB', fontSize: 13, fontWeight: '700' }}>Manage</Text>
+                      <Text style={{ color: '#2D8CFF', fontSize: 13, fontWeight: '700' }}>Manage</Text>
                     </TouchableOpacity>
                   </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
@@ -575,13 +652,13 @@ export default function HomeScreen() {
                           <View style={{ backgroundColor: '#FEF2F2', padding: 8, borderRadius: 10 }}>
                             <Feather name="calendar" size={18} color="#DC2626" />
                           </View>
-                          <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: '600' }}>{bill.frequency === 'monthly' ? 'Monthly' : 'Weekly'}</Text>
+                          <Text style={{ fontSize: 12, color: '#747487', fontWeight: '600' }}>{bill.frequency === 'monthly' ? 'Monthly' : 'Weekly'}</Text>
                         </View>
-                        <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 4 }}>{bill.merchant || 'Subscription'}</Text>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: '#232333', marginBottom: 4 }}>{bill.merchant || 'Subscription'}</Text>
                         <Text style={{ fontSize: 14, color: '#DC2626', fontWeight: '800', marginBottom: 12 }}>{sym}{bill.amount.toLocaleString('en-IN')}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Feather name="clock" size={12} color="#9CA3AF" />
-                          <Text style={{ fontSize: 12, color: '#6B7280' }}>Due {new Date(bill.nextDueDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</Text>
+                          <Text style={{ fontSize: 12, color: '#747487' }}>Due {new Date(bill.nextDueDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</Text>
                         </View>
                       </View>
                     ))}
@@ -720,15 +797,25 @@ export default function HomeScreen() {
         </ScrollView>
 
         {/* Floating Action Buttons */}
-        {active && active.memberRole !== 'VIEWER' && (
-          <BlurView intensity={60} tint="light" style={styles.fabContainer}>
-            <TouchableOpacity style={[styles.fabBtn, styles.fabOut]} onPress={() => { setSheetType('out'); quickEntryRef.current?.present(); }} activeOpacity={0.9}>
-              <Text style={styles.fabText}>- Expense</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.fabBtn, styles.fabIn]} onPress={() => { setSheetType('in'); quickEntryRef.current?.present(); }} activeOpacity={0.9}>
-              <Text style={styles.fabText}>+ Income</Text>
-            </TouchableOpacity>
-          </BlurView>
+        {(!active || active.memberRole !== 'VIEWER') && (
+          <View style={styles.fabContainer}>
+            <View style={{ flex: 1 }}>
+              <TourStep id="add_expense">
+                <TouchableOpacity style={[styles.fabBtn, styles.fabOut, { flex: undefined, width: '100%' }]} onPress={() => { setSheetType('out'); quickEntryRef.current?.present(); }} activeOpacity={0.9}>
+                  <Feather name="minus" size={18} color="#fff" style={{ marginRight: 6 }} />
+                  <Text style={styles.fabText} numberOfLines={1} adjustsFontSizeToFit>Expense</Text>
+                </TouchableOpacity>
+              </TourStep>
+            </View>
+            <View style={{ flex: 1 }}>
+              <TourStep id="add_income">
+                <TouchableOpacity style={[styles.fabBtn, styles.fabIn, { flex: undefined, width: '100%' }]} onPress={() => { setSheetType('in'); quickEntryRef.current?.present(); }} activeOpacity={0.9}>
+                  <Feather name="plus" size={18} color="#fff" style={{ marginRight: 6 }} />
+                  <Text style={styles.fabText} numberOfLines={1} adjustsFontSizeToFit>Income</Text>
+                </TouchableOpacity>
+              </TourStep>
+            </View>
+          </View>
         )}
 
         {/* Offscreen Invoice Ticket for sharing */}
@@ -809,6 +896,12 @@ export default function HomeScreen() {
 
         {/* Onboarding First Login Setup */}
         <BusinessCategorySetupModal />
+        
+        {/* Celebration Overlay for completing setup */}
+        <CelebrationOverlay visible={showCelebration} onClose={() => setShowCelebration(false)} />
+
+        {/* What's New Modal */}
+        <WhatsNewModal />
       </SafeAreaView>
     </SwipeTabsWrapper>
   );
@@ -823,11 +916,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,
   },
-  greeting: { fontSize: 22, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
-  headerSub: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  greeting: { fontSize: 22, fontWeight: '800', color: '#232333', letterSpacing: -0.5 },
+  headerSub: { fontSize: 13, color: '#747487', marginTop: 2 },
   privateBadge: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center',
   },
 
   // Empty
@@ -835,14 +928,14 @@ const styles = StyleSheet.create({
     margin: 20, borderRadius: 20, backgroundColor: '#fff', padding: 28,
     alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB',
   },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  emptyText: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 20 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#232333', marginBottom: 8 },
+  emptyText: { fontSize: 14, color: '#747487', textAlign: 'center', marginBottom: 20 },
   emptyInput: {
     width: '100%', borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12,
-    padding: 14, fontSize: 15, color: '#111827', marginBottom: 14,
+    padding: 14, fontSize: 15, color: '#232333', marginBottom: 14,
   },
   emptyBtn: {
-    width: '100%', backgroundColor: '#1D4ED8', borderRadius: 12,
+    width: '100%', backgroundColor: '#2D8CFF', borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',
   },
   emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
@@ -850,7 +943,7 @@ const styles = StyleSheet.create({
   // Hero Balance Card
   heroCard: {
     marginHorizontal: 20, marginBottom: 20, borderRadius: 20,
-    backgroundColor: '#1D4ED8', padding: 24,
+    backgroundColor: '#2D8CFF', padding: 24,
   },
   heroLabel: { fontSize: 12, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
   heroBalance: { fontSize: 40, fontWeight: '800', color: '#fff', letterSpacing: -1.5, marginBottom: 16 },
@@ -863,7 +956,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 20, marginBottom: 24 },
   sectionLabel: { fontSize: 12, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  viewAll: { fontSize: 13, color: '#1D4ED8', fontWeight: '600' },
+  viewAll: { fontSize: 13, color: '#2D8CFF', fontWeight: '600' },
 
   // Quick actions
   quickActions: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -893,15 +986,15 @@ const styles = StyleSheet.create({
   // AI Insights
   aiCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#EEF2FF', borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: '#C7D2FE',
+    backgroundColor: '#EFF6FF', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#BFDBFE',
   },
   aiCardLocked: { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' },
   aiCardLeft: { flex: 1 },
-  aiCardTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  aiCardText: { fontSize: 13, color: '#6B7280', lineHeight: 20 },
+  aiCardTitle: { fontSize: 15, fontWeight: '700', color: '#232333', marginBottom: 4 },
+  aiCardText: { fontSize: 13, color: '#747487', lineHeight: 20 },
   upgradeBtn: {
-    backgroundColor: '#1D4ED8', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: '#2D8CFF', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
     marginLeft: 12,
   },
   upgradeBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
@@ -916,9 +1009,9 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1, shadowRadius: 24, elevation: 20,
   },
-  tooltipTitle: { fontSize: 14, fontWeight: '700', color: '#6B7280', padding: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', marginBottom: 4 },
+  tooltipTitle: { fontSize: 14, fontWeight: '700', color: '#747487', padding: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', marginBottom: 4 },
   menuItem: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
-  menuText: { fontSize: 16, color: '#111827', fontWeight: '500' },
+  menuText: { fontSize: 16, color: '#232333', fontWeight: '500' },
 
   // Modals
   modalBackdrop: {
@@ -931,10 +1024,10 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15, shadowRadius: 24, elevation: 10,
   },
-  centerModalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16 },
+  centerModalTitle: { fontSize: 18, fontWeight: '700', color: '#232333', marginBottom: 16 },
   centerModalInput: {
     borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12,
-    padding: 14, fontSize: 16, color: '#111827', marginBottom: 16,
+    padding: 14, fontSize: 16, color: '#232333', marginBottom: 16,
   },
   centerModalCancel: {
     flex: 1, paddingVertical: 12, borderRadius: 10,
@@ -942,20 +1035,16 @@ const styles = StyleSheet.create({
   },
   centerModalSave: {
     flex: 1, paddingVertical: 12, borderRadius: 10,
-    backgroundColor: '#1D4ED8', alignItems: 'center',
+    backgroundColor: '#2D8CFF', alignItems: 'center',
   },
   
   // Floating Action Buttons
   fabContainer: {
     position: 'absolute',
-    bottom: 0, left: 0, right: 0,
+    bottom: 16, left: 20, right: 20,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 20,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    overflow: 'hidden',
+    gap: 16,
   },
   fabBtn: {
     flex: 1,
@@ -979,6 +1068,6 @@ const styles = StyleSheet.create({
   fabText: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 14,
   },
 });

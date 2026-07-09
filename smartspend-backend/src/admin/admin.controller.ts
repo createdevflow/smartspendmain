@@ -40,21 +40,80 @@ export class AdminController {
   ) { return this.adminService.getSoftDeletedUsers(search, Number(page) || 1, Number(limit) || 20); }
 
   @Get('users')
-  @ApiOperation({ summary: 'List all users with optional filters' })
+  @ApiOperation({ summary: 'List all users with advanced filters' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'role', required: false })
+  @ApiQuery({ name: 'planId', required: false })
+  @ApiQuery({ name: 'isEmailVerified', required: false, type: Boolean })
+  @ApiQuery({ name: 'dateRange', required: false, description: 'today, week, month, all' })
+  @ApiQuery({ name: 'activity', required: false, description: 'online, offline' })
+  @ApiQuery({ name: 'sortField', required: false })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getUsers(
     @Query('search') search?: string,
     @Query('status') status?: string,
     @Query('role') role?: string,
+    @Query('planId') planId?: string,
+    @Query('isEmailVerified') isEmailVerified?: boolean,
+    @Query('dateRange') dateRange?: string,
+    @Query('activity') activity?: string,
+    @Query('sortField') sortField?: string,
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
     @Query('page') page?: number,
     @Query('limit') limit?: number,
-  ) { return this.adminService.getUsers(search, status, role, Number(page) || 1, Number(limit) || 20); }
+  ) {
+    return this.adminService.getUsers({
+      search, status, role, planId, isEmailVerified, dateRange, activity,
+      sortField, sortOrder, page: Number(page) || 1, limit: Number(limit) || 20
+    });
+  }
 
+  @Get('users/:id/profile')
+  @ApiOperation({ summary: 'Get deep user profile data' })
+  getUserProfileFull(@Param('id') id: string) { return this.adminService.getUserProfileFull(id); }
 
+  @Get('users/:id/notes')
+  @ApiOperation({ summary: 'Get admin notes for user' })
+  getUserNotes(@Param('id') id: string) { return this.adminService.getUserNotes(id); }
+
+  @Post('users/:id/notes')
+  @ApiOperation({ summary: 'Add an admin note for user' })
+  addUserNote(@Param('id') id: string, @Body() body: { content: string }, @CurrentUser() admin: any) {
+    return this.adminService.addUserNote(id, admin.id, body.content);
+  }
+
+  @Post('users/bulk/plan')
+  @ApiOperation({ summary: 'Bulk assign plan to users' })
+  bulkAssignPlan(@Body() body: { userIds: string[], planId: string }) {
+    return this.adminService.bulkAssignPlan(body.userIds, body.planId);
+  }
+
+  @Post('users/bulk/role')
+  @ApiOperation({ summary: 'Bulk assign role to users' })
+  bulkAssignRole(@Body() body: { userIds: string[], role: any }) {
+    return this.adminService.bulkAssignRole(body.userIds, body.role);
+  }
+
+  @Post('users/bulk/status')
+  @ApiOperation({ summary: 'Bulk assign status to users' })
+  bulkAssignStatus(@Body() body: { userIds: string[], status: any }) {
+    return this.adminService.bulkAssignStatus(body.userIds, body.status);
+  }
+
+  @Post('users/bulk/delete')
+  @ApiOperation({ summary: 'Bulk soft-delete users' })
+  bulkDeleteUsers(@Body() body: { userIds: string[] }) {
+    return this.adminService.bulkDeleteUsers(body.userIds);
+  }
+
+  @Post('users/:id/logout-all')
+  @ApiOperation({ summary: 'Force logout all sessions for user' })
+  logoutAllDevices(@Param('id') id: string) {
+    return this.adminService.logoutAllDevices(id);
+  }
   @Get('users/:id')
   @ApiOperation({ summary: 'Get user detail' })
   getUserDetail(@Param('id') id: string) { return this.adminService.getUserDetail(id); }
@@ -187,6 +246,12 @@ export class AdminController {
   @ApiOperation({ summary: 'Duplicate an existing plan' })
   duplicatePlan(@Param('id') id: string) {
     return this.adminService.duplicatePlan(id);
+  }
+
+  @Patch('plans/reorder/sort')
+  @ApiOperation({ summary: 'Reorder subscription plans' })
+  reorderPlans(@Body() body: { orderedIds: string[] }) {
+    return this.adminService.reorderPlans(body.orderedIds);
   }
 
   @Post('plans/:id/assign')
@@ -338,5 +403,44 @@ export class AdminController {
   ) {
     return this.adminService.sendBroadcastMessage(user.sub, body.title, body.content);
   }
+
+  // ── Media Library Management ──────────────────────────────────────────────
+  @Get('media/assets')
+  @ApiOperation({ summary: 'List and filter global media assets' })
+  getMediaAssets(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('module') module?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('type') type?: string,
+  ) {
+    return this.adminService.getMediaAssets({ page, limit, module, status, search, type });
+  }
+
+  @Get('media/stats')
+  @ApiOperation({ summary: 'Get global storage analytics and KPIs' })
+  getMediaStats() {
+    return this.adminService.getMediaStats();
+  }
+
+  @Patch('media/assets/:id/status')
+  @ApiOperation({ summary: 'Update media asset status (e.g. restore/archive)' })
+  updateMediaAssetStatus(@Param('id') id: string, @Body('status') status: string) {
+    return this.adminService.updateMediaAssetStatus(id, status);
+  }
+
+  @Post('media/assets/bulk-delete')
+  @ApiOperation({ summary: 'Bulk delete media assets' })
+  bulkDeleteMediaAssets(@Body('ids') ids: string[]) {
+    return this.adminService.bulkDeleteMediaAssets(ids);
+  }
+
+  @Post('media/cleanup')
+  @ApiOperation({ summary: 'Manually trigger orphan cleanup and maintenance' })
+  runMediaCleanup() {
+    return this.adminService.runMediaCleanup();
+  }
 }
+
 

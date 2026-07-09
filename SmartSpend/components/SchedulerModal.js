@@ -80,7 +80,8 @@ export default function SchedulerModal({ visible, onClose, transaction, defaultT
           const list = payload?.items || payload || [];
           setFetchedConversations(Array.isArray(list) ? list : []);
         })
-        .catch(err => console.log('Failed to fetch conversations:', err));
+        .catch(() => {/* silently ignore if conversations unavailable */});
+
     }
   }, [visible]);
 

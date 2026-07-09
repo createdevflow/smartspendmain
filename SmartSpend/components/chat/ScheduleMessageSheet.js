@@ -325,7 +325,7 @@ const sq = StyleSheet.create({
   },
   quickIcon: {
     width: 42, height: 42, borderRadius: 12,
-    backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center',
   },
   quickLabel: { fontSize: 15, fontWeight: '700', color: '#111827' },
   quickSub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
@@ -342,7 +342,7 @@ const sq = StyleSheet.create({
 
   doneBtn: {
     alignSelf: 'flex-end', marginTop: 6,
-    backgroundColor: '#EEF2FF', borderRadius: 8,
+    backgroundColor: '#EFF6FF', borderRadius: 8,
     paddingHorizontal: 16, paddingVertical: 8,
   },
   doneBtnText: { color: '#1D4ED8', fontWeight: '700', fontSize: 14 },
@@ -359,7 +359,7 @@ const sq = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
     backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: '#E5E7EB',
   },
-  chipActive: { backgroundColor: '#EEF2FF', borderColor: '#1D4ED8' },
+  chipActive: { backgroundColor: '#EFF6FF', borderColor: '#1D4ED8' },
   chipText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
   chipTextActive: { color: '#1D4ED8' },
 

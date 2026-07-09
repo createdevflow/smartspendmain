@@ -95,7 +95,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
             </View>
 
             <TouchableOpacity style={styles.submitBtn} onPress={handleReset} disabled={loading}>
-              <LinearGradient colors={['#2563EB', '#1D4ED8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
+              <LinearGradient colors={['#2D8CFF', '#2D8CFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
                 {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Reset Password</Text>}
               </LinearGradient>
             </TouchableOpacity>

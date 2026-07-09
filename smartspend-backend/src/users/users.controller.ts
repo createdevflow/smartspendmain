@@ -2,6 +2,7 @@ import { Controller, Get, Patch, Post, Delete, Body, Param } from '@nestjs/commo
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { UpdateProfileDto, ChangePasswordDto, UpdatePushTokenDto, UploadAvatarDto, SyncContactsDto } from './dto/user.dto';
 
 @ApiTags('users')
 @ApiBearerAuth('JWT')
@@ -13,10 +14,10 @@ export class UsersController {
   profile(@CurrentUser() user: any) { return this.usersService.getProfile(user.sub); }
 
   @Patch('profile')
-  updateProfile(@CurrentUser() user: any, @Body() dto: any) { return this.usersService.updateProfile(user.sub, dto); }
+  updateProfile(@CurrentUser() user: any, @Body() dto: UpdateProfileDto) { return this.usersService.updateProfile(user.sub, dto); }
 
   @Post('change-password')
-  changePassword(@CurrentUser() user: any, @Body() dto: any) { return this.usersService.changePassword(user.sub, dto); }
+  changePassword(@CurrentUser() user: any, @Body() dto: ChangePasswordDto) { return this.usersService.changePassword(user.sub, dto); }
 
   @Delete('account')
   deleteAccount(@CurrentUser() user: any) { return this.usersService.deleteAccount(user.sub); }
@@ -31,17 +32,22 @@ export class UsersController {
   revokeAllSessions(@CurrentUser() user: any) { return this.usersService.revokeAllSessions(user.sub); }
 
   @Patch('push-token')
-  updatePushToken(@CurrentUser() user: any, @Body() body: { token: string }) {
-    return this.usersService.updatePushToken(user.sub, body.token);
+  updatePushToken(@CurrentUser() user: any, @Body() dto: UpdatePushTokenDto) {
+    return this.usersService.updatePushToken(user.sub, dto.token);
   }
 
   @Post('avatar')
-  uploadAvatar(@CurrentUser() user: any, @Body() body: { image: string }) {
-    return this.usersService.uploadAvatar(user.sub, body.image);
+  uploadAvatar(@CurrentUser() user: any, @Body() dto: UploadAvatarDto) {
+    return this.usersService.uploadAvatar(user.sub, dto.image);
   }
 
   @Post('contacts/sync')
-  syncContacts(@CurrentUser() user: any, @Body() body: { phoneNumbers: string[] }) {
-    return this.usersService.syncContacts(user.sub, body.phoneNumbers);
+  syncContacts(@CurrentUser() user: any, @Body() dto: SyncContactsDto) {
+    return this.usersService.syncContacts(user.sub, dto.phoneNumbers);
+  }
+
+  @Get('ai-credits')
+  getAiCredits(@CurrentUser() user: any) {
+    return this.usersService.getAiCredits(user.sub);
   }
 }

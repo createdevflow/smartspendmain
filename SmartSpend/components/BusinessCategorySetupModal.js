@@ -12,7 +12,7 @@ import { api } from '../utils/api';
 import { useTransactions } from '../context/TransactionsContext';
 
 const EMOJI_OPTIONS = ['📁', '🏷️', '💡', '🎯', '🔧', '📦', '🏢', '💼', '🧾', '🎪', '🌿', '⚙️'];
-const COLOR_OPTIONS = ['#2563EB', '#059669', '#DC2626', '#D97706', '#7C3AED', '#DB2777', '#0891B2', '#374151'];
+const COLOR_OPTIONS = ['#2563EB', '#059669', '#DC2626', '#D97706', '#F26D21', '#DB2777', '#0891B2', '#374151'];
 
 const BusinessCategorySetupModal = forwardRef(({ onClose, autoShow = true }, ref) => {
   const insets = useSafeAreaInsets();
@@ -55,10 +55,10 @@ const BusinessCategorySetupModal = forwardRef(({ onClose, autoShow = true }, ref
   const loadCategories = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/categories?type=expense');
+      const res = await api.get('/categories');
       const all = res.data?.data || res.data || [];
-      // Only show user-created custom categories (those with a userId)
-      const custom = all.filter(c => c.isCustom || c.userId);
+      // Only show user-created custom categories
+      const custom = all.filter(c => c.isCustom || c.userId || c.isSystem === false);
       setCategories(custom);
     } catch (e) {
       console.error('[Categories] Load failed:', e?.message);
@@ -113,7 +113,6 @@ const BusinessCategorySetupModal = forwardRef(({ onClose, autoShow = true }, ref
     if (autoShow) {
       const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
       await AsyncStorage.setItem('hasSeenBusinessSetup', 'true');
-      setInternalVisible(false);
     }
     onClose?.();
     bottomSheetRef.current?.dismiss();
@@ -254,7 +253,7 @@ const BusinessCategorySetupModal = forwardRef(({ onClose, autoShow = true }, ref
         {/* Category list */}
         {loading ? (
           <View style={s.center}>
-            <ActivityIndicator color="#4F46E5" />
+            <ActivityIndicator color="#2D8CFF" />
             <Text style={s.loadingText}>Loading your categories...</Text>
           </View>
         ) : (
@@ -270,14 +269,14 @@ const BusinessCategorySetupModal = forwardRef(({ onClose, autoShow = true }, ref
                 <Text style={s.listLabel}>Your Categories ({categories.length})</Text>
                 {categories.map(cat => (
                   <View key={cat.id} style={s.catRow}>
-                    <View style={[s.catEmoji, { backgroundColor: (cat.color || '#4F46E5') + '20' }]}>
+                    <View style={[s.catEmoji, { backgroundColor: (cat.color || '#2D8CFF') + '20' }]}>
                       <Text style={{ fontSize: 18 }}>{cat.emoji || '📁'}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.catName}>{cat.name}</Text>
                       <Text style={s.catType}>{cat.type}</Text>
                     </View>
-                    <View style={[s.catColorDot, { backgroundColor: cat.color || '#4F46E5' }]} />
+                    <View style={[s.catColorDot, { backgroundColor: cat.color || '#2D8CFF' }]} />
                     <TouchableOpacity onPress={() => handleRemove(cat)} style={s.removeBtn}>
                       <Feather name="trash-2" size={15} color="#EF4444" />
                     </TouchableOpacity>

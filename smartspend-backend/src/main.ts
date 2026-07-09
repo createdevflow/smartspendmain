@@ -1,18 +1,41 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
+import { ValidationPipe, VersioningType, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import * as compression from 'compression';
 import * as cookieParser from 'cookie-parser';
+import * as express from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
+import { WinstonModule } from 'nest-winston';
+import * as winston from 'winston';
+
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule, {
-    logger: ['error', 'warn', 'log'],
+    logger: WinstonModule.createLogger({
+      transports: [
+        new winston.transports.Console({
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.ms(),
+            winston.format.json(),
+          ),
+        }),
+      ],
+    }),
+    bodyParser: false,
   });
+
+  // Trust first proxy (Nginx) so throttler and auth see real client IPs
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 
   const config = app.get(ConfigService);
   const port = config.get<number>('PORT', 3000);
@@ -26,8 +49,18 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // ── CORS ────────────────────────────────────────────────────────
+  const isProduction = config.get('NODE_ENV') === 'production';
   app.enableCors({
-    origin: true, // Allow all origins
+    // In production restrict to configured origins; in dev/staging allow all
+    origin: isProduction
+      ? (origin, callback) => {
+          if (!origin || corsOrigins.length === 0 || corsOrigins.includes(origin)) {
+            callback(null, true);
+          } else {
+            callback(new Error(`CORS: Origin "${origin}" not allowed`));
+          }
+        }
+      : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -78,12 +111,16 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, document, {
       swaggerOptions: { persistAuthorization: true },
     });
-    console.log(`📖 Swagger docs: http://localhost:${port}/api/docs`);
+    logger.log(`📖 Swagger docs: http://localhost:${port}/api/docs`);
   }
 
+
   await app.listen(port, '0.0.0.0');
-  console.log(`🚀 SmartSpend API running on port ${port}`);
-  console.log(`   Environment: ${config.get('NODE_ENV')}`);
+  logger.log(`🚀 SmartSpend API running on port ${port}`);
+  logger.log(`   Environment: ${config.get('NODE_ENV')}`);
+  if (!isProduction) {
+    logger.log(`📖 Swagger docs: http://localhost:${port}/api/docs`);
+  }
 }
 
 bootstrap();

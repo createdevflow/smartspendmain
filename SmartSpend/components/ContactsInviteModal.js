@@ -228,7 +228,7 @@ export default function ContactsInviteModal({ visible, onClose, cashbook, fetchM
 
           {loading ? (
             <View style={styles.center}>
-              <ActivityIndicator size="large" color="#4F46E5" />
+              <ActivityIndicator size="large" color="#2D8CFF" />
               <Text style={styles.loadingText}>Syncing contacts...</Text>
             </View>
           ) : (
@@ -244,13 +244,13 @@ export default function ContactsInviteModal({ visible, onClose, cashbook, fetchM
                 globalResults.length > 0 || searchingGlobal ? (
                   <View style={{ marginBottom: 12 }}>
                     <Text style={styles.sectionHeader}>Cashtro Registered Users</Text>
-                    {searchingGlobal && <ActivityIndicator size="small" color="#4F46E5" style={{ marginVertical: 8 }} />}
+                    {searchingGlobal && <ActivityIndicator size="small" color="#2D8CFF" style={{ marginVertical: 8 }} />}
                     {globalResults.map(renderGlobalUser)}
                     {filteredContacts.length > 0 && <Text style={[styles.sectionHeader, { marginTop: 16 }]}>Phone Contacts</Text>}
                   </View>
                 ) : (searchingGlobal ? (
                   <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                    <ActivityIndicator size="small" color="#4F46E5" />
+                    <ActivityIndicator size="small" color="#2D8CFF" />
                     <Text style={styles.loadingText}>Searching Cashtro network...</Text>
                   </View>
                 ) : null)
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
     backgroundColor: '#E5E7EB',
   },
-  roleBtnActive: { backgroundColor: '#4F46E5' },
+  roleBtnActive: { backgroundColor: '#2D8CFF' },
   roleBtnText: { fontSize: 12, fontWeight: '700', color: '#4B5563' },
   roleBtnTextActive: { color: '#fff' },
 
@@ -329,13 +329,13 @@ const styles = StyleSheet.create({
     width: 42, height: 42, borderRadius: 21, backgroundColor: '#E0E7FF',
     alignItems: 'center', justifyContent: 'center',
   },
-  contactInitials: { fontSize: 15, fontWeight: '700', color: '#4F46E5' },
+  contactInitials: { fontSize: 15, fontWeight: '700', color: '#2D8CFF' },
   contactInfo: { flex: 1, marginLeft: 12 },
   contactName: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 2 },
   contactPhone: { fontSize: 13, color: '#6B7280' },
   
   addButton: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#4F46E5',
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#2D8CFF',
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 18, gap: 5,
   },
   addButtonText: { color: '#fff', fontSize: 12, fontWeight: '600' },

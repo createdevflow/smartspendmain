@@ -4,22 +4,26 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  FlatList, TextInput, ActivityIndicator, Image,
+  FlatList, TextInput, ActivityIndicator,
   Dimensions, Alert, Modal, Pressable,
   KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
+import OptimizedImage from '../components/OptimizedImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { useWealth } from '../context/WealthContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { TourStep, useTourGuide } from '../components/onboarding/TourGuide';
+import { useOnboarding } from '../context/OnboardingContext';
 import Svg, { Path, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
+import { useIsFocused } from '@react-navigation/native';
 
 const { width: W } = Dimensions.get('window');
-const BRAND_NAVY = '#1E3A8A';
-const BRAND_BLUE = '#2563EB';
+const BRAND_NAVY = '#232333';
+const BRAND_BLUE = '#2D8CFF';
 const FONT_REGULAR = Platform.OS === 'ios' ? 'System' : 'Roboto';
 
 // ── Tab definitions ─────────────────────────────────────────────
@@ -156,64 +160,66 @@ function OverviewTab() {
   const isLoading = loading.overview || loading.metals;
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
-      {/* Market Snapshot */}
-      <SectionHead title="Market Snapshot" subtitle="Live prices" />
-      {isLoading ? (
-        [1, 2, 3].map(i => <Skeleton key={i} h={64} radius={14} style={{ marginHorizontal: 20, marginBottom: 10 }} />)
-      ) : (
-        <>
-          {/* Indices row */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12, paddingBottom: 4 }}>
-            {indices.map((idx) => (
-              <View key={idx.symbol} style={styles.indexCard}>
-                <Text style={styles.indexName}>{idx.name}</Text>
-                <Text style={styles.indexPrice}>{idx.price?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
-                <ChangeBadge value={idx.changePercent} />
+    <TourStep id="wealth_overview" style={{ flex: 1 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+        {/* Market Snapshot */}
+        <SectionHead title="Market Snapshot" subtitle="Live prices" />
+        {isLoading ? (
+          [1, 2, 3].map(i => <Skeleton key={i} h={64} radius={14} style={{ marginHorizontal: 20, marginBottom: 10 }} />)
+        ) : (
+          <>
+            {/* Indices row */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12, paddingBottom: 4 }}>
+              {indices.map((idx) => (
+                <View key={idx.symbol} style={styles.indexCard}>
+                  <Text style={styles.indexName}>{idx.name}</Text>
+                  <Text style={styles.indexPrice}>{idx.price?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
+                  <ChangeBadge value={idx.changePercent} />
+                </View>
+              ))}
+            </ScrollView>
+
+            {/* Metal summary */}
+            {metals && (
+              <View style={styles.card}>
+                <View style={styles.row}>
+                  <View style={styles.flexRow}>
+                    <Text style={styles.assetEmoji}>🏅</Text>
+                    <View>
+                      <Text style={styles.assetName}>Gold (24K)</Text>
+                      <Text style={styles.assetSub}>per gram</Text>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.assetPrice}>₹{metals.gold24k?.priceInrPerGram?.toFixed(2) ?? '—'}</Text>
+                    <ChangeBadge value={metals.gold24k?.change24h} />
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Top 3 cryptos */}
+            {cryptos.slice(0, 3).map((coin) => (
+              <View key={coin.id} style={styles.card}>
+                <View style={styles.row}>
+                  <View style={styles.flexRow}>
+                    <Text style={styles.assetEmoji}>{coin.symbol === 'btc' ? '₿' : coin.symbol === 'eth' ? '◎' : '●'}</Text>
+                    <View>
+                      <Text style={styles.assetName}>{coin.name}</Text>
+                      <Text style={styles.assetSub}>{coin.symbol?.toUpperCase()}</Text>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.assetPrice}>${coin.current_price?.toLocaleString('en-US')}</Text>
+                    <ChangeBadge value={coin.price_change_percentage_24h} />
+                  </View>
+                </View>
               </View>
             ))}
-          </ScrollView>
-
-          {/* Metal summary */}
-          {metals && (
-            <View style={styles.card}>
-              <View style={styles.row}>
-                <View style={styles.flexRow}>
-                  <Text style={styles.assetEmoji}>🏅</Text>
-                  <View>
-                    <Text style={styles.assetName}>Gold (24K)</Text>
-                    <Text style={styles.assetSub}>per gram</Text>
-                  </View>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.assetPrice}>₹{metals.gold24k?.priceInrPerGram?.toFixed(2) ?? '—'}</Text>
-                  <ChangeBadge value={metals.gold24k?.change24h} />
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* Top 3 cryptos */}
-          {cryptos.slice(0, 3).map((coin) => (
-            <View key={coin.id} style={styles.card}>
-              <View style={styles.row}>
-                <View style={styles.flexRow}>
-                  <Text style={styles.assetEmoji}>{coin.symbol === 'btc' ? '₿' : coin.symbol === 'eth' ? '◎' : '●'}</Text>
-                  <View>
-                    <Text style={styles.assetName}>{coin.name}</Text>
-                    <Text style={styles.assetSub}>{coin.symbol?.toUpperCase()}</Text>
-                  </View>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.assetPrice}>${coin.current_price?.toLocaleString('en-US')}</Text>
-                  <ChangeBadge value={coin.price_change_percentage_24h} />
-                </View>
-              </View>
-            </View>
-          ))}
-        </>
-      )}
-    </ScrollView>
+          </>
+        )}
+      </ScrollView>
+    </TourStep>
   );
 }
 
@@ -225,7 +231,7 @@ function GoldTab() {
     { label: '24K Gold',  key: 'gold24k',   emoji: '🥇', color: '#F59E0B' },
     { label: '22K Gold',  key: 'gold22k',   emoji: '🏅', color: '#D97706' },
     { label: 'Silver',    key: 'silver',    emoji: '🥈', color: '#6B7280' },
-    { label: 'Platinum',  key: 'platinum',  emoji: '💎', color: '#8B5CF6' },
+    { label: 'Platinum',  key: 'platinum',  emoji: '💎', color: '#2D8CFF' },
   ] : [];
 
   return (
@@ -865,10 +871,10 @@ function NewsTab() {
 
   const CARD_W = (W - 52) / 2; // 2 cols, 20px side pad, 12px gap
   const CAT_COLORS = {
-    all:     ['#1E3A8A', '#2563EB'],
+    all:     ['#232333', '#2D8CFF'],
     stocks:  ['#065F46', '#059669'],
     economy: ['#92400E', '#D97706'],
-    crypto:  ['#4C1D95', '#7C3AED'],
+    crypto:  ['#7C2D12', '#F26D21'],
   };
   const CAT_EMOJI = { all: '📰', stocks: '📈', economy: '🏛️', crypto: '₿' };
 
@@ -951,14 +957,21 @@ function NewsTab() {
                 {/* Image container */}
                 <View style={{ width: CARD_W, height: 160, backgroundColor: '#E2E8F0', overflow: 'hidden' }}>
                   {item.imageUrl ? (
-                    <Image
+                    <OptimizedImage
                       source={{ uri: item.imageUrl }}
                       style={{ width: '100%', height: '100%', position: 'absolute' }}
-                      resizeMode="cover"
+                      contentFit="cover"
+                      size="medium"
                     />
                   ) : (
                     <View style={{ width: '100%', height: '100%', backgroundColor: colors[0], alignItems: 'center', justifyContent: 'center', position: 'absolute' }}>
-                      <Text style={{ fontSize: 34 }}>{emoji}</Text>
+                      <Text style={{ fontSize: 34 }}>{item.isCashtroBlog ? '✨' : emoji}</Text>
+                    </View>
+                  )}
+
+                  {item.isCashtroBlog && (
+                    <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: BRAND_BLUE, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, zIndex: 11, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 3 }}>
+                      <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>✨ CASHTRO EDITORIAL</Text>
                     </View>
                   )}
 
@@ -992,8 +1005,8 @@ function NewsTab() {
                 {/* Source + date */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, backgroundColor: '#fff' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 }}>
-                    <Text style={{ fontSize: 10 }}>📰</Text>
-                    <Text style={[styles.newsSourceSmall, { flexShrink: 1 }]} numberOfLines={1}>{item.source || 'News'}</Text>
+                    <Text style={{ fontSize: 10 }}>{item.isCashtroBlog ? '✨' : '📰'}</Text>
+                    <Text style={[styles.newsSourceSmall, { flexShrink: 1, color: item.isCashtroBlog ? BRAND_BLUE : '#64748B', fontWeight: item.isCashtroBlog ? '700' : '500' }]} numberOfLines={1}>{item.source || 'News'}</Text>
                   </View>
                   {item.publishedAt && (
                     <Text style={styles.newsDateSmall}>
@@ -1017,7 +1030,7 @@ function InsightsTab() {
   const TYPE_STYLES = {
     bullish: { bg: '#F0FDF4', border: '#BBF7D0', text: '#166534' },
     bearish: { bg: '#FEF2F2', border: '#FECACA', text: '#991B1B' },
-    info:    { bg: '#EFF6FF', border: '#BFDBFE', text: '#1E3A8A' },
+    info:    { bg: '#EFF6FF', border: '#BFDBFE', text: '#232333' },
     risk:    { bg: '#FFFBEB', border: '#FDE68A', text: '#92400E' },
   };
 
@@ -1075,12 +1088,12 @@ function CalcTab() {
     const P = parseFloat(sipForm.monthly || 0);
     const R = parseFloat(sipForm.rate || 0);
     const Y = parseFloat(sipForm.years || 0);
-    if (P > 0 && R > 0 && Y > 0) {
+    if (P > 0 && R >= 0 && Y > 0) {
       const i = R / 100 / 12;
       const n = Y * 12;
-      const futureValue = P * (((Math.pow(1 + i, n) - 1) / i) * (1 + i));
+      const futureValue = i === 0 ? P * n : P * (((Math.pow(1 + i, n) - 1) / i) * (1 + i));
       const invested = P * n;
-      setSipResult({ futureValue, invested, returns: futureValue - invested });
+      setSipResult({ futureValue: Math.round(futureValue), invested: Math.round(invested), returns: Math.round(futureValue - invested) });
     } else {
       setSipResult(null);
     }
@@ -1090,11 +1103,11 @@ function CalcTab() {
     const P = parseFloat(emiForm.principal || 0);
     const R = parseFloat(emiForm.rate || 0);
     const N = parseFloat(emiForm.months || 0);
-    if (P > 0 && R > 0 && N > 0) {
+    if (P > 0 && R >= 0 && N > 0) {
       const r = R / 100 / 12;
-      const emi = P * r * (Math.pow(1 + r, N) / (Math.pow(1 + r, N) - 1));
+      const emi = r === 0 ? (P / N) : P * r * (Math.pow(1 + r, N) / (Math.pow(1 + r, N) - 1));
       const totalPayment = emi * N;
-      setEmiResult({ emi, totalPayment, interest: totalPayment - P });
+      setEmiResult({ emi: Math.round(emi), totalPayment: Math.round(totalPayment), interest: Math.round(totalPayment - P) });
     } else {
       setEmiResult(null);
     }
@@ -1104,10 +1117,10 @@ function CalcTab() {
     const P = parseFloat(compForm.principal || 0);
     const R = parseFloat(compForm.rate || 0);
     const Y = parseFloat(compForm.years || 0);
-    if (P > 0 && R > 0 && Y > 0) {
+    if (P > 0 && R >= 0 && Y > 0) {
       const r = R / 100;
       const maturityAmount = P * Math.pow(1 + r, Y);
-      setCompResult({ maturityAmount, invested: P, returns: maturityAmount - P });
+      setCompResult({ maturityAmount: Math.round(maturityAmount), invested: P, returns: Math.round(maturityAmount - P) });
     } else {
       setCompResult(null);
     }
@@ -1193,6 +1206,21 @@ export default function WealthHubScreen() {
   const [activeTab, setActiveTab] = useState('overview');
   const { initWealth, stopPolling, watchlists, addToWatchlist } = useWealth();
 
+  // Tour hooks
+  const { startTour, activeTour, endTour } = useTourGuide();
+  const isFocused = useIsFocused();
+  const { shouldShowTour, markTourSeen } = useOnboarding();
+  useEffect(() => {
+    if (isFocused && shouldShowTour('wealth_tour')) {
+      const t = setTimeout(() => { startTour('wealth_tour'); markTourSeen('wealth_tour'); }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [isFocused, shouldShowTour, startTour, markTourSeen]);
+
+  useEffect(() => {
+    if (!isFocused && activeTour === 'wealth_tour') endTour();
+  }, [isFocused, activeTour, endTour]);
+
   if (!hasAccess('feature_wealth_hub') && getFeatureTease('feature_wealth_hub')) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
@@ -1204,7 +1232,7 @@ export default function WealthHubScreen() {
           Track your live stock portfolio, mutual funds, gold prices, crypto market trends, and get AI-driven investment insights with Cashtro Pro!
         </Text>
         <TouchableOpacity 
-          style={{ backgroundColor: '#2563EB', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 14, elevation: 3, shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
+          style={{ backgroundColor: '#2D8CFF', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 14, elevation: 3, shadowColor: '#2D8CFF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
           onPress={() => Alert.alert('Upgrade to Pro', 'Unlock the complete Wealth Hub module by upgrading your account!')}
         >
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Upgrade to Pro</Text>
@@ -1269,6 +1297,7 @@ export default function WealthHubScreen() {
       </LinearGradient>
 
       {/* Tab bar */}
+      <TourStep id="wealth_tabs">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -1289,6 +1318,7 @@ export default function WealthHubScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+      </TourStep>
 
       {/* Active tab content */}
       <KeyboardAvoidingView 
@@ -1530,7 +1560,7 @@ const styles = StyleSheet.create({
   karatBtnActive: { backgroundColor: BRAND_BLUE },
   karatBtnText: { fontSize: 13, fontWeight: '700', color: '#64748B', fontFamily: FONT_REGULAR },
   calcResult: { backgroundColor: '#EFF6FF', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 4 },
-  calcResultLabel: { fontSize: 11, fontWeight: '700', color: '#2563EB', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4, fontFamily: FONT_REGULAR },
+  calcResultLabel: { fontSize: 11, fontWeight: '700', color: '#2D8CFF', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4, fontFamily: FONT_REGULAR },
   calcResultValue: { fontSize: 28, fontWeight: '800', color: BRAND_NAVY, marginBottom: 4, fontFamily: FONT_REGULAR },
   calcResultSub: { fontSize: 11, color: '#64748B', textAlign: 'center', fontFamily: FONT_REGULAR },
 

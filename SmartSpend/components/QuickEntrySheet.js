@@ -10,10 +10,11 @@ import { useBooks } from '../context/BooksContext';
 import { getCurrencySymbol } from '../utils/planFeatures';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { useTransactions } from '../context/TransactionsContext';
 import { useAuth } from '../context/AuthContext';
-import * as FileSystem from 'expo-file-system';
-import api from '../utils/api';
+import * as FileSystem from 'expo-file-system/legacy';
+import { api } from '../utils/api';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView, BottomSheetTextInput, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,7 +25,7 @@ const { height: SCREEN_H } = Dimensions.get('window');
 const INCOME_CATS = [
   { label: 'Salary',      emoji: '💼', color: '#16A34A', bg: '#DCFCE7' },
   { label: 'Bonus',       emoji: '🏆', color: '#CA8A04', bg: '#FEF9C3' },
-  { label: 'Gift',        emoji: '🎁', color: '#7C3AED', bg: '#F3E8FF' },
+  { label: 'Gift',        emoji: '🎁', color: '#F26D21', bg: '#FFF7ED' },
   { label: 'Refund',      emoji: '↩️', color: '#2563EB', bg: '#DBEAFE' },
   { label: 'Investment',  emoji: '📈', color: '#0F766E', bg: '#CCFBF1' },
   { label: 'Freelance',   emoji: '💻', color: '#0369A1', bg: '#E0F2FE' },
@@ -37,7 +38,7 @@ const EXPENSE_CATS = [
   { label: 'Shopping',    emoji: '🛍️', color: '#A21CAF', bg: '#FAE8FF' },
   { label: 'Bills',       emoji: '⚡', color: '#DC2626', bg: '#FEE2E2' },
   { label: 'Health',      emoji: '💊', color: '#BE123C', bg: '#FFE4E6' },
-  { label: 'Rent',        emoji: '🏠', color: '#4F46E5', bg: '#E0E7FF' },
+  { label: 'Rent',        emoji: '🏠', color: '#2D8CFF', bg: '#E0E7FF' },
   { label: 'Groceries',   emoji: '🛒', color: '#15803D', bg: '#DCFCE7' },
   { label: 'Dining',      emoji: '🍽️', color: '#DB2777', bg: '#FCE7F3' },
   { label: 'Entertainment',emoji: '🎬', color: '#B45309', bg: '#FEF3C7' },
@@ -61,7 +62,7 @@ const QuickEntrySheet = forwardRef(({
   defaultType = 'out',
 }, ref) => {
   const { activeBook } = useBooks();
-  const { gstEnabled, useCustomCategories, customCategories } = useTransactions();
+  const { gstEnabled, useCustomCategories, customCategories, refreshCategories } = useTransactions();
   const currencySymbol = getCurrencySymbol(activeBook ? activeBook.currency : null);
   const { hasAccess: isFeatureEnabled, getFeatureTease } = useFeatureAccess();
 
@@ -121,7 +122,9 @@ const QuickEntrySheet = forwardRef(({
   }, [editData, defaultType]);
 
   const handleSheetChanges = useCallback((index) => {
-    if (index === -1) {
+    if (index >= 0) {
+      refreshCategories?.();
+    } else if (index === -1) {
       if (!editData) {
         setAmount('');
         setSelectedCat(null);
@@ -130,10 +133,10 @@ const QuickEntrySheet = forwardRef(({
       }
       onClose();
     }
-  }, [onClose, editData]);
+  }, [onClose, editData, refreshCategories]);
 
   const defaultCats = entryType === 'in' ? INCOME_CATS : EXPENSE_CATS;
-  const userCats = entryType === 'in' ? customCategories.in : customCategories.out;
+  const userCats = entryType === 'in' ? customCategories?.in || [] : customCategories?.out || [];
   const cats = useCustomCategories && userCats.length > 0 ? userCats : defaultCats;
   
   const canSave = parseFloat(amount || '0') > 0 && selectedCat;
@@ -168,33 +171,71 @@ const QuickEntrySheet = forwardRef(({
     }
   };
 
-  const handleScanReceipt = async () => {
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      quality: 0.5, // lower quality for OCR
-    });
-    if (!result.canceled) {
-      setIsScanning(true);
-      try {
-        const asset = result.assets[0];
-        setReceiptImage(asset);
-        // Convert to base64
-        const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
-        
-        const res = await api.post('/transactions/scan-receipt', { imageBase64: base64 });
-        const { parsedData } = res.data.data;
-        
-        if (parsedData.amount) setAmount(String(parsedData.amount));
-        if (parsedData.merchant) setNote(parsedData.merchant + (parsedData.notes ? ' - ' + parsedData.notes : ''));
-        if (parsedData.warrantyUntil) setWarrantyUntil(parsedData.warrantyUntil);
-        setEntryType('out');
-      } catch (err) {
-        alert('Failed to scan receipt. Ensure OCR is enabled in Admin settings.');
-      } finally {
-        setIsScanning(false);
-      }
+  const processScanData = async (uri, mimeType) => {
+    setIsScanning(true);
+    try {
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+      
+      const res = await api.post('/transactions/scan-receipt', { imageBase64: base64, mimeType });
+      const parsedData = res.data?.parsedData || res.data?.data?.parsedData;
+      
+      if (parsedData?.amount) setAmount(String(parsedData.amount));
+      if (parsedData?.merchant) setNote(parsedData.merchant + (parsedData.notes ? ' - ' + parsedData.notes : ''));
+      if (parsedData?.warrantyUntil) setWarrantyUntil(parsedData.warrantyUntil);
+      setEntryType('out');
+    } catch (err) {
+      const backendMsg = err.response?.data?.message || err.message;
+      alert(`Failed to scan: ${backendMsg}`);
+    } finally {
+      setIsScanning(false);
     }
+  };
+
+  const handleScanReceipt = () => {
+    Alert.alert(
+      "AI Scan",
+      "Choose a source to scan your receipt or invoice:",
+      [
+        {
+          text: "Take Photo",
+          onPress: async () => {
+            const result = await ImagePicker.launchCameraAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              quality: 0.5,
+            });
+            if (!result.canceled) {
+              const asset = result.assets[0];
+              setReceiptImage(asset);
+              await processScanData(asset.uri, asset.mimeType || 'image/jpeg');
+            }
+          }
+        },
+        {
+          text: "Upload Document / Photo",
+          onPress: async () => {
+            const result = await DocumentPicker.getDocumentAsync({
+              type: ['image/*', 'application/pdf'],
+              copyToCacheDirectory: true,
+            });
+            if (!result.canceled) {
+              const asset = result.assets[0];
+              // For UI preview, we only set receiptImage if it's an image.
+              if (asset.mimeType?.startsWith('image/')) {
+                setReceiptImage(asset);
+              } else {
+                setReceiptImage(null); // Clear preview for PDF
+              }
+              await processScanData(asset.uri, asset.mimeType || 'application/pdf');
+            }
+          }
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
   };
 
   return (
@@ -240,18 +281,24 @@ const QuickEntrySheet = forwardRef(({
               <Text style={[s.currencyGlyph, entryType === 'in' ? s.colorIn : s.colorOut]}>
                 {currencySymbol}
               </Text>
-              <TextInput
-                ref={amountRef}
-                style={[s.amountInput, entryType === 'in' ? s.colorIn : s.colorOut]}
-                value={amount}
-                onChangeText={(v) => {
-                  if (/^\d*\.?\d{0,2}$/.test(v)) setAmount(v);
-                }}
-                keyboardType="numeric"
-                placeholder="0"
-                placeholderTextColor="#D1D5DB"
-                maxLength={12}
-              />
+              <View style={s.amountInputWrapper}>
+                {amount === '' && (
+                  <Text style={[s.amountGhost, entryType === 'in' ? s.colorIn : s.colorOut]} pointerEvents="none">
+                    0
+                  </Text>
+                )}
+                <TextInput
+                  ref={amountRef}
+                  style={[s.amountInput, entryType === 'in' ? s.colorIn : s.colorOut, amount === '' && s.amountInputEmpty]}
+                  value={amount}
+                  onChangeText={(v) => {
+                    if (/^\d*\.?\d{0,2}$/.test(v)) setAmount(v);
+                  }}
+                  keyboardType="numeric"
+                  maxLength={12}
+                  caretHidden={false}
+                />
+              </View>
             </View>
             <Text style={s.bookLabel}>
               {activeBook?.name || 'Personal'}
@@ -437,6 +484,12 @@ const QuickEntrySheet = forwardRef(({
               ) : null}
             </View>
             
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
+                Use <Text style={{ fontWeight: '600' }}>Gallery</Text> to manually attach an image. Use <Text style={{ fontWeight: '600', color: '#1D4ED8' }}>AI Scan</Text> to auto-fill details from a receipt or invoice.
+              </Text>
+            </View>
+            
             {warrantyUntil && (
               <View style={{ backgroundColor: '#FEF3C7', padding: 10, borderRadius: 8, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Feather name="shield" size={16} color="#B45309" />
@@ -534,9 +587,24 @@ const s = StyleSheet.create({
     marginVertical: 20,
   },
   currencyGlyph: { fontSize: 36, fontWeight: '700', marginTop: 6 },
+  amountInputWrapper: {
+    position: 'relative',
+    minWidth: 80,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  amountGhost: {
+    position: 'absolute',
+    fontSize: 64, fontWeight: '800', letterSpacing: -2,
+    opacity: 0.22,
+    left: 0,
+  },
   amountInput: {
     fontSize: 64, fontWeight: '800', letterSpacing: -2,
-    minWidth: 120, textAlign: 'center', color: '#111827',
+    minWidth: 80, textAlign: 'left', color: '#111827',
+  },
+  amountInputEmpty: {
+    minWidth: 10,
   },
   colorIn: { color: '#16A34A' },
   colorOut: { color: '#DC2626' },

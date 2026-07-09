@@ -12,7 +12,7 @@ import { useChat } from '../context/ChatContext';
 
 function Avatar({ name, size = 44 }) {
   const initial = (name || '?').charAt(0).toUpperCase();
-  const colors = ['#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+  const colors = ['#2D8CFF', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#F26D21'];
   const color = colors[initial.charCodeAt(0) % colors.length];
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: color }]}>
@@ -105,7 +105,7 @@ export default function ContactRequestsScreen() {
 
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator color="#1D4ED8" />
+          <ActivityIndicator color="#2D8CFF" />
         </View>
       ) : tab === 'requests' ? (
         <FlatList
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   tabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.06, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
   tabText: { fontSize: 14, fontWeight: '600', color: '#9CA3AF' },
-  tabTextActive: { color: '#1D4ED8', fontWeight: '700' },
+  tabTextActive: { color: '#2D8CFF', fontWeight: '700' },
 
   reqItem: {
     flexDirection: 'row', alignItems: 'center',
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
 
   acceptBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#1D4ED8', borderRadius: 10,
+    backgroundColor: '#2D8CFF', borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 7,
   },
   acceptText: { color: '#fff', fontWeight: '700', fontSize: 13 },

@@ -1,23 +1,34 @@
-// screens/BooksScreen.js — Premium redesign: hero card + horizontal carousel
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+// screens/BooksScreen.js — Fully colored cards, enhanced side peeks, stacked badges below title
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   FlatList, TextInput, Modal, Alert, Dimensions, Platform,
-  KeyboardAvoidingView, Pressable, ActivityIndicator, Share, RefreshControl
+  KeyboardAvoidingView, Pressable, ActivityIndicator, Share, RefreshControl, Animated
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { useBooks } from '../context/BooksContext';
 import { useTransactions } from '../context/TransactionsContext';
 import { getCurrencySymbol } from '../utils/planFeatures';
 import { api } from '../utils/api';
 import ContactsInviteModal from '../components/ContactsInviteModal';
+import QuickEntrySheet from '../components/QuickEntrySheet';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView, BottomSheetTextInput, BottomSheetView } from '@gorhom/bottom-sheet';
+import { TourStep, useTourGuide } from '../components/onboarding/TourGuide';
+import { useOnboarding } from '../context/OnboardingContext';
+import { useIsFocused } from '@react-navigation/native';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+// 68% card width ensures significant peeking (~50px) on both left and right sides
+const CARD_WIDTH = Math.round(SCREEN_W * 0.72);
+const SPACING = 14;
+const SNAP_INTERVAL = CARD_WIDTH + SPACING;
+// Center the active card: half of the remaining screen width on each side
+const SIDE_PADDING = Math.round((SCREEN_W - CARD_WIDTH) / 2);
 
-const BOOK_COLORS = ['#1D4ED8', '#0EA5E9', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6', '#EF4444'];
+const BOOK_COLORS = ['#2D8CFF', '#0EA5E9', '#10B981', '#F59E0B', '#EC4899', '#F26D21', '#EF4444'];
 
 function formatDate(iso) {
   if (!iso) return '';
@@ -26,104 +37,284 @@ function formatDate(iso) {
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-// ─── Book Card ───────────────────────────────────────────────────────────────
-function BookCard({ book, bal, isActive, onPress, onDelete, onMembers, privateMode, sym, showShared }) {
+// Generate dual-series SVG graph data
+function generateGraphData(bookTxs) {
+  if (!bookTxs || bookTxs.length === 0) {
+    return {
+      inPath: "M 0 45 L 300 45",
+      outPath: "M 0 45 L 300 45",
+      inPoints: [],
+      outPoints: [],
+    };
+  }
+
+  const sorted = [...bookTxs].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-12);
+  const n = sorted.length;
+  const width = 300;
+  const baseLine = 46;
+
+  if (n === 1) {
+    const t = sorted[0];
+    const isIncome = t.type === 'INCOME' || t.type === 'in';
+    const val = Number(t.amount) || 0;
+    const h = Math.min(36, Math.max(8, (val / 1000) * 30));
+    return {
+      inPath: isIncome ? `M 0 ${baseLine} L 150 ${baseLine - h} L 300 ${baseLine}` : `M 0 ${baseLine} L 300 ${baseLine}`,
+      outPath: !isIncome ? `M 0 ${baseLine} L 150 ${baseLine - h} L 300 ${baseLine}` : `M 0 ${baseLine} L 300 ${baseLine}`,
+      inPoints: isIncome ? [{ x: 150, y: baseLine - h }] : [],
+      outPoints: !isIncome ? [{ x: 150, y: baseLine - h }] : [],
+    };
+  }
+
+  let maxVal = 1;
+  sorted.forEach(t => {
+    const val = Number(t.amount) || 0;
+    if (val > maxVal) maxVal = val;
+  });
+
+  let inPts = [];
+  let outPts = [];
+
+  sorted.forEach((t, i) => {
+    const x = Math.round((i / (n - 1)) * width);
+    const val = Number(t.amount) || 0;
+    const y = baseLine - Math.round((val / maxVal) * 38);
+    const isIncome = t.type === 'INCOME' || t.type === 'in';
+
+    if (isIncome) {
+      inPts.push({ x, y });
+      outPts.push({ x, y: baseLine });
+    } else {
+      outPts.push({ x, y });
+      inPts.push({ x, y: baseLine });
+    }
+  });
+
+  const toSmoothPath = (pts) => {
+    if (pts.length === 0) return `M 0 ${baseLine} L ${width} ${baseLine}`;
+    if (pts.length === 1) return `M 0 ${baseLine} L ${pts[0].x} ${pts[0].y} L ${width} ${baseLine}`;
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const curr = pts[i];
+      const next = pts[i + 1];
+      const c1x = curr.x + (next.x - curr.x) / 2;
+      const c2x = curr.x + (next.x - curr.x) / 2;
+      d += ` C ${c1x} ${curr.y}, ${c2x} ${next.y}, ${next.x} ${next.y}`;
+    }
+    return d;
+  };
+
+  return {
+    inPath: toSmoothPath(inPts),
+    outPath: toSmoothPath(outPts),
+    inPoints: inPts.filter(p => p.y < baseLine - 2),
+    outPoints: outPts.filter(p => p.y < baseLine - 2),
+  };
+}
+
+// ─── Book Card (Entire card colored, high contrast white elements) ──────────
+function BookCard({ book, bal, bookTxs, isActive, onPress, onDelete, onMembers, onEdit, privateMode, sym, showShared, isFirst }) {
+  const totalFlow = (bal.inTotal || 0) + (bal.outTotal || 0) || 1;
+  const inRatio = Math.min(100, Math.max(8, ((bal.inTotal || 0) / totalFlow) * 100));
+  const outRatio = Math.min(100, Math.max(8, ((bal.outTotal || 0) / totalFlow) * 100));
+
+  const graphData = useMemo(() => generateGraphData(bookTxs), [bookTxs]);
+  const cardBgColor = book.color || '#2D8CFF';
+
   return (
+    <TourStep id={isFirst ? "book_card" : undefined}>
     <TouchableOpacity
-      style={[styles.bookCard, isActive && styles.bookCardActive, { borderTopColor: book.color || '#1D4ED8' }]}
+      style={[
+        styles.bookCard,
+        { backgroundColor: cardBgColor },
+        isActive ? styles.bookCardActive : styles.bookCardInactive
+      ]}
       onPress={onPress}
-      activeOpacity={0.8}
+      activeOpacity={0.95}
     >
+      {/* Top Header Section */}
       <View style={styles.cardHeader}>
-        <View style={{ flex: 1 }}>
-          <View style={styles.cardTitleRow}>
-            <View style={[styles.cardColorDot, { backgroundColor: book.color || '#1D4ED8' }]} />
-            <Text style={styles.cardName}>{book.name}</Text>
+        <View style={{ flex: 1, marginRight: 10 }}>
+          {/* Cashbook Name */}
+          <Text style={styles.cardName} numberOfLines={1}>{book.name}</Text>
+          
+          {/* Small Badges below Title */}
+          <View style={styles.badgesRow}>
+            {isActive && (
+              <View style={styles.activeBadge}>
+                <View style={styles.activeDot} />
+                <Text style={styles.activeBadgeText}>Active</Text>
+              </View>
+            )}
             {showShared && book.isShared && (
-              <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, marginLeft: 8 }}>
-                <Text style={{ fontSize: 10, color: '#4F46E5', fontWeight: '700' }}>SHARED</Text>
+              <View style={styles.sharedBadge}>
+                <Text style={styles.sharedBadgeText}>SHARED</Text>
               </View>
             )}
           </View>
-          {book.description ? (
-            <Text style={styles.cardDesc}>{book.description}</Text>
-          ) : (
-            <Text style={styles.cardDescMuted}>Created {formatDate(book.createdAt)}</Text>
-          )}
         </View>
-        {isActive && (
-          <View style={styles.activeBadge}>
-            <View style={styles.activeDot} />
-            <Text style={styles.activeBadgeText}>Active</Text>
-          </View>
-        )}
-      </View>
 
-      <View style={styles.cardBalanceRow}>
-        <View>
-          <Text style={styles.cardBalLabel}>Available balance</Text>
-          <Text style={styles.cardBalance}>
-            {privateMode ? '••••' : `${sym}${Math.abs(bal.balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {showShared && (
-            <TouchableOpacity style={styles.memberBtn} onPress={onMembers}>
-              <Feather name="users" size={15} color="#4F46E5" />
+        {/* Action Icons (White translucent buttons on colored bg) */}
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          <TouchableOpacity style={styles.iconBtnWhite} onPress={onEdit}>
+            <Feather name="edit-2" size={14} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TourStep id={isFirst ? "book_actions" : undefined} style={styles.iconBtnWhite}>
+            <TouchableOpacity style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }} onPress={onMembers}>
+              <Feather name="users" size={14} color="#FFFFFF" />
             </TouchableOpacity>
-          )}
+          </TourStep>
           {book.memberRole === 'OWNER' && (
-            <TouchableOpacity style={styles.deleteBtn} onPress={onDelete}>
-              <Feather name="trash-2" size={16} color="#DC2626" />
+            <TouchableOpacity style={styles.iconBtnWhite} onPress={onDelete}>
+              <Feather name="trash-2" size={14} color="#FFFFFF" />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      <View style={styles.cardStats}>
-        <View style={styles.cardStatItem}>
-          <View style={[styles.cardStatDot, { backgroundColor: '#DCFCE7' }]}>
-            <Feather name="arrow-down-left" size={14} color="#16A34A" />
-          </View>
-          <View>
-            <Text style={styles.cardStatLabel}>Cash In</Text>
-            <Text style={[styles.cardStatVal, { color: '#16A34A' }]}>
-              {privateMode ? '••••' : `+${sym}${bal.inTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            </Text>
+      {/* Available Balance in Pure White */}
+      <View style={styles.balanceSection}>
+        <Text style={styles.cardBalLabel}>Available balance</Text>
+        <Text style={styles.cardBalance}>
+          {privateMode ? '••••' : `${sym}${Math.abs(bal.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+        </Text>
+      </View>
+
+      {/* Real Cash In (Bright Green #4ADE80) & Cash Out (Coral Red #F87171) Graph */}
+      <View style={styles.chartContainer}>
+        <Svg height={52} width="100%" viewBox="0 0 300 52" preserveAspectRatio="none">
+          {/* Cash In */}
+          <Path d={`${graphData.inPath} L 300 50 L 0 50 Z`} fill="rgba(74, 222, 128, 0.25)" />
+          <Path d={graphData.inPath} stroke="#4ADE80" strokeWidth="2.2" fill="none" />
+          {graphData.inPoints.map((p, idx) => (
+            <Circle key={`in-${idx}`} cx={p.x} cy={p.y} r="2.8" fill="#FFFFFF" stroke="#4ADE80" strokeWidth="1.5" />
+          ))}
+
+          {/* Cash Out */}
+          <Path d={`${graphData.outPath} L 300 50 L 0 50 Z`} fill="rgba(248, 113, 113, 0.25)" />
+          <Path d={graphData.outPath} stroke="#F87171" strokeWidth="2.2" fill="none" />
+          {graphData.outPoints.map((p, idx) => (
+            <Circle key={`out-${idx}`} cx={p.x} cy={p.y} r="2.8" fill="#FFFFFF" stroke="#F87171" strokeWidth="1.5" />
+          ))}
+        </Svg>
+      </View>
+
+      {/* Solid White Tiles inside Colored Card for Maximum Readability */}
+      <View style={styles.tilesRow}>
+        {/* Cash In Tile */}
+        <View style={styles.tileIn}>
+          <Text style={styles.tileInLabel}>CASH IN</Text>
+          <Text style={styles.tileInAmount} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
+            {privateMode ? '••••' : `+${sym}${(bal.inTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          </Text>
+          <View style={styles.progressTrackIn}>
+            <View style={[styles.progressFillIn, { width: `${inRatio}%` }]} />
           </View>
         </View>
-        <View style={styles.cardStatItem}>
-          <View style={[styles.cardStatDot, { backgroundColor: '#FEE2E2' }]}>
-            <Feather name="arrow-up-right" size={14} color="#DC2626" />
-          </View>
-          <View>
-            <Text style={styles.cardStatLabel}>Cash Out</Text>
-            <Text style={[styles.cardStatVal, { color: '#DC2626' }]}>
-              {privateMode ? '••••' : `−${sym}${bal.outTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            </Text>
+
+        {/* Cash Out Tile */}
+        <View style={styles.tileOut}>
+          <Text style={styles.tileOutLabel}>CASH OUT</Text>
+          <Text style={styles.tileOutAmount} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
+            {privateMode ? '••••' : `−${sym}${(bal.outTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          </Text>
+          <View style={styles.progressTrackOut}>
+            <View style={[styles.progressFillOut, { width: `${outRatio}%` }]} />
           </View>
         </View>
       </View>
+
+      {/* Footer */}
+      <Text style={styles.cardFooter}>
+        Created {formatDate(book.createdAt)}
+      </Text>
     </TouchableOpacity>
+    </TourStep>
+  );
+}
+
+// SproutCoin illustration component with gentle swaying leaf
+function SproutCoin({ sym }) {
+  const swayAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(swayAnim, { toValue: 1, duration: 1400, useNativeDriver: true }),
+        Animated.timing(swayAnim, { toValue: -1, duration: 1400, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [swayAnim]);
+
+  const rotate = swayAnim.interpolate({
+    inputRange: [-1, 1],
+    outputRange: ['-4deg', '4deg'],
+  });
+
+  return (
+    <View style={styles.sproutCoinContainer}>
+      {/* Coin Circle */}
+      <View style={styles.coinCircle}>
+        <Text style={styles.coinSymbol}>{sym || '₹'}</Text>
+      </View>
+      {/* Swaying Sprout SVG sitting on top edge of coin */}
+      <Animated.View style={[styles.sproutWrapper, { transform: [{ rotate }] }]}>
+        <Svg width={26} height={18} viewBox="0 0 26 18">
+          {/* Center Leaf (#2FAE60) */}
+          <Path d="M 13 16 C 10 7, 13 0, 13 0 C 13 0, 16 7, 13 16 Z" fill="#2FAE60" />
+          {/* Left Leaf (#5FC98A) */}
+          <Path d="M 13 16 C 7 12, 2 11, 2 11 C 2 11, 7 6, 13 16 Z" fill="#5FC98A" />
+          {/* Right Leaf (#2FAE60) */}
+          <Path d="M 13 16 C 19 12, 24 11, 24 11 C 24 11, 19 6, 13 16 Z" fill="#2FAE60" />
+        </Svg>
+      </Animated.View>
+    </View>
   );
 }
 
 export default function BooksScreen() {
   const insets = useSafeAreaInsets();
-  const { books, activeBookId, activeBook, setActiveBook, addBook, deleteBook, loadBooks } = useBooks();
-  const { getBookBalance, privateMode } = useTransactions();
-  const { hasAccess: isFeatureEnabled, getFeatureTease } = useFeatureAccess();
+  const {
+    books,
+    activeBookId,
+    activeBook,
+    setActiveBook,
+    addBook,
+    updateBook,
+    deleteBook,
+    shareBook,
+    loadBooks,
+    refreshBooks,
+    loading: booksLoading,
+  } = useBooks();
+  const { getBookBalance, transactions, privateMode, refreshTransactions } = useTransactions();
+  const { hasAccess, getFeatureTease } = useFeatureAccess();
+  const isFeatureEnabled = hasAccess;
 
-  const createModalRef = React.useRef(null);
-  const membersModalRef = React.useRef(null);
-  const snapPoints = React.useMemo(() => ['50%', '92%'], []);
+  const createModalRef = useRef(null);
+  const membersModalRef = useRef(null);
+  const flatListRef = useRef(null);
+  const snapPoints = useMemo(() => ['50%', '92%'], []);
+
+  // Modal states
+  const [createVisible, setCreateVisible] = useState(false);
+  const [editVisible, setEditVisible] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newCurrency, setNewCurrency] = useState('INR');
+  const [newDescription, setNewDescription] = useState('');
+  const [newColor, setNewColor] = useState('#2D8CFF');
+  const [editingBook, setEditingBook] = useState(null);
   const [bookName, setBookName] = useState('');
   const [bookDesc, setBookDesc] = useState('');
   const [bookColor, setBookColor] = useState(BOOK_COLORS[0]);
-
+  const [editBook, setEditBook] = useState(null);
   const [contactsVisible, setContactsVisible] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
-  const [members, setMembers] = useState(null);
+
+  // Invite & Members Drawer
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [drawerBook, setDrawerBook] = useState(null);
+  const [members, setMembers] = useState([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('VIEWER');
@@ -131,6 +322,25 @@ export default function BooksScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [drawerSearchList, setDrawerSearchList] = useState([]);
   const [drawerSearchLoading, setDrawerSearchLoading] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const scrollX = useRef(new Animated.Value(0)).current;
+
+  // Tour
+  const { startTour, activeTour, endTour } = useTourGuide();
+  const isFocused = useIsFocused();
+  const { shouldShowTour, markTourSeen } = useOnboarding();
+  useEffect(() => {
+    if (isFocused && shouldShowTour('after_first_book')) {
+      const t = setTimeout(() => { startTour('after_first_book'); markTourSeen('after_first_book'); }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [isFocused, shouldShowTour, startTour, markTourSeen]);
+
+  useEffect(() => {
+    if (!isFocused && activeTour === 'after_first_book') endTour();
+  }, [isFocused, activeTour, endTour]);
 
   const handleInviteTextChange = async (txt) => {
     setInviteEmail(txt);
@@ -190,18 +400,19 @@ export default function BooksScreen() {
     }
   };
 
-  const handleShareLink = async () => {
-    if (!selectedBook) return;
+  const handleShareLink = async (bookToShare) => {
+    const targetBook = bookToShare || selectedBook;
+    if (!targetBook) return;
     setInviteLoading(true);
     try {
-      const res = await api.post(`/cashbooks/${selectedBook.id}/members/link`);
+      const res = await api.post(`/cashbooks/${targetBook.id}/members/link`);
       const link = res.data?.data?.link || res.data?.link;
       await Share.share({
         message: Platform.OS === 'android' 
-          ? `I'd like you to join my cashbook "${selectedBook.name}" on Cashtro!\n\nClick to join: ${link}`
-          : `I'd like you to join my cashbook "${selectedBook.name}" on Cashtro!`,
-        url: link, // iOS will display this nicely as a tappable link
-        title: `Join "${selectedBook.name}" on Cashtro`,
+          ? `I'd like you to join my cashbook "${targetBook.name}" on Cashtro!\n\nClick to join: ${link}`
+          : `I'd like you to join my cashbook "${targetBook.name}" on Cashtro!`,
+        url: link,
+        title: `Join "${targetBook.name}" on Cashtro`,
       });
     } catch (e) {
       console.error('[handleShareLink Error]', e?.response?.data || e);
@@ -210,7 +421,6 @@ export default function BooksScreen() {
       setInviteLoading(false);
     }
   };
-
 
   const handleRemoveMember = (memberId) => {
     Alert.alert('Remove member?', 'Are you sure?', [
@@ -254,17 +464,127 @@ export default function BooksScreen() {
     [books]
   );
 
-  const handleCreate = async () => {
-    if (!bookName.trim()) return;
-    const newBook = await addBook({ name: bookName.trim(), description: bookDesc.trim(), color: bookColor });
-    if (newBook) {
-      await loadBooks();
-      createModalRef.current?.dismiss();
-      setBookName('');
-      setBookDesc('');
-      setBookColor(BOOK_COLORS[0]);
+  const filteredBooks = useMemo(() => {
+    if (!searchQuery.trim()) return sortedBooks;
+    const q = searchQuery.toLowerCase();
+    return sortedBooks.filter(b => b.name.toLowerCase().includes(q) || (b.description && b.description.toLowerCase().includes(q)));
+  }, [sortedBooks, searchQuery]);
+
+  const currentInsightBook = filteredBooks[activeSlideIndex] || filteredBooks[0] || books[0];
+  const currentInsightBal = currentInsightBook ? getBookBalance(currentInsightBook.id) : null;
+  const currentInsightSym = currentInsightBook ? getCurrencySymbol(currentInsightBook.currency) : '₹';
+
+  const insight = useMemo(() => {
+    if (!currentInsightBook || !currentInsightBal) {
+      return { title: 'Get started', subtitle: 'Record entries to track financial flow' };
+    }
+    const inTot = Number(currentInsightBal.inTotal) || 0;
+    const outTot = Number(currentInsightBal.outTotal) || 0;
+
+    if (inTot === 0 && outTot === 0) {
+      return { title: 'Fresh cashbook', subtitle: 'No cash entries recorded yet' };
+    }
+    if (inTot >= outTot) {
+      if (outTot === 0) {
+        return { title: 'Growing steady', subtitle: `Cash in is up 100.0x cash out (no outflows)` };
+      }
+      const mult = (inTot / outTot).toFixed(1);
+      return { title: 'Growing steady', subtitle: `Cash in is up ${mult}x cash out this period` };
     } else {
-      Alert.alert('Limit reached', 'You may have reached your plan limit for cashbooks.');
+      if (inTot === 0) {
+        return { title: 'Spending more', subtitle: `Cash out is up 100.0x cash in (no inflows)` };
+      }
+      const mult = (outTot / inTot).toFixed(1);
+      return { title: 'Spending more', subtitle: `Cash out is up ${mult}x cash in this period` };
+    }
+  }, [currentInsightBook, currentInsightBal, currentInsightSym]);
+
+  // Auto-activate centered cashbook when scroll settles
+  const handleMomentumScrollEnd = (e) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(offsetX / SNAP_INTERVAL);
+    if (filteredBooks[idx]) {
+      setActiveSlideIndex(idx);
+      if (filteredBooks[idx].id !== activeBookId) {
+        setActiveBook(filteredBooks[idx].id);
+      }
+    }
+  };
+
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    if (viewableItems && viewableItems.length > 0) {
+      const idx = viewableItems[0].index;
+      if (idx !== null && idx !== undefined) {
+        setActiveSlideIndex(idx);
+      }
+    }
+  }).current;
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+
+  // Auto-scroll to the active book on initial load so it's visually selected
+  useEffect(() => {
+    if (!flatListRef.current || filteredBooks.length === 0) return;
+    const activeIdx = filteredBooks.findIndex(b => b.id === activeBookId);
+    const targetIdx = activeIdx >= 0 ? activeIdx : 0;
+    // Small delay to ensure FlatList has measured items
+    const timer = setTimeout(() => {
+      try {
+        flatListRef.current?.scrollToOffset({
+          offset: targetIdx * SNAP_INTERVAL,
+          animated: false,
+        });
+        setActiveSlideIndex(targetIdx);
+      } catch (e) {
+        flatListRef.current?.scrollToOffset({ offset: targetIdx * SNAP_INTERVAL, animated: false });
+      }
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [activeBookId, filteredBooks.length]);
+
+  const getItemLayout = (data, index) => ({
+    length: SNAP_INTERVAL,
+    offset: SNAP_INTERVAL * index,
+    index,
+  });
+
+  const handleEditBook = (book) => {
+    setEditBook(book);
+    setBookName(book.name || '');
+    setBookDesc(book.description || '');
+    setBookColor(book.color || BOOK_COLORS[0]);
+    createModalRef.current?.present();
+  };
+
+  const handleSaveBook = async () => {
+    if (!bookName.trim()) return;
+    if (editBook) {
+      try {
+        await api.patch(`/cashbooks/${editBook.id}`, {
+          name: bookName.trim(),
+          description: bookDesc.trim(),
+          color: bookColor,
+        });
+        await loadBooks();
+        createModalRef.current?.dismiss();
+        setEditBook(null);
+        setBookName('');
+        setBookDesc('');
+        setBookColor(BOOK_COLORS[0]);
+      } catch (e) {
+        Alert.alert('Error', 'Failed to update cashbook');
+      }
+    } else {
+      const newBook = await addBook({ name: bookName.trim(), description: bookDesc.trim(), color: bookColor });
+      if (newBook) {
+        await loadBooks();
+        createModalRef.current?.dismiss();
+        setBookName('');
+        setBookDesc('');
+        setBookColor(BOOK_COLORS[0]);
+      } else {
+        Alert.alert('Limit reached', 'You may have reached your plan limit for cashbooks.');
+      }
     }
   };
 
@@ -283,62 +603,206 @@ export default function BooksScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 130 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2D8CFF" />}
       >
+        {/* Header Row */}
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Cashbooks</Text>
             <Text style={styles.subtitle}>{books.length} {books.length === 1 ? 'book' : 'books'}</Text>
           </View>
+          <TouchableOpacity
+            style={styles.headerAddBtn}
+            onPress={() => {
+              setEditBook(null);
+              setBookName('');
+              setBookDesc('');
+              setBookColor(BOOK_COLORS[0]);
+              createModalRef.current?.present();
+            }}
+          >
+            <Feather name="plus" size={18} color="#2D8CFF" />
+          </TouchableOpacity>
         </View>
+
+        {/* Search Input Pill */}
+        {books.length > 0 && (
+          <View style={styles.searchContainer}>
+            <Feather name="search" size={18} color="#8A8D99" style={{ marginRight: 10 }} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search cashbooks by name"
+              placeholderTextColor="#8A8D99"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Feather name="x" size={16} color="#8A8D99" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )}
+
         {books.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={{ fontSize: 48, marginBottom: 16 }}>📒</Text>
+            <View style={{ width: 64, height: 64, backgroundColor: '#EFF6FF', borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 32 }}>📒</Text>
+            </View>
             <Text style={styles.emptyTitle}>No cashbooks yet</Text>
             <Text style={styles.emptyText}>Create your first cashbook to start recording cash-in and out entries.</Text>
-            <TouchableOpacity style={styles.createBtn} onPress={() => createModalRef.current?.present()}>
+            <TouchableOpacity
+              style={[styles.createBtn, { paddingHorizontal: 32, alignSelf: 'center' }]}
+              onPress={() => {
+                setEditBook(null);
+                setBookName('');
+                setBookDesc('');
+                setBookColor(BOOK_COLORS[0]);
+                createModalRef.current?.present();
+              }}
+            >
               <Feather name="plus" size={16} color="#fff" />
               <Text style={styles.createBtnText}>Create Cashbook</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <FlatList
-            data={sortedBooks}
-            keyExtractor={(b) => b.id}
-            scrollEnabled={false}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
-            renderItem={({ item: book }) => {
-              const bal = getBookBalance(book.id);
-              const sym = getCurrencySymbol(book.currency);
-              return (
-                <BookCard
-                  book={book}
-                  bal={bal}
-                  isActive={book.id === activeBookId}
-                  onPress={() => setActiveBook(book.id)}
-                  onDelete={() => handleDelete(book)}
-                  onMembers={() => {
-                    if (isFeatureEnabled('feature_shared_cashbooks_active')) {
-                      handleOpenMembers(book);
-                    } else {
-                      Alert.alert('Pro Feature', 'Shared Cashbooks let you invite others to collaborate on your cashbook in real time. Upgrade to Pro to unlock this!', [{ text: 'Maybe Later', style: 'cancel' }, { text: 'Upgrade to Pro' }]);
-                    }
-                  }}
-                  privateMode={privateMode}
-                  sym={sym}
-                  showShared={isFeatureEnabled('feature_shared_cashbooks_active') || getFeatureTease('feature_shared_cashbooks_active')}
-                />
-              );
-            }}
-          />
+          <>
+            {/* Horizontal Carousel with Significant Peeking (~50px), Gaps & Height Scaling */}
+            <Animated.FlatList
+              ref={flatListRef}
+              data={filteredBooks}
+              keyExtractor={(b) => b.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={SNAP_INTERVAL}
+              decelerationRate="fast"
+              bounces={false}
+              disableIntervalMomentum
+              getItemLayout={getItemLayout}
+              onMomentumScrollEnd={handleMomentumScrollEnd}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                { useNativeDriver: true }
+              )}
+              scrollEventThrottle={16}
+              onViewableItemsChanged={onViewableItemsChanged}
+              viewabilityConfig={viewabilityConfig}
+              // paddingHorizontal centers first/last cards; contentInset mirrors this on iOS
+              contentContainerStyle={{ paddingHorizontal: SIDE_PADDING, paddingVertical: 12 }}
+              contentInset={{ left: 0, right: 0 }}
+              renderItem={({ item: book, index }) => {
+                const bal = getBookBalance(book.id);
+                const sym = getCurrencySymbol(book.currency);
+                const bookTxs = (transactions || []).filter(t => (t.cashbookId === book.id || t.bookId === book.id));
+
+                // scrollX=0 => first card is centered (item 0).
+                // Each subsequent card is centered at scrollX = index * SNAP_INTERVAL.
+                // The SIDE_PADDING does NOT shift scrollX — it only shifts content visually,
+                // so inputRange stays index-based (no offset needed).
+                const inputRange = [
+                  (index - 1) * SNAP_INTERVAL,
+                  index * SNAP_INTERVAL,
+                  (index + 1) * SNAP_INTERVAL,
+                ];
+                const scale = scrollX.interpolate({
+                  inputRange,
+                  outputRange: [0.86, 1, 0.86],
+                  extrapolate: 'clamp',
+                });
+                const opacity = scrollX.interpolate({
+                  inputRange,
+                  outputRange: [0.75, 1, 0.75],
+                  extrapolate: 'clamp',
+                });
+
+                return (
+                  <Animated.View
+                    style={{
+                      width: CARD_WIDTH,
+                      // The last card should not have SPACING to ensure it aligns perfectly with SIDE_PADDING
+                      marginRight: index === filteredBooks.length - 1 ? 0 : SPACING,
+                      transform: [{ scale }],
+                      opacity,
+                    }}
+
+                  >
+                    <BookCard
+                      book={book}
+                      isFirst={index === 0}
+                      bal={bal}
+                      bookTxs={bookTxs}
+                      isActive={book.id === activeBookId}
+                      onPress={() => {
+                        setActiveBook(book.id);
+                        // Scroll to exact offset so the card centers: offset = index * (CARD_WIDTH + SPACING)
+                        flatListRef.current?.scrollToOffset({
+                          offset: index * SNAP_INTERVAL,
+                          animated: true,
+                        });
+                      }}
+                      onDelete={() => handleDelete(book)}
+                      onEdit={() => handleEditBook(book)}
+                      onMembers={() => {
+                        if (isFeatureEnabled('feature_shared_cashbooks_active')) {
+                          handleOpenMembers(book);
+                        } else {
+                          Alert.alert('Pro Feature', 'Shared Cashbooks let you invite others to collaborate on your cashbook in real time. Upgrade to Pro to unlock this!', [{ text: 'Maybe Later', style: 'cancel' }, { text: 'Upgrade to Pro' }]);
+                        }
+                      }}
+                      privateMode={privateMode}
+                      sym={sym}
+                      showShared={isFeatureEnabled('feature_shared_cashbooks_active') || getFeatureTease('feature_shared_cashbooks_active')}
+                    />
+                  </Animated.View>
+                );
+              }}
+            />
+
+            {/* Swipe Dots Indicator */}
+            {filteredBooks.length > 1 && (
+              <View style={styles.dotsContainer}>
+                {filteredBooks.map((_, index) => {
+                  const isActiveDot = index === activeSlideIndex;
+                  return (
+                    <View
+                      key={index}
+                      style={isActiveDot ? styles.dotActive : styles.dotInactive}
+                    />
+                  );
+                })}
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => createModalRef.current?.present()} activeOpacity={0.85}>
-        <Feather name="plus" size={26} color="#fff" />
-      </TouchableOpacity>
+      {/* Bottom Insight Row with Create Cashbook button */}
+      <View style={styles.bottomInsightRow}>
+        <View style={styles.insightLeftSection}>
+          <SproutCoin sym={currentInsightSym} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.insightTitle} numberOfLines={1}>{insight.title}</Text>
+            <Text style={styles.insightSubtitle} numberOfLines={2}>{insight.subtitle}</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.insightCreateBtn}
+          onPress={() => {
+            setEditBook(null);
+            setBookName('');
+            setBookDesc('');
+            setBookColor(BOOK_COLORS[0]);
+            createModalRef.current?.present();
+          }}
+          activeOpacity={0.85}
+        >
+          <Feather name="plus" size={14} color="#FFFFFF" />
+          <Text style={styles.insightCreateBtnText}>Create cashbook</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* ── Members Modal ── */}
       <BottomSheetModal
@@ -356,12 +820,12 @@ export default function BooksScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <View>
               <Text style={styles.modalTitle}>👥 Members</Text>
-              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{selectedBook?.name}</Text>
+              <Text style={{ fontSize: 12, color: '#747487', marginTop: 2 }}>{selectedBook?.name}</Text>
             </View>
           </View>
 
           {membersLoading ? (
-            <ActivityIndicator color="#4F46E5" style={{ marginVertical: 20 }} />
+            <ActivityIndicator color="#2D8CFF" style={{ marginVertical: 20 }} />
           ) : (
             <BottomSheetScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
               {members?.owner && (
@@ -379,8 +843,8 @@ export default function BooksScreen() {
                     onPress={() => handleToggleRole(m)}
                     disabled={selectedBook?.memberRole !== 'OWNER' || m.status !== 'accepted'}
                   >
-                    <View style={[s2.roleChip, { backgroundColor: m.status === 'accepted' ? '#EEF2FF' : '#F3F4F6' }]}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: m.status === 'accepted' ? '#4F46E5' : '#9CA3AF' }}>
+                    <View style={[s2.roleChip, { backgroundColor: m.status === 'accepted' ? '#EFF6FF' : '#F3F4F6' }]}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: m.status === 'accepted' ? '#2D8CFF' : '#9CA3AF' }}>
                         {m.status === 'accepted' ? m.role : 'PENDING'}
                       </Text>
                     </View>
@@ -391,7 +855,7 @@ export default function BooksScreen() {
                   </View>
                   {selectedBook?.memberRole === 'OWNER' && (
                     <TouchableOpacity onPress={() => handleRemoveMember(m.id)} style={{ padding: 4 }}>
-                      <Feather name="trash-2" size={16} color="#EF4444" />
+                      <Feather name="trash-2" size={16} color="#A31E1E" />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -404,9 +868,9 @@ export default function BooksScreen() {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <Text style={styles.inputLabel}>Invite someone</Text>
                 <View style={{ flexDirection: 'row', gap: 16 }}>
-                  <TouchableOpacity onPress={handleShareLink} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Feather name="link" size={14} color="#4F46E5" />
-                    <Text style={{ fontSize: 13, color: '#4F46E5', fontWeight: '600' }}>Share Link</Text>
+                  <TouchableOpacity onPress={() => handleShareLink(selectedBook)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Feather name="link" size={14} color="#2D8CFF" />
+                    <Text style={{ fontSize: 13, color: '#2D8CFF', fontWeight: '600' }}>Share Link</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -417,7 +881,7 @@ export default function BooksScreen() {
                     style={[s2.roleBtn, inviteRole === r && s2.roleBtnActive]}
                     onPress={() => setInviteRole(r)}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: inviteRole === r ? '#4F46E5' : '#6B7280' }}>{r}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: inviteRole === r ? '#2D8CFF' : '#747487' }}>{r}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -446,9 +910,9 @@ export default function BooksScreen() {
               {inviteEmail.trim().length >= 2 && (
                 <View style={{ marginTop: 8, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 8, maxHeight: 160, borderWidth: 1, borderColor: '#E5E7EB' }}>
                   {drawerSearchLoading ? (
-                    <ActivityIndicator size="small" color="#4F46E5" style={{ padding: 12 }} />
+                    <ActivityIndicator size="small" color="#2D8CFF" style={{ padding: 12 }} />
                   ) : drawerSearchList.length === 0 ? (
-                    <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center', padding: 8 }}>No network users found. Hit send button to invite via email.</Text>
+                    <Text style={{ fontSize: 12, color: '#747487', textAlign: 'center', padding: 8 }}>No network users found. Hit send button to invite via email.</Text>
                   ) : (
                     drawerSearchList.map(u => (
                       <TouchableOpacity
@@ -470,11 +934,11 @@ export default function BooksScreen() {
                         }}
                       >
                         <View>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>{u.fullName || u.name || u.email}</Text>
-                          <Text style={{ fontSize: 11, color: '#6B7280' }}>{u.email}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#12131A' }}>{u.fullName || u.name || u.email}</Text>
+                          <Text style={{ fontSize: 11, color: '#747487' }}>{u.email}</Text>
                         </View>
-                        <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#4F46E5' }}>+ Add</Text>
+                        <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#2D8CFF' }}>+ Add</Text>
                         </View>
                       </TouchableOpacity>
                     ))
@@ -486,7 +950,7 @@ export default function BooksScreen() {
         </BottomSheetView>
       </BottomSheetModal>
 
-      {/* ── Create Cashbook Modal ── */}
+      {/* ── Create / Edit Cashbook Modal ── */}
       <BottomSheetModal
         ref={createModalRef}
         index={0}
@@ -500,7 +964,7 @@ export default function BooksScreen() {
       >
         <BottomSheetView style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <Text style={[styles.modalTitle, { marginBottom: 0 }]}>New Cashbook</Text>
+            <Text style={[styles.modalTitle, { marginBottom: 0 }]}>{editBook ? 'Edit Cashbook' : 'New Cashbook'}</Text>
           </View>
 
           <Text style={styles.inputLabel}>Name</Text>
@@ -525,11 +989,11 @@ export default function BooksScreen() {
 
           <TouchableOpacity
             style={[styles.createBtn, !bookName.trim() && { opacity: 0.5 }]}
-            onPress={handleCreate}
+            onPress={handleSaveBook}
             disabled={!bookName.trim()}
           >
-            <Feather name="plus" size={16} color="#fff" />
-            <Text style={styles.createBtnText}>Create Cashbook</Text>
+            <Feather name={editBook ? "check" : "plus"} size={16} color="#fff" />
+            <Text style={styles.createBtnText}>{editBook ? 'Save Changes' : 'Create Cashbook'}</Text>
           </TouchableOpacity>
         </BottomSheetView>
       </BottomSheetModal>
@@ -546,76 +1010,140 @@ export default function BooksScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F7F9FC' },
+  safe: { flex: 1, backgroundColor: '#F1F1F6' },
   scroll: { flex: 1 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,
+    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16,
   },
-  title: { fontSize: 22, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  title: { fontSize: 24, fontWeight: '800', color: '#12131A', letterSpacing: -0.5 },
+  subtitle: { fontSize: 13, color: '#8A8D99', marginTop: 2 },
+  headerAddBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: '#E4E6FB', alignItems: 'center', justifyContent: 'center',
+  },
+
+  searchContainer: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E4E4EC',
+    borderRadius: 10, paddingHorizontal: 12, height: 40,
+    marginHorizontal: 20, marginBottom: 16,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: '#12131A', padding: 0 },
 
   emptyCard: {
-    margin: 20, borderRadius: 20, backgroundColor: '#fff', padding: 32,
-    alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB',
+    margin: 20, borderRadius: 20, backgroundColor: '#FFFFFF', padding: 32,
+    alignItems: 'center', borderWidth: 1, borderColor: '#E4E4EC',
   },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  emptyText: { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#12131A', marginBottom: 8 },
+  emptyText: { fontSize: 14, color: '#8A8D99', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
 
   bookCard: {
-    marginBottom: 16, borderRadius: 20, backgroundColor: '#fff',
-    borderWidth: 1, borderColor: '#E5E7EB', borderTopWidth: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
-    padding: 24,
+    width: '100%',
+    borderRadius: 24,
+    padding: 22,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12, shadowRadius: 16, elevation: 6,
   },
   bookCardActive: {
-    borderColor: '#1D4ED8',
-    borderWidth: 2,
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
+    borderWidth: 0,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  cardColorDot: { width: 10, height: 10, borderRadius: 5 },
-  cardName: { fontSize: 20, fontWeight: '800', color: '#111827', letterSpacing: -0.3 },
-  cardDesc: { fontSize: 13, color: '#6B7280' },
-  cardDescMuted: { fontSize: 12, color: '#9CA3AF' },
+  bookCardInactive: {
+    borderWidth: 0,
+  },
 
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  cardName: { fontSize: 21, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.3 },
+
+  badgesRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
   activeBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12,
   },
-  activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#16A34A' },
-  activeBadgeText: { fontSize: 11, fontWeight: '700', color: '#16A34A' },
+  activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4ADE80' },
+  activeBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
 
-  cardBalanceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20 },
-  cardBalance: { fontSize: 32, fontWeight: '800', color: '#111827', letterSpacing: -1 },
-  cardBalLabel: { fontSize: 13, color: '#9CA3AF', marginBottom: 4 },
-  
-  deleteBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center',
+  sharedBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12,
   },
-  memberBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
+  sharedBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
+
+  iconBtnWhite: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)', alignItems: 'center', justifyContent: 'center',
   },
 
-  cardStats: { flexDirection: 'row', gap: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  cardStatItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  cardStatDot: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  cardStatLabel: { fontSize: 12, color: '#9CA3AF', marginBottom: 2 },
-  cardStatVal: { fontSize: 15, fontWeight: '700', letterSpacing: -0.3 },
+  balanceSection: { marginBottom: 14 },
+  cardBalLabel: { fontSize: 13, color: 'rgba(255, 255, 255, 0.85)', marginBottom: 4 },
+  cardBalance: { fontSize: 32, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1 },
 
-  fab: {
-    position: 'absolute', bottom: 24, right: 24,
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: '#1D4ED8',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4, shadowRadius: 16, elevation: 8,
+  chartContainer: { height: 52, marginBottom: 16, overflow: 'hidden' },
+
+  tilesRow: { flexDirection: 'row', gap: 12 },
+  tileIn: {
+    flex: 1, backgroundColor: '#F6FBF7', borderWidth: 1, borderColor: '#DCF5E3',
+    borderRadius: 16, padding: 12,
+  },
+  tileInLabel: { fontSize: 10, fontWeight: '700', color: '#5D9B72', marginBottom: 6, letterSpacing: 0.5 },
+  tileInAmount: { fontSize: 15, fontWeight: '700', color: '#1E7A3E', marginBottom: 8 },
+  progressTrackIn: { height: 4, borderRadius: 2, backgroundColor: '#DCF5E3', overflow: 'hidden' },
+  progressFillIn: { height: '100%', backgroundColor: '#2FAE60', borderRadius: 2 },
+
+  tileOut: {
+    flex: 1, backgroundColor: '#FDF6F6', borderWidth: 1, borderColor: '#F8DADA',
+    borderRadius: 16, padding: 12,
+  },
+  tileOutLabel: { fontSize: 10, fontWeight: '700', color: '#B97575', marginBottom: 6, letterSpacing: 0.5 },
+  tileOutAmount: { fontSize: 15, fontWeight: '700', color: '#A31E1E', marginBottom: 8 },
+  progressTrackOut: { height: 4, borderRadius: 2, backgroundColor: '#F8DADA', overflow: 'hidden' },
+  progressFillOut: { height: '100%', backgroundColor: '#D9453D', borderRadius: 2 },
+
+  cardFooter: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', textAlign: 'right', marginTop: 14 },
+
+  dotsContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 20 },
+  dotActive: { width: 22, height: 6, borderRadius: 3, backgroundColor: '#2D8CFF' },
+  dotInactive: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D5D7E0' },
+
+  bottomInsightRow: {
+    position: 'absolute', bottom: 16, left: 16, right: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    paddingVertical: 10, paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1, shadowRadius: 14, elevation: 6,
+    borderWidth: 1, borderColor: '#E4E4EC',
+  },
+  insightLeftSection: {
+    flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12,
+  },
+  sproutCoinContainer: {
+    width: 52, height: 52, alignItems: 'center', justifyContent: 'center', marginRight: 10,
+  },
+  coinCircle: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: '#DBEAFE', borderWidth: 1.5, borderColor: '#2D8CFF',
+    alignItems: 'center', justifyContent: 'center', marginTop: 8,
+  },
+  coinSymbol: {
+    fontSize: 15, fontWeight: '800', color: '#2D8CFF',
+  },
+  sproutWrapper: {
+    position: 'absolute', top: 1,
+  },
+  insightTitle: {
+    fontSize: 14, fontWeight: '800', color: '#12131A', letterSpacing: -0.2, marginBottom: 2,
+  },
+  insightSubtitle: {
+    fontSize: 12, color: '#8A8D99', lineHeight: 16,
+  },
+  insightCreateBtn: {
+    backgroundColor: '#2D8CFF', borderRadius: 17, height: 34,
+    paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 4,
+  },
+  insightCreateBtnText: {
+    color: '#FFFFFF', fontSize: 12, fontWeight: '700',
   },
 
   modalSheet: {
@@ -623,22 +1151,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 8,
   },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#111827', marginBottom: 24 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#12131A', marginBottom: 24 },
 
-  inputLabel: { fontSize: 12, fontWeight: '600', color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
+  inputLabel: { fontSize: 12, fontWeight: '600', color: '#232333', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
   input: {
     borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: '#111827', marginBottom: 16,
+    paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: '#12131A', marginBottom: 16,
     backgroundColor: '#FAFAFA',
   },
 
   colorRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
   colorDot: { width: 34, height: 34, borderRadius: 17 },
-  colorDotActive: { borderWidth: 3, borderColor: '#111827' },
+  colorDotActive: { borderWidth: 3, borderColor: '#12131A' },
 
   createBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#1D4ED8', borderRadius: 14, paddingVertical: 16,
+    gap: 8, backgroundColor: '#2D8CFF', borderRadius: 14, paddingVertical: 16,
   },
   createBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
@@ -651,13 +1179,13 @@ const s2 = StyleSheet.create({
   roleChip: {
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
   },
-  memberName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  memberEmail: { fontSize: 12, color: '#6B7280' },
+  memberName: { fontSize: 14, fontWeight: '600', color: '#12131A' },
+  memberEmail: { fontSize: 12, color: '#8A8D99' },
   roleBtn: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8,
     borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#F9FAFB',
   },
   roleBtnActive: {
-    borderColor: '#4F46E5', backgroundColor: '#EEF2FF',
+    borderColor: '#2D8CFF', backgroundColor: '#EFF6FF',
   },
 });

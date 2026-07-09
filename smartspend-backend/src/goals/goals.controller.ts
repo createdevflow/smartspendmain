@@ -2,6 +2,8 @@ import { Controller, Get, Post, Patch, Delete, Body, Param } from '@nestjs/commo
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { GoalsService } from './goals.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { CreateGoalDto } from './dto/create-goal.dto';
+import { UpdateGoalDto, ContributeGoalDto } from './dto/update-goal.dto';
 
 @ApiTags('goals')
 @ApiBearerAuth('JWT')
@@ -9,10 +11,11 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 export class GoalsController {
   constructor(private readonly goalsService: GoalsService) {}
   @Get() findAll(@CurrentUser() u: any) { return this.goalsService.findAll(u.sub); }
-  @Post() create(@CurrentUser() u: any, @Body() dto: any) { return this.goalsService.create(u.sub, dto); }
+  @Post() create(@CurrentUser() u: any, @Body() dto: CreateGoalDto) { return this.goalsService.create(u.sub, dto); }
   @Get(':id') findOne(@CurrentUser() u: any, @Param('id') id: string) { return this.goalsService.findOne(u.sub, id); }
-  @Patch(':id') update(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: any) { return this.goalsService.update(u.sub, id, dto); }
+  @Patch(':id') update(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: UpdateGoalDto) { return this.goalsService.update(u.sub, id, dto); }
   @Delete(':id') remove(@CurrentUser() u: any, @Param('id') id: string) { return this.goalsService.remove(u.sub, id); }
-  @Post(':id/contribute') contribute(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: any) { return this.goalsService.contribute(u.sub, id, dto); }
+  @Post(':id/contribute') contribute(@CurrentUser() u: any, @Param('id') id: string, @Body() dto: ContributeGoalDto) { return this.goalsService.contribute(u.sub, id, dto); }
+
   @Get(':id/history') history(@CurrentUser() u: any, @Param('id') id: string) { return this.goalsService.getHistory(u.sub, id); }
 }

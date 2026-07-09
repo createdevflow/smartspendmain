@@ -72,7 +72,7 @@ export default function LoginScreen({ navigation }) {
                 <View style={styles.logoContainer}>
                   <Image
                     source={require('../assets/images/icon-new.png')}
-                    style={{ width: 64, height: 64, borderRadius: 16 }}
+                    style={{ width: 100, height: 100 }}
                     resizeMode="contain"
                   />
                 </View>
@@ -139,7 +139,7 @@ export default function LoginScreen({ navigation }) {
                   activeOpacity={0.85}
                 >
                   <LinearGradient
-                    colors={['#2563EB', '#1D4ED8']}
+                    colors={['#2D8CFF', '#2D8CFF']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.loginGradient}
@@ -187,12 +187,6 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: '#DBEAFE',
-    borderWidth: 1,
-    borderColor: 'rgba(37, 99, 235, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,

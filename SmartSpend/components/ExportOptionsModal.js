@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   dateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, gap: 8 },
   dateBtnText: { fontSize: 14, color: '#9CA3AF', fontWeight: '500' },
   actionRow: { marginTop: 10 },
-  exportBtn: { backgroundColor: '#4F46E5', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 16, gap: 8 },
+  exportBtn: { backgroundColor: '#2D8CFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 16, gap: 8 },
   exportBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
   datePickerModalOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 20 },

@@ -15,8 +15,11 @@ import { api } from '../utils/api';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { Image } from 'react-native';
+import OptimizedImage from '../components/OptimizedImage';
 import BusinessCategorySetupModal from '../components/BusinessCategorySetupModal';
+import { TourStep, useTourGuide } from '../components/onboarding/TourGuide';
+import { useOnboarding } from '../context/OnboardingContext';
+import { useIsFocused } from '@react-navigation/native';
 
 const CURRENCIES = [
   { code: 'INR', name: 'Indian Rupee',       symbol: '₹' },
@@ -32,7 +35,7 @@ const CURRENCIES = [
 ];
 
 // ─── Row components ────────────────────────────────────────────────────────────
-function SettingRow({ icon, iconColor = '#1D4ED8', iconBg = '#DBEAFE', label, sub, onPress, right, isLast }) {
+function SettingRow({ icon, iconColor = '#2D8CFF', iconBg = '#EFF6FF', label, sub, onPress, right, isLast }) {
   const Inner = (
     <View style={[styles.row, isLast && styles.rowLast]}>
       <View style={[styles.rowIcon, { backgroundColor: iconBg }]}>
@@ -63,7 +66,7 @@ function SettingToggleRow({ icon, iconColor, iconBg, label, sub, value, onToggle
         <Switch
           value={value}
           onValueChange={onToggle}
-          trackColor={{ true: '#1D4ED8', false: '#E5E7EB' }}
+          trackColor={{ true: '#2D8CFF', false: '#E5E7EB' }}
           thumbColor="#fff"
         />
       }
@@ -86,6 +89,21 @@ export default function SettingsScreen({ navigation }) {
   const { books, activeBook, updateBook } = useBooks();
   const { gstEnabled, setGstEnabled, privateMode, setPrivateMode } = useTransactions();
   const { hasAccess: isFeatureEnabled, getFeatureTease } = useFeatureAccess();
+
+  // Tour hooks
+  const { startTour, activeTour, endTour } = useTourGuide();
+  const isFocused = useIsFocused();
+  const { shouldShowTour, markTourSeen } = useOnboarding();
+  useEffect(() => {
+    if (isFocused && shouldShowTour('settings_discovery')) {
+      const t = setTimeout(() => { startTour('settings_discovery'); markTourSeen('settings_discovery'); }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [isFocused, shouldShowTour, startTour, markTourSeen]);
+
+  useEffect(() => {
+    if (!isFocused && activeTour === 'settings_discovery') endTour();
+  }, [isFocused, activeTour, endTour]);
 
   const categoryModalRef = useRef(null);
   const [notifPrefs, setNotifPrefs] = useState({ push: user?.pushNotifications ?? true, email: user?.emailReports ?? true });
@@ -115,7 +133,7 @@ export default function SettingsScreen({ navigation }) {
         email: user.emailReports ?? true
       });
     }
-  }, [user]);
+  }, [user?.id]);
 
 
   const toggleNotif = async (key) => {
@@ -127,8 +145,8 @@ export default function SettingsScreen({ navigation }) {
         const payload = key === 'push' ? { pushNotifications: newVal } : { emailReports: newVal };
         const res = await api.patch('/users/profile', payload);
         if (updateProfileInContext) updateProfileInContext(res.data?.data || res.data);
-      } catch (e) {
-        console.log('Failed to update notifications on server', e);
+      } catch {
+        // Silently ignore — local UI toggle already reflects the change
       }
     }
   };
@@ -137,11 +155,16 @@ export default function SettingsScreen({ navigation }) {
     if (!supportMessage.trim()) return;
     setSupportSending(true);
     try {
+      let attachmentUrl = supportImage;
+      if (attachmentUrl && attachmentUrl.startsWith('data:')) {
+        const uploadRes = await api.post('/media/upload-base64', { base64: attachmentUrl, module: 'system' });
+        attachmentUrl = uploadRes.data?.data?.url || uploadRes.data?.url || attachmentUrl;
+      }
       await api.post('/support/tickets', {
         subject: type === 'bug_report' ? 'Bug Report' : 'Contact Support',
         message: supportMessage,
         type: type,
-        attachmentUrl: supportImage || null
+        attachmentUrl: attachmentUrl || null
       });
       Alert.alert('Success', 'Your message has been sent to our team.');
       setShowContact(false);
@@ -190,9 +213,8 @@ export default function SettingsScreen({ navigation }) {
           text: 'Logout All', style: 'destructive', onPress: async () => {
             try {
               await api.delete('/users/sessions/all/other');
-            } catch (e) {
-              // Proceed with local logout even if server call fails
-              console.log('Logout-all server error:', e.message);
+            } catch {
+              // Server call failed — proceed with local logout anyway
             }
             await logout();
           }
@@ -295,6 +317,24 @@ export default function SettingsScreen({ navigation }) {
   const [showTrialBanner, setShowTrialBanner] = useState(true);
   const isTrialActive = user?.trialExpiresAt && new Date(user.trialExpiresAt) > new Date();
 
+  const [aiCredits, setAiCredits] = useState(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      api.get('/users/ai-credits')
+        .then(res => {
+          const data = res.data?.data || res.data;
+          if (data) {
+            setAiCredits({
+              balance: Number(data.balance) || 0,
+              monthlyUsage: Number(data.monthlyUsage) || 0,
+            });
+          }
+        })
+        .catch(e => console.error(e));
+    }
+  }, [user?.id]);
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -305,19 +345,54 @@ export default function SettingsScreen({ navigation }) {
       >
         <Text style={styles.pageTitle}>Settings</Text>
 
-        {/* ── Free Trial Banner ── */}
+        {/* ⚡ Free Trial Banner ⚡ */}
         {showTrialBanner && isTrialActive && (
-          <View style={{ backgroundColor: '#DBEAFE', padding: 12, borderRadius: 12, marginHorizontal: 20, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#BFDBFE' }}>
-            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Feather name="zap" size={16} color="#2563EB" />
-              <Text style={{ fontSize: 13, color: '#1E3A8A', fontWeight: '600' }}>
-                Free Trial Active (ends {new Date(user.trialExpiresAt).toLocaleDateString()})
-              </Text>
+          <View style={{ backgroundColor: '#EFF6FF', padding: 12, borderRadius: 12, marginHorizontal: 20, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#BFDBFE' }}>
+            <View style={{ flex: 1, flexDirection: 'column', gap: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Feather name="zap" size={16} color="#F26D21" />
+                <Text style={{ fontSize: 13, color: '#232333', fontWeight: '600' }}>
+                  Free trial enjoy all pro features
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => Linking.openURL('https://cashtro.in/terms')}>
+                <Text style={{ fontSize: 10, color: '#2D8CFF', marginLeft: 24, textDecorationLine: 'underline' }}>*T&C apply (View Terms of Service)</Text>
+              </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={() => setShowTrialBanner(false)} style={{ padding: 4 }}>
-              <Feather name="x" size={16} color="#1E3A8A" />
+              <Feather name="x" size={16} color="#747487" />
             </TouchableOpacity>
           </View>
+        )}
+
+        {/* AI Credits UI */}
+        {aiCredits && (
+          <SectionCard>
+            <View style={{ padding: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ backgroundColor: '#F3E8FF', padding: 6, borderRadius: 8 }}>
+                    <Feather name="cpu" size={16} color="#9333EA" />
+                  </View>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#232333' }}>AI Credits</Text>
+                </View>
+                <Text style={{ fontSize: 13, color: '#747487', fontWeight: '500' }}>{aiCredits.balance} Left</Text>
+              </View>
+              
+              <View style={{ height: 8, backgroundColor: '#F1F1F5', borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
+                <View style={{ 
+                  height: '100%', 
+                  backgroundColor: '#9333EA', 
+                  width: `${Math.min(100, Math.max(0, (aiCredits.balance / (aiCredits.balance + aiCredits.monthlyUsage || 1)) * 100))}%` 
+                }} />
+              </View>
+              
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12, color: '#747487' }}>Used: {aiCredits.monthlyUsage}</Text>
+                <Text style={{ fontSize: 12, color: '#747487' }}>Total Limit: {aiCredits.balance + aiCredits.monthlyUsage}</Text>
+              </View>
+            </View>
+          </SectionCard>
         )}
 
         {/* ─── Profile ─── */}
@@ -329,7 +404,7 @@ export default function SettingsScreen({ navigation }) {
           >
             <View style={styles.avatar}>
               {user?.avatar ? (
-                <Image source={{ uri: user.avatar }} style={{ width: '100%', height: '100%', borderRadius: 26 }} />
+                <OptimizedImage source={{ uri: user.avatar }} style={{ width: '100%', height: '100%', borderRadius: 26 }} size="medium" />
               ) : (
                 <Text style={styles.avatarText}>{getInitials()}</Text>
               )}
@@ -361,12 +436,14 @@ export default function SettingsScreen({ navigation }) {
               <View style={styles.rowDivider} />
             </>
           )}
+          <TourStep id="privacy_mode">
           <SettingToggleRow
-            icon="eye-off" iconColor="#7C3AED" iconBg="#F3E8FF"
+            icon="eye-off" iconColor="#F26D21" iconBg="#FFF7ED"
             label="Private Mode"
             sub="Hide balances and amounts"
             value={privateMode} onToggle={setPrivateMode}
           />
+          </TourStep>
           <View style={styles.rowDivider} />
           {isFeatureEnabled('transaction_splits') && (
             <>
@@ -403,10 +480,50 @@ export default function SettingsScreen({ navigation }) {
           )}
         </SectionCard>
 
+        {/* ─── Finance & Business Tools ─── */}
+        <SectionCard label="Finance & Business Tools">
+          <TourStep id="notifications">
+          <SettingRow
+            icon="bell" iconColor="#F26D21" iconBg="#FFF7ED"
+            label="Payment Reminders"
+            sub="Track dues, loans, and amounts to receive or pay"
+            onPress={() => navigation.navigate('PaymentReminder')}
+            right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
+          />
+          </TourStep>
+          <View style={styles.rowDivider} />
+          <TourStep id="invoices_billing">
+          <SettingRow
+            icon="file-text" iconColor="#2D8CFF" iconBg="#EFF6FF"
+            label="Invoices & Billing"
+            sub="Create professional GST invoices & quotations"
+            onPress={() => navigation.navigate('InvoiceSettings')}
+            right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
+          />
+          </TourStep>
+          <View style={styles.rowDivider} />
+          <SettingRow
+            icon="users" iconColor="#0891B2" iconBg="#CFFAFE"
+            label="Contact Requests"
+            sub="Manage network & shared ledger invites"
+            onPress={() => navigation.navigate('ContactRequests')}
+            right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
+          />
+          <View style={styles.rowDivider} />
+          <SettingRow
+            icon="star" iconColor="#D97706" iconBg="#FEF3C7"
+            label="Starred Messages"
+            sub="View bookmarked AI chat responses & notes"
+            onPress={() => navigation.navigate('StarredMessages')}
+            right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
+            isLast
+          />
+        </SectionCard>
+
         {/* ─── Account ─── */}
         <SectionCard label="Account">
           <SettingRow
-            icon="credit-card" iconColor="#1D4ED8" iconBg="#DBEAFE"
+            icon="credit-card" iconColor="#2D8CFF" iconBg="#EFF6FF"
             label="Plan & Billing"
             sub={user?.plan?.name ? `Current: ${user.plan.name}` : 'Free plan'}
             right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
@@ -521,7 +638,7 @@ export default function SettingsScreen({ navigation }) {
         {isFeatureEnabled('feature_panic_button_active') && (
           <SectionCard label="Privacy">
             <SettingToggleRow
-              icon="smartphone" iconColor="#7C3AED" iconBg="#F3E8FF"
+              icon="smartphone" iconColor="#F26D21" iconBg="#FFF7ED"
               label="Shake to Lock"
               sub="Shake your phone to toggle Private Mode"
               value={shakeToLock}
@@ -644,7 +761,7 @@ export default function SettingsScreen({ navigation }) {
             />
             
             <TouchableOpacity style={styles.attachBtn} onPress={handlePickImage}>
-              <Feather name={supportImage ? "check-circle" : "image"} size={20} color={supportImage ? "#10B981" : "#1D4ED8"} />
+              <Feather name={supportImage ? "check-circle" : "image"} size={20} color={supportImage ? "#10B981" : "#2D8CFF"} />
               <Text style={[styles.attachText, supportImage && { color: "#10B981" }]}>
                 {supportImage ? "Image Attached" : "Attach Screenshot"}
               </Text>
@@ -700,18 +817,18 @@ const styles = StyleSheet.create({
   // Profile
   profileCard: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
   avatar: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: '#4F46E5',
+    width: 52, height: 52, borderRadius: 26, backgroundColor: '#2D8CFF',
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { fontSize: 20, fontWeight: '700', color: '#fff' },
-  profileName: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  profileEmail: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  profileName: { fontSize: 17, fontWeight: '700', color: '#232333' },
+  profileEmail: { fontSize: 13, color: '#747487', marginTop: 2 },
   planBadge: {
     alignSelf: 'flex-start', marginTop: 6,
-    backgroundColor: '#EEF2FF', borderRadius: 6,
+    backgroundColor: '#EFF6FF', borderRadius: 6,
     paddingHorizontal: 8, paddingVertical: 2,
   },
-  planBadgeText: { fontSize: 10, fontWeight: '800', color: '#4F46E5', letterSpacing: 0.5 },
+  planBadgeText: { fontSize: 10, fontWeight: '800', color: '#2D8CFF', letterSpacing: 0.5 },
 
   // App info
   appInfo: { alignItems: 'center', paddingVertical: 16 },
@@ -750,8 +867,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
   currencyRowSelected: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#C7D2FE',
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
   },
   currencySymbolBox: {
     width: 40,
@@ -825,17 +942,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1D4ED8',
+    borderColor: '#2D8CFF',
     borderStyle: 'dashed',
     marginBottom: 24,
   },
   attachText: {
-    color: '#1D4ED8',
+    color: '#2D8CFF',
     fontWeight: '600',
     marginLeft: 8,
   },
   supportSubmitBtn: {
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#2D8CFF',
     height: 50,
     borderRadius: 12,
     justifyContent: 'center',

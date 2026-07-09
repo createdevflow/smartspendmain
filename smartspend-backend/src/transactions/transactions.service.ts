@@ -1,5 +1,6 @@
 import {
-  Injectable, NotFoundException, ForbiddenException,
+  Injectable, NotFoundException, ForbiddenException, BadRequestException,
+  HttpException, InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI } from '@google/genai';
@@ -12,6 +13,8 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { TransactionQueryDto } from './dto/transaction-query.dto';
 import { TransactionLabel } from '@prisma/client';
+import { MediaService } from '../media/media.service';
+import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class TransactionsService {
@@ -22,6 +25,8 @@ export class TransactionsService {
     private categorization: CategorizationService,
     private features: FeaturesService,
     private config: ConfigService,
+    private mediaService: MediaService,
+    private aiService: AiService,
   ) {}
 
   // ── Get user's encryption key salt ─────────────────────────────────────────
@@ -377,11 +382,30 @@ export class TransactionsService {
     }
 
     // Auto-categorize if no category provided
+    if (dto.localId) {
+      const existing = await this.prisma.transaction.findFirst({
+        where: { userId: ownerId, localId: dto.localId },
+        include: { category: true, cashbook: { select: { id: true, name: true } } },
+      });
+      if (existing) {
+        return { ...this.decryptTransaction(existing, salt), autoDetectedCategory: false };
+      }
+    }
+
     let categoryId = dto.categoryId;
     let autoDetected = false;
     if (!categoryId && (dto.merchant || dto.notes)) {
       const suggested = await this.categorization.suggest(ownerId, dto.merchant, dto.notes);
       if (suggested) { categoryId = suggested; autoDetected = true; }
+    }
+
+    // Server-side GST recalculation guard
+    if (dto.isGstApplied && dto.gstRate && dto.gstRate > 0) {
+      const providedTax = (dto.cgst || 0) + (dto.sgst || 0) + (dto.igst || 0);
+      const expectedTax = (dto.amount * dto.gstRate) / (100 + dto.gstRate);
+      if (Math.abs(expectedTax - providedTax) > 2) { // 2 units margin for rounding
+        throw new BadRequestException(`GST mismatch: Expected tax ~${expectedTax.toFixed(2)}, got ${providedTax.toFixed(2)}`);
+      }
     }
 
     // Currency conversion
@@ -402,6 +426,23 @@ export class TransactionsService {
     const encNotes = dto.notes ? this.crypto.encrypt(dto.notes, salt) : null;
     const encMerchant = dto.merchant ? this.crypto.encrypt(dto.merchant, salt) : null;
 
+    let receiptUrl = (dto as any).receiptUrl || null;
+    let receiptKey = dto.receiptKey || null;
+
+    if (receiptUrl && (receiptUrl.startsWith('data:') || receiptUrl.length > 500)) {
+      try {
+        const mediaRes = await this.mediaService.uploadBase64(receiptUrl, { module: 'receipts', ownerId });
+        receiptUrl = mediaRes.url;
+        receiptKey = mediaRes.key;
+      } catch (e) {}
+    } else if (receiptKey && (receiptKey.startsWith('data:') || receiptKey.length > 500)) {
+      try {
+        const mediaRes = await this.mediaService.uploadBase64(receiptKey, { module: 'receipts', ownerId });
+        receiptUrl = mediaRes.url;
+        receiptKey = mediaRes.key;
+      } catch (e) {}
+    }
+
     const tx = await this.prisma.transaction.create({
       data: {
         userId: ownerId, cashbookId: dto.cashbookId, categoryId,
@@ -414,6 +455,7 @@ export class TransactionsService {
         tags: dto.tags || [],
         isGstApplied: dto.isGstApplied || false,
         gstRate: dto.gstRate, cgst: dto.cgst, sgst: dto.sgst, igst: dto.igst,
+        receiptKey, receiptUrl,
         localId: dto.localId,
         syncedAt: new Date(),
       },
@@ -451,6 +493,39 @@ export class TransactionsService {
       await this.categorization.learnMapping(ownerId, dto.merchant, dto.categoryId);
     }
 
+    // Server-side GST recalculation guard
+    const isGstApplied = dto.isGstApplied !== undefined ? dto.isGstApplied : tx.isGstApplied;
+    const gstRate = dto.gstRate !== undefined ? dto.gstRate : (tx.gstRate ? Number(tx.gstRate) : 0);
+    const amount = dto.amount !== undefined ? dto.amount : (tx.amount ? Number(tx.amount) : 0);
+    
+    if (isGstApplied && gstRate && gstRate > 0) {
+      const cgst = dto.cgst !== undefined ? dto.cgst : (tx.cgst ? Number(tx.cgst) : 0);
+      const sgst = dto.sgst !== undefined ? dto.sgst : (tx.sgst ? Number(tx.sgst) : 0);
+      const igst = dto.igst !== undefined ? dto.igst : (tx.igst ? Number(tx.igst) : 0);
+      const providedTax = (cgst || 0) + (sgst || 0) + (igst || 0);
+      const expectedTax = (amount * gstRate) / (100 + gstRate);
+      if (Math.abs(expectedTax - providedTax) > 2) {
+        throw new BadRequestException(`GST mismatch: Expected tax ~${expectedTax.toFixed(2)}, got ${providedTax.toFixed(2)}`);
+      }
+    }
+
+    let receiptUrl = (dto as any).receiptUrl;
+    let receiptKey = (dto as any).receiptKey;
+
+    if (receiptUrl && (receiptUrl.startsWith('data:') || receiptUrl.length > 500)) {
+      try {
+        const mediaRes = await this.mediaService.uploadBase64(receiptUrl, { module: 'receipts', ownerId: userId });
+        receiptUrl = mediaRes.url;
+        receiptKey = mediaRes.key;
+      } catch (e) {}
+    } else if (receiptKey && (receiptKey.startsWith('data:') || receiptKey.length > 500)) {
+      try {
+        const mediaRes = await this.mediaService.uploadBase64(receiptKey, { module: 'receipts', ownerId: userId });
+        receiptUrl = mediaRes.url;
+        receiptKey = mediaRes.key;
+      } catch (e) {}
+    }
+
     const updated = await this.prisma.transaction.update({
       where: { id },
       data: {
@@ -464,6 +539,8 @@ export class TransactionsService {
         ...(encMerchant !== undefined ? { encMerchant } : {}),
         ...(dto.labels ? { labels: dto.labels as TransactionLabel[] } : {}),
         ...(dto.tags ? { tags: dto.tags } : {}),
+        ...(receiptKey !== undefined ? { receiptKey } : {}),
+        ...(receiptUrl !== undefined ? { receiptUrl } : {}),
       },
       include: { category: true },
     });
@@ -562,70 +639,70 @@ export class TransactionsService {
     };
   }
 
-  // ── OCR Scanner using Gemini 1.5 Flash ──────────────────────────────────────
-  async scanReceiptMock(userId: string, imageBase64: string) {
-    const featureEnabled = await this.prisma.appConfig.findUnique({ where: { key: 'feature_ocr_active' } });
-    if (featureEnabled?.value !== 'true') {
-      throw new ForbiddenException('Receipt scanning is currently disabled globally.');
-    }
-
-    const dbKey = await this.prisma.appConfig.findUnique({ where: { key: 'gemini_api_key' } });
-    const apiKey = dbKey?.value || this.config.get<string>('GEMINI_API_KEY');
-    if (!apiKey) {
-      throw new ForbiddenException('Gemini API key is not configured.');
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
+  // ── OCR Scanner using Unified AI Service ────────────────────────────────────
+  async scanReceiptMock(userId: string, imageBase64: string, mimeType: string = 'image/jpeg') {
+    const prompt = `
+      Analyze this receipt/invoice and extract the following information in strict JSON format:
+      {
+        "amount": number (the total amount paid, extract just the number),
+        "merchant": string (the name of the store or merchant),
+        "date": string (ISO 8601 format date if visible, else null),
+        "categorySuggestion": string (suggest a short category like "Food", "Electronics", "Travel", etc),
+        "hasWarranty": boolean (true if warranty is mentioned),
+        "warrantyUntil": string (ISO 8601 format date if a warranty duration is mentioned, calculated from receipt date, else null),
+        "notes": string (brief summary of items purchased, max 50 chars)
+      }
+      Return ONLY valid JSON.
+    `;
 
     try {
-      const prompt = `
-        Analyze this receipt and extract the following information in strict JSON format:
-        {
-          "amount": number (the total amount paid, extract just the number),
-          "merchant": string (the name of the store or merchant),
-          "date": string (ISO 8601 format date if visible, else null),
-          "categorySuggestion": string (suggest a short category like "Food", "Electronics", "Travel", etc),
-          "hasWarranty": boolean (true if warranty is mentioned),
-          "warrantyUntil": string (ISO 8601 format date if a warranty duration is mentioned, calculated from receipt date, else null),
-          "notes": string (brief summary of items purchased, max 50 chars)
-        }
-        Return ONLY valid JSON.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: [
-          prompt,
-          {
-            inlineData: {
-              data: imageBase64,
-              mimeType: 'image/jpeg', // Assumption, but works for most base64 uploads
-            }
-          }
-        ],
-        config: {
-          responseMimeType: 'application/json',
-        }
+      const parsedData = await this.aiService.generateContent({
+        userId,
+        feature: 'RECEIPT_SCAN',
+        prompt,
+        imagePart: {
+          mimeType,
+          data: imageBase64,
+          sizeBytes: Buffer.from(imageBase64, 'base64').length,
+        },
+        expectedJson: true,
       });
 
-      const text = response.text || '{}';
-      const parsedData = JSON.parse(text);
+      let receiptUrl: string | null = null;
+      let receiptKey: string | null = null;
+      try {
+        const mediaRes = await this.mediaService.uploadBase64(`data:${mimeType};base64,${imageBase64}`, {
+          module: 'receipts',
+          ownerId: userId,
+          generateResponsiveSizes: mimeType.startsWith('image/'),
+        });
+        receiptUrl = mediaRes.url;
+        receiptKey = mediaRes.key;
+      } catch (e) {
+        console.error('Failed to upload scanned receipt to MediaService:', e);
+      }
 
+      const rawData = parsedData?.data !== undefined ? parsedData.data : (parsedData || {});
       return {
         success: true,
         parsedData: {
-          amount: parsedData.amount || 0,
-          merchant: parsedData.merchant || 'Unknown Merchant',
-          date: parsedData.date || new Date().toISOString(),
-          categorySuggestion: parsedData.categorySuggestion || 'Other',
-          hasWarranty: parsedData.hasWarranty || false,
-          warrantyUntil: parsedData.warrantyUntil || null,
-          notes: parsedData.notes || '',
+          amount: rawData.amount || 0,
+          merchant: rawData.merchant || 'Unknown Merchant',
+          date: rawData.date || new Date().toISOString(),
+          categorySuggestion: rawData.categorySuggestion || 'Other',
+          hasWarranty: rawData.hasWarranty || false,
+          warrantyUntil: rawData.warrantyUntil || null,
+          notes: rawData.notes || '',
+          receiptUrl,
+          receiptKey,
         }
       };
     } catch (error) {
-      console.error('Gemini OCR Error:', error);
-      throw new ForbiddenException('Failed to process receipt with AI. Please try again.');
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      console.error('Failed to parse receipt data', error);
+      throw new InternalServerErrorException('Failed to process receipt via AI.');
     }
   }
 }

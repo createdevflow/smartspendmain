@@ -32,6 +32,7 @@ export default function CommunicationScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showMsgModal, setShowMsgModal] = useState(false);
 
   // Email form state
   const [eForm, setEForm] = useState({
@@ -39,6 +40,16 @@ export default function CommunicationScreen({ navigation }) {
     subject: '',
     body: '',
     emailType: 'custom',
+    scheduledAt: new Date(Date.now() + 3600000),
+    repeat: 'ONE_TIME',
+    showDatePicker: false,
+  });
+
+  // Message form state
+  const [mForm, setMForm] = useState({
+    recipient: '',
+    content: '',
+    messageType: 'reminder',
     scheduledAt: new Date(Date.now() + 3600000),
     repeat: 'ONE_TIME',
     showDatePicker: false,
@@ -75,11 +86,11 @@ export default function CommunicationScreen({ navigation }) {
     catch { Alert.alert('Error', 'Failed to resume'); }
   };
   const cancelEmail = async (id) => {
-    Alert.alert('Cancel', 'Cancel this scheduled email?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Confirm', style: 'destructive', onPress: async () => {
+    Alert.alert('Delete / Cancel', 'Remove this scheduled email?', [
+      { text: 'No', style: 'cancel' },
+      { text: 'Yes, Remove', style: 'destructive', onPress: async () => {
         try { await api.delete(`/communication/emails/${id}`); load(); }
-        catch { Alert.alert('Error', 'Failed to cancel'); }
+        catch { Alert.alert('Error', 'Failed to remove item'); }
       }},
     ]);
   };
@@ -89,13 +100,35 @@ export default function CommunicationScreen({ navigation }) {
   };
 
   const cancelMsg = async (id) => {
-    Alert.alert('Cancel', 'Cancel this scheduled message?', [
+    Alert.alert('Delete / Cancel', 'Remove this scheduled message?', [
       { text: 'No', style: 'cancel' },
-      { text: 'Yes', style: 'destructive', onPress: async () => {
+      { text: 'Yes, Remove', style: 'destructive', onPress: async () => {
         try { await api.delete(`/communication/messages/${id}`); load(); }
-        catch { Alert.alert('Error', 'Failed to cancel'); }
+        catch { Alert.alert('Error', 'Failed to remove item'); }
       }},
     ]);
+  };
+
+  const scheduleMsg = async () => {
+    if (!mForm.recipient || !mForm.content) {
+      Alert.alert('Error', 'Please fill in recipient phone/ID and message content.');
+      return;
+    }
+    try {
+      await api.post('/communication/messages/schedule', {
+        recipient: mForm.recipient.trim(),
+        content: mForm.content,
+        messageType: mForm.messageType,
+        scheduledAt: mForm.scheduledAt.toISOString(),
+        repeat: mForm.repeat,
+      });
+      setShowMsgModal(false);
+      setMForm({ recipient: '', content: '', messageType: 'reminder', scheduledAt: new Date(Date.now() + 3600000), repeat: 'ONE_TIME', showDatePicker: false });
+      load();
+      Alert.alert('Success', 'Message scheduled successfully!');
+    } catch (e) {
+      Alert.alert('Error', e?.response?.data?.message || 'Failed to schedule message');
+    }
   };
 
   const scheduleEmail = async () => {
@@ -162,15 +195,13 @@ export default function CommunicationScreen({ navigation }) {
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.actionChip} onPress={() => duplicateEmail(item.id)}>
-            <Feather name="copy" size={12} color="#2563EB" />
-            <Text style={[styles.actionChipText, { color: '#2563EB' }]}>Duplicate</Text>
+            <Feather name="copy" size={12} color="#2D8CFF" />
+            <Text style={[styles.actionChipText, { color: '#2D8CFF' }]}>Duplicate</Text>
           </TouchableOpacity>
-          {item.status !== 'SENT' && item.status !== 'CANCELLED' && (
-            <TouchableOpacity style={[styles.actionChip, { backgroundColor: '#FEF2F2' }]} onPress={() => cancelEmail(item.id)}>
-              <Feather name="x" size={12} color="#DC2626" />
-              <Text style={[styles.actionChipText, { color: '#DC2626' }]}>Cancel</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity style={[styles.actionChip, { backgroundColor: '#FEF2F2' }]} onPress={() => cancelEmail(item.id)}>
+            <Feather name="trash-2" size={12} color="#DC2626" />
+            <Text style={[styles.actionChipText, { color: '#DC2626' }]}>{item.status === 'PENDING' || item.status === 'PAUSED' ? 'Cancel' : 'Delete'}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -198,14 +229,12 @@ export default function CommunicationScreen({ navigation }) {
             <Text style={styles.cardMetaText}>{item.repeat}</Text></>
           )}
         </View>
-        {item.status !== 'SENT' && item.status !== 'CANCELLED' && (
-          <View style={styles.cardActions}>
-            <TouchableOpacity style={[styles.actionChip, { backgroundColor: '#FEF2F2' }]} onPress={() => cancelMsg(item.id)}>
-              <Feather name="x" size={12} color="#DC2626" />
-              <Text style={[styles.actionChipText, { color: '#DC2626' }]}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.cardActions}>
+          <TouchableOpacity style={[styles.actionChip, { backgroundColor: '#FEF2F2' }]} onPress={() => cancelMsg(item.id)}>
+            <Feather name="trash-2" size={12} color="#DC2626" />
+            <Text style={[styles.actionChipText, { color: '#DC2626' }]}>{item.status === 'PENDING' || item.status === 'PAUSED' ? 'Cancel' : 'Delete'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -215,46 +244,46 @@ export default function CommunicationScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={22} color="#1E3A8A" />
+          <Feather name="arrow-left" size={22} color="#232333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scheduled Items</Text>
-        {activeTab === 0 && (
-          <TouchableOpacity style={styles.addBtn} onPress={() => setShowEmailModal(true)}>
-            <Feather name="plus" size={18} color="#fff" />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={styles.addBtn} onPress={() => activeTab === 0 ? setShowEmailModal(true) : setShowMsgModal(true)}>
+          <Feather name="plus" size={18} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabBar}>
         {TABS.map((t, i) => (
           <TouchableOpacity key={t} style={[styles.tab, activeTab === i && styles.tabActive]} onPress={() => { setActiveTab(i); setLoading(true); }}>
-            <Feather name={i === 0 ? 'mail' : 'message-circle'} size={14} color={activeTab === i ? '#1E3A8A' : '#9CA3AF'} />
+            <Feather name={i === 0 ? 'mail' : 'message-circle'} size={14} color={activeTab === i ? '#2D8CFF' : '#9CA3AF'} />
             <Text style={[styles.tabText, activeTab === i && styles.tabTextActive]}>{t}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       {loading ? (
-        <View style={styles.centered}><ActivityIndicator size="large" color="#1E3A8A" /></View>
+        <View style={{ padding: 16, gap: 12 }}>
+          {[1, 2, 3, 4, 5].map(i => (
+            <View key={i} style={{ width: '100%', height: 80, backgroundColor: '#F3F4F6', borderRadius: 16 }} />
+          ))}
+        </View>
       ) : (
         <FlatList
           data={activeTab === 0 ? emails : messages}
           keyExtractor={(item) => item.id}
           renderItem={activeTab === 0 ? renderEmailItem : renderMessageItem}
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1E3A8A" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2D8CFF" />}
           ListEmptyComponent={
             <View style={styles.centered}>
               <Feather name={activeTab === 0 ? 'mail' : 'message-circle'} size={48} color="#D1D5DB" />
               <Text style={styles.emptyTitle}>No scheduled {activeTab === 0 ? 'emails' : 'messages'}</Text>
-              {activeTab === 0 && (
-                <TouchableOpacity style={[styles.addBtn, { marginTop: 12, width: 'auto', paddingHorizontal: 16, height: 36, borderRadius: 10 }]}
-                  onPress={() => setShowEmailModal(true)}>
-                  <Feather name="plus" size={14} color="#fff" />
-                  <Text style={{ color: '#fff', fontWeight: '700', marginLeft: 4 }}>Schedule Email</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity style={[styles.addBtn, { marginTop: 12, width: 'auto', paddingHorizontal: 16, height: 36, borderRadius: 10 }]}
+                onPress={() => activeTab === 0 ? setShowEmailModal(true) : setShowMsgModal(true)}>
+                <Feather name="plus" size={14} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '700', marginLeft: 4 }}>Schedule {activeTab === 0 ? 'Email' : 'Message'}</Text>
+              </TouchableOpacity>
             </View>
           }
         />
@@ -325,6 +354,67 @@ export default function CommunicationScreen({ navigation }) {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Schedule Message Modal */}
+      <Modal visible={showMsgModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowMsgModal(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4FF' }} edges={['top']}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Schedule Message</Text>
+            <TouchableOpacity onPress={() => setShowMsgModal(false)}>
+              <Feather name="x" size={22} color="#374151" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
+            {/* Type */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Message Type</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {['reminder', 'alert', 'notification', 'followup', 'welcome'].map((t) => (
+                  <TouchableOpacity key={t} style={[styles.typeChip, mForm.messageType === t && styles.typeChipActive]}
+                    onPress={() => setMForm((f) => ({ ...f, messageType: t }))}>
+                    <Text style={[styles.typeChipText, mForm.messageType === t && { color: '#fff' }]}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Recipient Phone / ID *</Text>
+              <TextInput style={styles.input} value={mForm.recipient} onChangeText={(v) => setMForm((f) => ({ ...f, recipient: v }))} placeholder="+91 9876543210 or Client ID" keyboardType="phone-pad" />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Message Content *</Text>
+              <TextInput style={[styles.input, { height: 100, textAlignVertical: 'top' }]} value={mForm.content} onChangeText={(v) => setMForm((f) => ({ ...f, content: v }))} placeholder="Write your SMS / WhatsApp message here…" multiline />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Send Date & Time</Text>
+              <TouchableOpacity style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                onPress={() => setMForm((f) => ({ ...f, showDatePicker: !f.showDatePicker }))}>
+                <Text>{mForm.scheduledAt.toLocaleString('en-IN')}</Text>
+                <Feather name="calendar" size={16} color="#6B7280" />
+              </TouchableOpacity>
+              {mForm.showDatePicker && (
+                <DateTimePicker value={mForm.scheduledAt} mode="datetime" display="default"
+                  onChange={(_, d) => setMForm((f) => ({ ...f, scheduledAt: d || f.scheduledAt, showDatePicker: Platform.OS === 'ios' }))} />
+              )}
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Repeat</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {REPEAT_OPTIONS.map((r) => (
+                  <TouchableOpacity key={r} style={[styles.typeChip, mForm.repeat === r && styles.typeChipActive]}
+                    onPress={() => setMForm((f) => ({ ...f, repeat: r }))}>
+                    <Text style={[styles.typeChipText, mForm.repeat === r && { color: '#fff' }]}>{r.replace('_', ' ')}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+            <TouchableOpacity style={styles.submitBtn} onPress={scheduleMsg}>
+              <Feather name="send" size={16} color="#fff" />
+              <Text style={styles.submitBtnText}>Schedule Message</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -334,13 +424,13 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F0F4FF', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, fontSize: 20, fontWeight: '800', color: '#111827' },
-  addBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#1E3A8A', alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
+  addBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#2D8CFF', alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
 
   tabBar: { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabActive: { borderBottomColor: '#1E3A8A' },
+  tabActive: { borderBottomColor: '#2D8CFF' },
   tabText: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
-  tabTextActive: { color: '#1E3A8A' },
+  tabTextActive: { color: '#2D8CFF' },
 
   card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   cardHeader: { flexDirection: 'row', gap: 8, marginBottom: 8 },
@@ -366,8 +456,8 @@ const styles = StyleSheet.create({
   input: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: '#111827' },
   hint: { fontSize: 11, color: '#9CA3AF' },
   typeChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
-  typeChipActive: { backgroundColor: '#1E3A8A', borderColor: '#1E3A8A' },
+  typeChipActive: { backgroundColor: '#2D8CFF', borderColor: '#2D8CFF' },
   typeChipText: { fontSize: 12, fontWeight: '700', color: '#374151' },
-  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1E3A8A', borderRadius: 12, paddingVertical: 14, marginTop: 8 },
+  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2D8CFF', borderRadius: 12, paddingVertical: 14, marginTop: 8 },
   submitBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

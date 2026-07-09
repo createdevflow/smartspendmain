@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, RefreshControl, TextInput, Image,
+  ActivityIndicator, Alert, RefreshControl, TextInput,
   ScrollView,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
+import OptimizedImage from '../components/OptimizedImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../utils/api';
 import { useBooks } from '../context/BooksContext';
 
 const CATEGORIES = [
   { key: 'ALL',         label: 'All',         icon: 'bell',           color: '#6B7280' },
-  { key: 'BUDGET',      label: 'Budget',       icon: 'pie-chart',      color: '#1D4ED8' },
+  { key: 'BUDGET',      label: 'Budget',       icon: 'pie-chart',      color: '#2D8CFF' },
   { key: 'GOAL',        label: 'Goals',        icon: 'target',         color: '#059669' },
-  { key: 'TRANSACTION', label: 'Transactions', icon: 'credit-card',    color: '#7C3AED' },
+  { key: 'TRANSACTION', label: 'Transactions', icon: 'credit-card',    color: '#F26D21' },
   { key: 'REPORT',      label: 'Reports',      icon: 'file-text',      color: '#D97706' },
   { key: 'SCHEDULER',   label: 'Scheduler',    icon: 'clock',          color: '#0891B2' },
   { key: 'SECURITY',    label: 'Security',     icon: 'shield',         color: '#DC2626' },
@@ -23,9 +25,9 @@ const CATEGORIES = [
 ];
 
 const CATEGORY_META = {
-  BUDGET:      { icon: 'pie-chart',   color: '#1D4ED8', bg: '#EFF6FF' },
+  BUDGET:      { icon: 'pie-chart',   color: '#2D8CFF', bg: '#EFF6FF' },
   GOAL:        { icon: 'target',      color: '#059669', bg: '#ECFDF5' },
-  TRANSACTION: { icon: 'credit-card', color: '#7C3AED', bg: '#F5F3FF' },
+  TRANSACTION: { icon: 'credit-card', color: '#F26D21', bg: '#FFF7ED' },
   REPORT:      { icon: 'file-text',   color: '#D97706', bg: '#FFFBEB' },
   SCHEDULER:   { icon: 'clock',       color: '#0891B2', bg: '#ECFEFF' },
   SECURITY:    { icon: 'shield',      color: '#DC2626', bg: '#FEF2F2' },
@@ -121,7 +123,11 @@ export default function NotificationsScreen({ navigation }) {
 
   const handleAcceptInvite = async (notif) => {
     try {
-      const { token } = notif.data || {};
+      let parsedData = notif.data || {};
+      if (typeof parsedData === 'string') {
+        try { parsedData = JSON.parse(parsedData); } catch (e) {}
+      }
+      const { token } = parsedData;
       if (!token) throw new Error('Invalid invite token');
       await api.post(`/cashbooks/accept-invite/${token}`);
       Alert.alert('Success', 'You have joined the cashbook!');
@@ -129,7 +135,7 @@ export default function NotificationsScreen({ navigation }) {
       fetchBooks();
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Error', e?.response?.data?.message || 'Failed to accept invite');
+      Alert.alert('Error', e?.response?.data?.message || e?.message || 'Failed to accept invite');
     }
   };
 
@@ -148,8 +154,37 @@ export default function NotificationsScreen({ navigation }) {
     const isInvite = item.type === 'IN_APP' && item.title.includes('Invite');
     const meta = CATEGORY_META[item.category] || CATEGORY_META['SYSTEM'];
 
+    const renderRightActions = () => (
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10, height: '100%', paddingVertical: 2 }}>
+        <TouchableOpacity
+          style={{ width: 60, height: '100%', backgroundColor: '#F59E0B', justifyContent: 'center', alignItems: 'center', borderRadius: 14, marginRight: 8 }}
+          onPress={() => item.isPinned ? pinNotif(item.id, true) : pinNotif(item.id, false)}
+        >
+          <MaterialCommunityIcons name={item.isPinned ? "pin-off" : "pin"} size={22} color="#FFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ width: 60, height: '100%', backgroundColor: '#10B981', justifyContent: 'center', alignItems: 'center', borderRadius: 14 }}
+          onPress={() => archiveNotif(item.id)}
+        >
+          <Feather name="archive" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+    );
+
+    const renderLeftActions = () => (
+      <View style={{ width: 80, height: '100%', backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center', borderRadius: 14, marginRight: 10 }}>
+        <Feather name="trash-2" size={24} color="#FFF" />
+      </View>
+    );
+
     return (
-      <TouchableOpacity
+      <Swipeable
+        renderRightActions={renderRightActions}
+        renderLeftActions={renderLeftActions}
+        onSwipeableLeftOpen={() => handleDelete(item.id)}
+        containerStyle={{ overflow: 'visible' }}
+      >
+        <TouchableOpacity
         style={[styles.card, !item.isRead && styles.cardUnread, item.isPinned && styles.cardPinned]}
         onPress={() => {
           if (!item.isRead) markAsRead(item.id);
@@ -164,17 +199,11 @@ export default function NotificationsScreen({ navigation }) {
 
         {/* Content */}
         <View style={{ flex: 1 }}>
-          {item.isPinned && (
-            <View style={styles.pinnedTag}>
-              <Feather name="pin" size={10} color="#F59E0B" />
-              <Text style={styles.pinnedText}>Pinned</Text>
-            </View>
-          )}
           <Text style={[styles.notifTitle, item.isRead && styles.notifTitleRead]}>{item.title}</Text>
           <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
 
           {item.imageUrl && (
-            <Image source={{ uri: item.imageUrl }} style={styles.bannerImage} resizeMode="cover" />
+            <OptimizedImage source={{ uri: item.imageUrl }} style={styles.bannerImage} contentFit="cover" size="medium" />
           )}
 
           {isInvite && (
@@ -191,11 +220,20 @@ export default function NotificationsScreen({ navigation }) {
           )}
 
           <View style={styles.notifFooter}>
-            <Text style={styles.notifTime}>{timeAgo(item.createdAt)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={styles.notifTime}>{timeAgo(item.createdAt)}</Text>
+              {item.isPinned && (
+                <View style={[styles.pinnedTag, { marginBottom: 0 }]}>
+                  <MaterialCommunityIcons name="pin" size={12} color="#F59E0B" />
+                  <Text style={styles.pinnedText}>Pinned</Text>
+                </View>
+              )}
+            </View>
             {!item.isRead && <View style={styles.unreadDot} />}
           </View>
         </View>
       </TouchableOpacity>
+      </Swipeable>
     );
   };
 
@@ -209,7 +247,7 @@ export default function NotificationsScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color="#1E3A8A" />
+          <Feather name="arrow-left" size={22} color="#232333" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Notifications</Text>
@@ -250,7 +288,7 @@ export default function NotificationsScreen({ navigation }) {
       {/* List */}
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#1E3A8A" />
+          <ActivityIndicator size="large" color="#2D8CFF" />
         </View>
       ) : notifications.length === 0 ? (
         <View style={styles.centered}>
@@ -268,7 +306,7 @@ export default function NotificationsScreen({ navigation }) {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 32 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1E3A8A" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2D8CFF" />}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -287,15 +325,16 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
   headerSub: { fontSize: 12, color: '#6B7280', marginTop: 1 },
   markAllBtn: { paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#EFF6FF', borderRadius: 8 },
-  markAllText: { fontSize: 12, color: '#2563EB', fontWeight: '700' },
+  markAllText: { fontSize: 12, color: '#2D8CFF', fontWeight: '700' },
 
   categoryBar: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', maxHeight: 60, flexGrow: 0 },
   catPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
     backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB',
+    flexShrink: 0,
   },
-  catPillActive: { backgroundColor: '#1E3A8A', borderColor: '#1E3A8A' },
+  catPillActive: { backgroundColor: '#2D8CFF', borderColor: '#2D8CFF' },
   catPillText: { fontSize: 12, fontWeight: '600', color: '#374151' },
   catPillTextActive: { color: '#fff' },
   catBadge: { minWidth: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
@@ -305,10 +344,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', gap: 12, backgroundColor: '#fff',
     borderRadius: 14, padding: 14, shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
-    borderLeftWidth: 0,
+    borderLeftWidth: 3, borderLeftColor: 'transparent',
   },
-  cardUnread: { borderLeftWidth: 3, borderLeftColor: '#1E3A8A', backgroundColor: '#FAFBFF' },
-  cardPinned: { borderTopWidth: 1, borderTopColor: '#F59E0B' },
+  cardUnread: { borderLeftColor: '#2D8CFF', backgroundColor: '#FAFBFF' },
+  cardPinned: { backgroundColor: '#FFFBEB' },
 
   iconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
 
@@ -324,13 +363,13 @@ const styles = StyleSheet.create({
   actionBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
     marginTop: 10, paddingHorizontal: 14, paddingVertical: 7,
-    backgroundColor: '#1E3A8A', borderRadius: 8,
+    backgroundColor: '#2D8CFF', borderRadius: 8,
   },
   actionBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 
   notifFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
   notifTime: { fontSize: 11, color: '#9CA3AF' },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#1E3A8A' },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2D8CFF' },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyIcon: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#F0F4FF', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },

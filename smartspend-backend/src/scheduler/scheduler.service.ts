@@ -43,6 +43,21 @@ export class SchedulerService {
     this.logger.log(`Cleaned up ${result.count} expired OTPs`);
   }
 
+  @Cron('0 3 * * *') // EVERY_DAY_AT_3AM
+  async cleanupOldNotifications() {
+    this.logger.log('Running scheduled task: cleanupOldNotifications');
+    try {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const result = await this.prisma.notification.deleteMany({
+        where: { createdAt: { lt: sevenDaysAgo } },
+      });
+      this.logger.log(`Cleaned up ${result.count} old notifications`);
+    } catch (e) {
+      this.logger.error(`cleanupOldNotifications error: ${e.message}`);
+    }
+  }
+
   // ── Communication Center Dispatchers ──────────────────────────────────────
 
   /** Run every minute to dispatch due emails and messages */

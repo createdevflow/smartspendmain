@@ -92,8 +92,8 @@ export class TransactionsController {
   }
 
   @Post('scan-receipt')
-  @ApiOperation({ summary: 'Mock AI OCR Receipt Scanner' })
-  async scanReceipt(@CurrentUser() user: any, @Body() body: { imageBase64: string }) {
-    return this.transactionsService.scanReceiptMock(user.sub, body.imageBase64);
+  @ApiOperation({ summary: 'AI OCR Receipt Scanner' })
+  async scanReceipt(@CurrentUser() user: any, @Body() body: { imageBase64: string; mimeType?: string }) {
+    return this.transactionsService.scanReceiptMock(user.sub, body.imageBase64, body.mimeType);
   }
 }

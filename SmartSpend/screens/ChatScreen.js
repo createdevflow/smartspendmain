@@ -1,6 +1,6 @@
 // screens/ChatScreen.js — Financial Communication Hub - Chat Room
 import React, {
-  useState, useEffect, useRef, useCallback, useContext,
+  useState, useEffect, useRef, useCallback, useContext, useMemo,
 } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
@@ -16,15 +16,19 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Audio } from 'expo-av';
 import { useChat } from '../context/ChatContext';
 import { AuthContext } from '../context/AuthContext';
 import MessageBubble from '../components/chat/MessageBubble';
 import TypingIndicator from '../components/chat/TypingIndicator';
 import { useTransactions } from '../context/TransactionsContext';
+import { useBooks } from '../context/BooksContext';
 import ScheduleMessageSheet from '../components/chat/ScheduleMessageSheet';
+import { getCurrencySymbol } from '../utils/planFeatures';
 import { api } from '../utils/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import QuickEntrySheet from '../components/QuickEntrySheet';
 
 const DATE_FORMAT = { day: '2-digit', month: 'short', year: 'numeric' };
 
@@ -36,16 +40,14 @@ function DateSeparator({ date }) {
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
     if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    return d.toLocaleDateString('en-IN', DATE_FORMAT);
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
   })();
 
   return (
-    <View style={styles.dateSep}>
-      <View style={styles.dateLine} />
-      <View style={styles.dateTag}>
-        <Text style={styles.dateText}>{label}</Text>
+    <View style={styles.dateSepContainer}>
+      <View style={styles.dateChip}>
+        <Text style={styles.dateChipText}>{label}</Text>
       </View>
-      <View style={styles.dateLine} />
     </View>
   );
 }
@@ -153,18 +155,18 @@ function VoiceRecordButton({ onVoiceSent, isRecording, setIsRecording }) {
 
   return (
     <TouchableOpacity onPress={startRecording} style={styles.micBtn} activeOpacity={0.75}>
-      <Feather name="mic" size={22} color="#1D4ED8" />
+      <Feather name="mic" size={22} color="#2D8CFF" />
     </TouchableOpacity>
   );
 }
 
 // ── Picker Modal (reusable) ───────────────────────────────────────────────────
-function PickerModal({ visible, onClose, title, items, renderItem, keyExtractor, emptyText, onCreatePress }) {
+function PickerModal({ visible, onClose, title, items, renderItem, keyExtractor, emptyText, onCreatePress, insets }) {
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.sheetModal, { maxHeight: '80%' }]}>
+        <View style={[styles.sheetModal, { maxHeight: '80%', paddingBottom: Math.max(insets?.bottom || 0, 28) }]}>
           <View style={styles.sheetHandle} />
           <View style={styles.sheetHeaderModal}>
             <Text style={styles.sheetTitleModal}>{title}</Text>
@@ -184,7 +186,7 @@ function PickerModal({ visible, onClose, title, items, renderItem, keyExtractor,
                 {onCreatePress && (
                   <TouchableOpacity
                     onPress={() => { onClose(); onCreatePress(); }}
-                    style={{ marginTop: 16, backgroundColor: '#1D4ED8', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 }}
+                    style={{ marginTop: 16, backgroundColor: '#2D8CFF', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 }}
                   >
                     <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Create One Now</Text>
                   </TouchableOpacity>
@@ -205,11 +207,14 @@ export default function ChatScreen() {
   const isNotesSelf = title === 'My Notes' || conversationType === 'NOTES_SELF';
 
   const { user } = useContext(AuthContext);
-  const { transactions } = useTransactions();
+  const { transactions, refreshTransactions } = useTransactions();
+  const { refreshBooks } = useBooks();
   const {
     getMessages, sendMessage, editMessage, deleteMessage,
     reactToMessage, sendTyping, markRead, typingUsers,
+    analyzeNoteMessage, executeNoteAction
   } = useChat();
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -229,6 +234,8 @@ export default function ChatScreen() {
 
   const flatRef = useRef(null);
   const typingTimer = useRef(null);
+  const quickEntryRef = useRef(null);
+  const [smartActionData, setSmartActionData] = useState(null);
 
   // ── Socket listener ────────────────────────────────────────────────────
   const { socket } = useChat();
@@ -242,9 +249,9 @@ export default function ChatScreen() {
       });
       markRead(conversationId);
     };
-    const onEdited = ({ messageId, content }) => {
+    const onEdited = ({ messageId, content, metadata }) => {
       setMessages((prev) => prev.map((m) =>
-        m.id === messageId ? { ...m, content, isEdited: true } : m
+        m.id === messageId ? { ...m, content, metadata: metadata || m.metadata, isEdited: true } : m
       ));
     };
     const onDeleted = ({ messageId }) => {
@@ -319,6 +326,18 @@ export default function ChatScreen() {
         });
         setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]);
         setReplyTo(null);
+        if (isNotesSelf) {
+          analyzeNoteMessage(msg.id)
+            .then((resData) => {
+              if (resData?.aiReply) {
+                setMessages((prev) => prev.some((m) => m.id === resData.aiReply.id) ? prev : [...prev, resData.aiReply]);
+                setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+              }
+              if (refreshTransactions) refreshTransactions();
+              if (refreshBooks) refreshBooks();
+            })
+            .catch((e) => console.log('Auto-analyze failed', e));
+        }
       }
       setInput('');
       sendTyping(conversationId, false);
@@ -606,6 +625,33 @@ export default function ChatScreen() {
     ], { cancelable: true });
   };
 
+  // ── Smart Action Handler (AI Notes) ──────────────────────────────────
+  const handleSmartAction = useCallback(async (action) => {
+    if (action.type === 'view_transactions') {
+      if (refreshTransactions) await refreshTransactions();
+      if (refreshBooks) await refreshBooks();
+      navigation.navigate('MainTabs', { screen: 'Transactions' });
+      return;
+    }
+    if (action.type === 'view_tasks') {
+      navigation.navigate('PaymentReminders');
+      return;
+    }
+    if (action.type === 'transaction') {
+      setSmartActionData({
+        type: action.data.type === 'INCOME' ? 'in' : 'out',
+        amount: action.data.amount?.toString(),
+        merchant: action.data.merchant,
+        notes: action.data.merchant ? `Paid ${action.data.merchant}` : '',
+      });
+      setTimeout(() => {
+        quickEntryRef.current?.present();
+      }, 300);
+    } else if (action.type === 'task') {
+      Alert.alert('Task', `You selected to add task: ${action.data.task}`);
+    }
+  }, [navigation, refreshTransactions, refreshBooks]);
+
   // ── Message actions ───────────────────────────────────────────────────
   const handleReact = useCallback((msgId, emoji, convId) => {
     reactToMessage(msgId, emoji, convId || conversationId);
@@ -695,31 +741,85 @@ export default function ChatScreen() {
     } catch { Alert.alert('Error', 'Could not schedule message'); }
   }, [input, conversationId]);
 
-  // ── Build grouped message list ────────────────────────────────────────
-  const groupedMessages = [];
-  const seenMsgIds = new Set();
-  let lastDate = null;
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    if (!msg || (msg.id && seenMsgIds.has(msg.id))) continue;
-    if (msg.id) seenMsgIds.add(msg.id);
-    const msgDate = new Date(msg.createdAt || Date.now()).toDateString();
-    if (msgDate !== lastDate) {
-      groupedMessages.push({ rowType: 'date', date: msg.createdAt, key: `date-${msg.createdAt || Date.now()}` });
-      lastDate = msgDate;
+  // ── Build grouped message list (memoized — only recomputes when messages change) ─
+  const groupedMessages = React.useMemo(() => {
+    const result = [];
+    const seenMsgIds = new Set();
+    let lastDate = null;
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (!msg || (msg.id && seenMsgIds.has(msg.id))) continue;
+      if (msg.id) seenMsgIds.add(msg.id);
+      const msgDate = new Date(msg.createdAt || Date.now()).toDateString();
+      if (msgDate !== lastDate) {
+        result.push({ rowType: 'date', date: msg.createdAt, key: `date-${msg.createdAt || Date.now()}` });
+        lastDate = msgDate;
+      }
+      result.push({ ...msg, rowType: 'message', key: msg.id ? `msg-${msg.id}` : `msg-temp-${i}` });
     }
-    groupedMessages.push({ ...msg, rowType: 'message', key: msg.id ? `msg-${msg.id}` : `msg-temp-${i}` });
-  }
+    return result;
+  }, [messages]);
 
-  const isTyping = typingUsers[conversationId]?.size > 0;
-  const otherTypingUsers = [...(typingUsers[conversationId] || [])].filter((uid) => uid !== user?.id);
+  // Keep a stable ref to groupedMessages for use inside renderItem (avoids dep-churn)
+  const groupedMessagesRef = useRef(groupedMessages);
+  useEffect(() => { groupedMessagesRef.current = groupedMessages; }, [groupedMessages]);
 
-  const renderMessageItem = useCallback(({ item }) => {
+  const otherTypingUsers = [...(typingUsers[conversationId] || [])].filter((uid) => uid !== user?.id && uid !== user?._id);
+  const isOtherTyping = otherTypingUsers.length > 0;
+
+  const quickSuggestions = useMemo(() => {
+    const baseTopics = [
+      '📊 What is my current daily burn rate and runway?',
+      '☕ Coffee 150',
+      '🍔 Lunch 250',
+      '🔍 Analyze my top spending categories this month',
+      '🛒 Groceries 1200',
+      '📈 How can I boost my monthly savings ratio?',
+      '🎯 Set a monthly budget goal of ₹25,000',
+      '🚕 Cab 200',
+      '💡 Give me tips to reduce discretionary shopping',
+      '💵 Income: Salary or Freelance Project 25000'
+    ];
+    const recent = (transactions || []).slice(0, 5).map(t => {
+      if (t.merchant && t.amount) return `${t.type === 'INCOME' ? '💵 Income:' : '💰 Expense:'} ${t.merchant} ${t.amount}`;
+      return null;
+    }).filter(Boolean);
+    return Array.from(new Set([...baseTopics, ...recent]));
+  }, [transactions]);
+
+  const renderMessageItem = useCallback(({ item, index }) => {
     if (item.rowType === 'date') return <DateSeparator date={item.date} />;
+    const gm = groupedMessagesRef.current;
+    const prevItem = gm[index - 1];
+    const nextItem = gm[index + 1];
+    
+    const isBotItem = (m) => Boolean(
+      m?.metadata?.isAiBotResponse ||
+      (typeof m?.content === 'string' && (
+        m.content.includes('**AI Assistant Insight**') ||
+        m.content.includes('**AI Agent Execution Insight**') ||
+        m.content.includes('🤖 **AI') ||
+        m.content.includes('✨ **AI Agent')
+      )) ||
+      m?.sender?.fullName === 'AI Agent' ||
+      m?.sender?.fullName === 'AI Assistant' ||
+      m?.senderId === 'AI_BOT'
+    );
+    const isBot = isBotItem(item);
+    const prevBot = isBotItem(prevItem);
+    const nextBot = isBotItem(nextItem);
+    const isConsecutivePrev = prevItem?.rowType === 'message' && (isBot ? prevBot : (!prevBot && prevItem.senderId === item.senderId));
+    const isConsecutiveNxt = nextItem?.rowType === 'message' && (isBot ? nextBot : (!nextBot && nextItem.senderId === item.senderId));
+
     return (
       <MessageBubble
-        message={item}
-        isOwn={item.senderId === user?.id}
+        message={{
+          ...item,
+          sender: isBot ? { fullName: 'AI Assistant', avatar: null } : item.sender
+        }}
+        isOwn={!isBot && item.senderId === user?.id}
+        isConsecutivePrevious={isConsecutivePrev}
+        isConsecutiveNext={isConsecutiveNxt}
         onReply={setReplyTo}
         onReact={handleReact}
         onEdit={handleEdit}
@@ -729,10 +829,19 @@ export default function ChatScreen() {
         onPin={handlePin}
         onForward={handleForward}
         onRemind={handleRemind}
+        onSchedule={() => { setInput(item.content || ''); setShowScheduleSheet(true); }}
         onViewPress={handleViewFinancial}
+        isNotesSelf={isNotesSelf}
+        onAIAction={(action) => executeNoteAction(item.id, action).then((resData) => {
+          if (resData?.aiReply) {
+            setMessages((prev) => prev.some((m) => m.id === resData.aiReply.id) ? prev : [...prev, resData.aiReply]);
+            setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+          }
+        })}
+        onSmartAction={handleSmartAction}
       />
     );
-  }, [user?.id, handleReact, handleEdit, handleDelete, handleCopy, handleStar, handlePin, handleForward, handleRemind, handleViewFinancial]);
+  }, [user?.id, handleReact, handleEdit, handleDelete, handleCopy, handleStar, handlePin, handleForward, handleRemind, handleViewFinancial, isNotesSelf, executeNoteAction, handleSmartAction]);
 
   const hasText = input.trim().length > 0;
 
@@ -768,8 +877,12 @@ export default function ChatScreen() {
       >
         {/* Messages */}
         {isLoading ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator color="#1D4ED8" />
+          <View style={{ flex: 1, padding: 16, gap: 24, justifyContent: 'flex-end' }}>
+            <View style={{ width: '70%', height: 60, backgroundColor: '#F3F4F6', borderRadius: 20, alignSelf: 'flex-start' }} />
+            <View style={{ width: '60%', height: 40, backgroundColor: '#E2E8F0', borderRadius: 20, alignSelf: 'flex-end' }} />
+            <View style={{ width: '80%', height: 80, backgroundColor: '#F3F4F6', borderRadius: 20, alignSelf: 'flex-start' }} />
+            <View style={{ width: '50%', height: 50, backgroundColor: '#E2E8F0', borderRadius: 20, alignSelf: 'flex-end' }} />
+            <View style={{ width: '65%', height: 60, backgroundColor: '#F3F4F6', borderRadius: 20, alignSelf: 'flex-start' }} />
           </View>
         ) : (
           <ImageBackground source={require('../assets/images/chat_bg.png')} style={{ flex: 1 }} resizeMode="cover">
@@ -778,34 +891,95 @@ export default function ChatScreen() {
               data={groupedMessages}
               keyExtractor={(item, index) => item.key || item.id || index.toString()}
               renderItem={renderMessageItem}
-              onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
+              onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
               onLayout={() => flatRef.current?.scrollToEnd({ animated: false })}
-              initialNumToRender={25}
-              maxToRenderPerBatch={15}
-              windowSize={15}
-              removeClippedSubviews={Platform.OS === 'android'}
-              contentContainerStyle={{ paddingVertical: 12, paddingBottom: 4 }}
-              ListFooterComponent={isTyping ? <TypingIndicator /> : null}
+              initialNumToRender={20}
+              maxToRenderPerBatch={10}
+              updateCellsBatchingPeriod={50}
+              windowSize={7}
+              removeClippedSubviews={true}
+              contentContainerStyle={{ paddingVertical: 16, paddingBottom: 28, flexGrow: 1 }}
+              ListEmptyComponent={
+                <View style={{ paddingHorizontal: 16, paddingVertical: 24, alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ backgroundColor: '#EFF6FF', width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: 14, borderWidth: 1, borderColor: '#BFDBFE' }}>
+                    <Feather name="cpu" size={32} color="#2D8CFF" />
+                  </View>
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B', textAlign: 'center', marginBottom: 6 }}>
+                    {isNotesSelf ? 'Welcome to your AI Smart Note Book!' : 'Hello! I am your Financial AI Assistant'}
+                  </Text>
+                  <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', lineHeight: 20, maxWidth: 320, marginBottom: 24 }}>
+                    {isNotesSelf
+                      ? 'Log expenses, record income, or write notes naturally. I automatically register transactions and calculate instant run-rate insights.'
+                      : 'Ask me anything about your spending velocity, runway safety, budget limits, or instant expense logging.'}
+                  </Text>
+
+                  <View style={{ width: '100%', maxWidth: 400 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 }}>
+                      💡 Predefined Questions & Action Starters:
+                    </Text>
+                    {[
+                      { icon: 'trending-down', title: 'Check Burn Rate & Runway', text: 'What is my current daily burn rate and how safe is my runway?' },
+                      { icon: 'plus-circle', title: 'Quick Expense Entry', text: 'Lunch 250 at Cafe' },
+                      { icon: 'pie-chart', title: 'Top Spending Breakdown', text: 'Analyze my top 3 spending categories this month and where to cut costs.' },
+                      { icon: 'target', title: 'Set Monthly Goal', text: 'Set a monthly expense budget limit of ₹25,000 and track run-rate.' },
+                      { icon: 'award', title: 'Savings Optimization', text: 'How can I optimize my monthly cashflow to boost my savings ratio?' },
+                      { icon: 'dollar-sign', title: 'Log Income', text: 'Income: Salary or Project Bonus 35000' }
+                    ].map((topic, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        style={{
+                          backgroundColor: '#ffffff',
+                          borderRadius: 14,
+                          padding: 13,
+                          marginBottom: 10,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 12,
+                          borderWidth: 1,
+                          borderColor: '#E2E8F0',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 1 },
+                          shadowOpacity: 0.04,
+                          shadowRadius: 3,
+                          elevation: 1
+                        }}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setInput(topic.text);
+                        }}
+                      >
+                        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }}>
+                          <Feather name={topic.icon} size={18} color="#2D8CFF" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }} adjustsFontSizeToFit numberOfLines={1}>{topic.title}</Text>
+                          <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2 }} numberOfLines={1}>{topic.text}</Text>
+                        </View>
+                        <Feather name="chevron-right" size={16} color="#94A3B8" />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              }
+              ListFooterComponent={isOtherTyping ? <TypingIndicator /> : null}
             />
           </ImageBackground>
         )}
 
-        {/* Quick Templates (Notes to Self) */}
-        {isNotesSelf && (
-          <View style={{ backgroundColor: '#F8FAFC', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0' }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 8 }}>
-              {['💡 Idea: ', '🛒 Shopping: ', '💰 Expense: ', '⏰ Reminder: ', '📌 Note: '].map((tpl) => (
-                <TouchableOpacity
-                  key={tpl}
-                  style={{ backgroundColor: '#E0E7FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#C7D2FE' }}
-                  onPress={() => setInput(tpl)}
-                >
-                  <Text style={{ fontSize: 12, color: '#3730A3', fontWeight: '600' }}>{tpl}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+        {/* Quick Templates & Financial Questions Suggestion Bar */}
+        <View style={{ backgroundColor: '#F8FAFC', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0' }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 8 }}>
+            {quickSuggestions.map((tpl) => (
+              <TouchableOpacity
+                key={tpl}
+                style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#BFDBFE' }}
+                onPress={() => setInput(tpl)}
+              >
+                <Text style={{ fontSize: 12, color: '#2D8CFF', fontWeight: '600' }}>{tpl}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* Reply / Editing Banner */}
         {(replyTo || editingMsg) && (
@@ -826,7 +1000,7 @@ export default function ChatScreen() {
         )}
 
         {/* Input bar */}
-        <View style={styles.inputBar}>
+        <View style={[styles.inputBar, { paddingBottom: Math.max(8, insets.bottom) }]}>
           {!isRecordingVoice && (
             <>
               {/* Attach button */}
@@ -834,7 +1008,7 @@ export default function ChatScreen() {
                 style={styles.attachBtn}
                 onPress={() => { setShowAttachMenu((v) => !v); setShowTxPicker(false); }}
               >
-                <Feather name="plus" size={22} color="#1D4ED8" />
+                <Feather name="plus" size={22} color="#2D8CFF" />
               </TouchableOpacity>
 
               {/* Text Input */}
@@ -894,16 +1068,16 @@ export default function ChatScreen() {
               <View style={styles.sheetGridModal}>
                 {/* Image */}
                 <TouchableOpacity style={styles.sheetGridItemModal} onPress={handlePickImage}>
-                  <View style={[styles.sheetGridIconModal, { backgroundColor: '#E0E7FF' }]}>
-                    <Feather name="image" size={24} color="#4F46E5" />
+                  <View style={[styles.sheetGridIconModal, { backgroundColor: '#EFF6FF' }]}>
+                    <Feather name="image" size={24} color="#2D8CFF" />
                   </View>
                   <Text style={styles.sheetGridLabelModal}>Image</Text>
                 </TouchableOpacity>
 
                 {/* Document (real file picker) */}
                 <TouchableOpacity style={styles.sheetGridItemModal} onPress={handlePickDocument}>
-                  <View style={[styles.sheetGridIconModal, { backgroundColor: '#EEF2FF' }]}>
-                    <Feather name="file" size={24} color="#4F46E5" />
+                  <View style={[styles.sheetGridIconModal, { backgroundColor: '#EFF6FF' }]}>
+                    <Feather name="file" size={24} color="#2D8CFF" />
                   </View>
                   <Text style={styles.sheetGridLabelModal}>Document</Text>
                 </TouchableOpacity>
@@ -926,8 +1100,8 @@ export default function ChatScreen() {
 
                 {/* Budget */}
                 <TouchableOpacity style={styles.sheetGridItemModal} onPress={openBudgetPicker}>
-                  <View style={[styles.sheetGridIconModal, { backgroundColor: '#EDE9FE' }]}>
-                    <Feather name="bar-chart-2" size={24} color="#7C3AED" />
+                  <View style={[styles.sheetGridIconModal, { backgroundColor: '#FFF7ED' }]}>
+                    <Feather name="bar-chart-2" size={24} color="#F26D21" />
                   </View>
                   <Text style={styles.sheetGridLabelModal}>Budget</Text>
                 </TouchableOpacity>
@@ -954,6 +1128,7 @@ export default function ChatScreen() {
 
         {/* ── Transaction / Receipt Picker ──────────────────────────────── */}
         <PickerModal
+          insets={insets}
           visible={showTxPicker}
           onClose={() => setShowTxPicker(false)}
           title={txPickerMode === 'RECEIPT' ? '🧾 Select Transaction as Receipt' : '💸 Select Transaction to Share'}
@@ -980,6 +1155,7 @@ export default function ChatScreen() {
 
         {/* ── Budget Picker ─────────────────────────────────────────────── */}
         <PickerModal
+          insets={insets}
           visible={showBudgetPicker}
           onClose={() => setShowBudgetPicker(false)}
           title="📊 Select Budget to Share"
@@ -994,13 +1170,13 @@ export default function ChatScreen() {
             const over = spent > limit;
             return (
               <TouchableOpacity style={styles.txRowModal} onPress={() => handleShareBudget(item)}>
-                <View style={[styles.txDot, { backgroundColor: over ? '#EF4444' : '#6366F1', width: 10, height: 10, borderRadius: 5 }]} />
+                <View style={[styles.txDot, { backgroundColor: over ? '#EF4444' : '#2D8CFF', width: 10, height: 10, borderRadius: 5 }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.txRowLabel}>{item.category || item.name || 'Budget'}</Text>
                   <Text style={styles.txRowSub}>{item.period || 'Monthly'} · ₹{spent.toLocaleString('en-IN')} / ₹{limit.toLocaleString('en-IN')}</Text>
                 </View>
-                <View style={{ backgroundColor: over ? '#FEE2E2' : '#EDE9FE', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: over ? '#DC2626' : '#6366F1' }}>{pct}%</Text>
+                <View style={{ backgroundColor: over ? '#FEE2E2' : '#EFF6FF', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: over ? '#DC2626' : '#2D8CFF' }}>{pct}%</Text>
                 </View>
               </TouchableOpacity>
             );
@@ -1009,6 +1185,7 @@ export default function ChatScreen() {
 
         {/* ── Goal Picker ───────────────────────────────────────────────── */}
         <PickerModal
+          insets={insets}
           visible={showGoalPicker}
           onClose={() => setShowGoalPicker(false)}
           title="🎯 Select Goal to Share"
@@ -1026,7 +1203,7 @@ export default function ChatScreen() {
                   <Text style={styles.txRowSub}>₹{current.toLocaleString('en-IN')} / ₹{target.toLocaleString('en-IN')}</Text>
                 </View>
                 <View style={{ backgroundColor: pct >= 100 ? '#D1FAE5' : '#EFF6FF', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: pct >= 100 ? '#059669' : '#1D4ED8' }}>{pct}%</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: pct >= 100 ? '#059669' : '#2D8CFF' }}>{pct}%</Text>
                 </View>
               </TouchableOpacity>
             );
@@ -1061,19 +1238,18 @@ const styles = StyleSheet.create({
   onlineLabel: { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
   headerAction: { padding: 6, borderRadius: 8, backgroundColor: '#F9FAFB' },
 
-  dateSep: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginVertical: 12, gap: 8 },
-  dateLine: { flex: 1, height: 0.5, backgroundColor: '#E5E7EB' },
-  dateTag: { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3 },
-  dateText: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
+  dateSepContainer: { alignItems: 'center', marginVertical: 10 },
+  dateChip: { backgroundColor: 'rgba(241, 245, 249, 0.9)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4, borderWidth: 0.5, borderColor: '#E2E8F0' },
+  dateChipText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
 
   replyBanner: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#F0F4FF', paddingHorizontal: 16, paddingVertical: 10,
     gap: 10, borderTopWidth: 0.5, borderTopColor: '#E5E7EB',
   },
-  replyAccent: { width: 3, height: '100%', backgroundColor: '#1D4ED8', borderRadius: 2, minHeight: 36 },
-  replyBannerTitle: { fontSize: 12, fontWeight: '700', color: '#1D4ED8' },
-  replyBannerContent: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  replyAccent: { width: 3, height: '100%', backgroundColor: '#2D8CFF', borderRadius: 2, minHeight: 36 },
+  replyBannerTitle: { fontSize: 12, fontWeight: '700', color: '#2D8CFF' },
+  replyBannerContent: { fontSize: 13, color: '#747487', marginTop: 2 },
 
   // Input bar
   inputBar: {
@@ -1084,18 +1260,18 @@ const styles = StyleSheet.create({
   },
   attachBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
   textInput: {
     flex: 1, backgroundColor: '#F3F4F6',
     borderRadius: 20, paddingHorizontal: 16,
     paddingTop: 10, paddingBottom: 10,
-    fontSize: 15, color: '#111827', maxHeight: 120,
+    fontSize: 15, color: '#232333', maxHeight: 120,
   },
   sendBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: '#1D4ED8', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#2D8CFF', alignItems: 'center', justifyContent: 'center',
   },
   sendBtnDisabled: { backgroundColor: '#BFDBFE' },
   scheduleBtn: {
@@ -1104,7 +1280,7 @@ const styles = StyleSheet.create({
   },
   micBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center',
   },
 
   // Recording bar — inline compact

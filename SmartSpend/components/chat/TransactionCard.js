@@ -1,13 +1,8 @@
-// components/chat/TransactionCard.js — Shareable transaction card inside chat
+// components/chat/TransactionCard.js — Compact Premium Shareable Transaction Card
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const TYPE_CONFIG = {
-  INCOME: { gradient: ['#059669', '#10B981'], icon: 'arrow-down-left', label: 'Income' },
-  EXPENSE: { gradient: ['#DC2626', '#EF4444'], icon: 'arrow-up-right', label: 'Expense' },
-};
 
 export default function TransactionCard({ metadata, onPress }) {
   let data = metadata;
@@ -15,123 +10,174 @@ export default function TransactionCard({ metadata, onPress }) {
     try { data = JSON.parse(data); } catch { return null; }
   }
   if (!data || typeof data !== 'object') return null;
-  const { type, amount, currency, category, date, notes, cashbookName } = data;
-  const config = TYPE_CONFIG[type] || TYPE_CONFIG.EXPENSE;
+  const { type, amount, currency, category, date, notes, cashbookName, status } = data;
+  const isIncome = type === 'INCOME';
   const sym = currency === 'INR' ? '₹' : currency === 'USD' ? '$' : (currency || '₹');
+  const accent = isIncome ? '#10B981' : '#EF4444';
+  const bgIcon = isIncome ? '#D1FAE5' : '#FEE2E2';
+
+  const dateStr = date
+    ? new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+    : '';
+
+  const title = notes || category || (isIncome ? 'Income' : 'Expense');
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
-      <LinearGradient
-        colors={config.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
-        <View style={styles.header}>
-          <View style={styles.iconBox}>
-            <Feather name={config.icon} size={16} color="#fff" />
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.container}>
+      <View style={styles.card}>
+        <LinearGradient
+          colors={[isIncome ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)', 'rgba(255,255,255,0)']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 0.45, y: 0.5 }}
+          style={[StyleSheet.absoluteFillObject, { borderRadius: 14 }]}
+        />
+        {/* Top row: Icon + Title + Amount */}
+        <View style={styles.mainRow}>
+          <View style={[styles.iconBox, { backgroundColor: bgIcon }]}>
+            <Feather
+              name={isIncome ? 'arrow-down-left' : 'arrow-up-right'}
+              size={16}
+              color={accent}
+            />
           </View>
-          <View>
-            <Text style={styles.typeLabel}>{config.label}</Text>
-            {cashbookName && <Text style={styles.cashbookName}>{cashbookName}</Text>}
+
+          <View style={styles.infoCol}>
+            <Text style={styles.title} numberOfLines={1}>{title}</Text>
+            <Text style={styles.subText} numberOfLines={1}>
+              {cashbookName || 'Cashbook'} {dateStr ? `· ${dateStr}` : ''}
+            </Text>
           </View>
-          <View style={styles.ssTag}>
-            <Text style={styles.ssTagText}>Cashtro</Text>
+
+          <View style={styles.amountCol}>
+            <Text style={[styles.amountText, { color: accent }]}>
+              {isIncome ? '+' : '-'}{sym}{Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+            </Text>
+            <View style={styles.statusRow}>
+              <Text style={styles.statusText}>{status || 'Completed'}</Text>
+            </View>
           </View>
         </View>
 
-        <Text style={styles.amount}>
-          {type === 'EXPENSE' ? '-' : '+'}{sym}{Number(amount).toLocaleString('en-IN')}
-        </Text>
+        {/* Optional Notes */}
+        {notes && category && notes !== category && (
+          <View style={styles.noteBox}>
+            <Text style={styles.noteText} numberOfLines={1}>{notes}</Text>
+          </View>
+        )}
 
+        {/* Footer actions */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            {category ? `${category}` : 'Uncategorized'}
-          </Text>
-          <Text style={styles.footerText}>
-            {date ? new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
-          </Text>
-        </View>
-
-        {notes ? (
-          <View style={styles.notesBox}>
-            <Text style={styles.notesText} numberOfLines={2}>{notes}</Text>
+          <View style={styles.brandChip}>
+            <Feather name="shield" size={10} color="#3D5AFC" />
+            <Text style={styles.brandText}>Cashtro Verified</Text>
           </View>
-        ) : null}
-      </LinearGradient>
+          <View style={styles.actionRow}>
+            <Text style={styles.actionText}>Tap to View</Text>
+            <Feather name="chevron-right" size={13} color="#6B7280" />
+          </View>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    padding: 16,
-    minWidth: 220,
-    maxWidth: 280,
+  container: {
+    marginVertical: 2,
+    maxWidth: 275,
+    minWidth: 230,
   },
-  header: {
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 11,
+    paddingTop: 10,
+    paddingBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 14,
   },
   iconBox: {
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 9,
   },
-  typeLabel: {
-    color: '#fff',
-    fontWeight: '700',
+  infoCol: {
+    flex: 1,
+    marginRight: 6,
+  },
+  title: {
     fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
   },
-  cashbookName: {
-    color: 'rgba(255,255,255,0.7)',
+  subText: {
     fontSize: 11,
+    color: '#6B7280',
     marginTop: 1,
   },
-  ssTag: {
-    marginLeft: 'auto',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+  amountCol: {
+    alignItems: 'flex-end',
   },
-  ssTagText: {
-    color: 'rgba(255,255,255,0.9)',
+  amountText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  statusRow: {
+    marginTop: 1,
+  },
+  statusText: {
     fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    color: '#9CA3AF',
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
-  amount: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -1,
-    marginBottom: 12,
+  noteBox: {
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 6,
+    borderWidth: 0.5,
+    borderColor: '#F3F4F6',
+  },
+  noteText: {
+    fontSize: 11,
+    color: '#4B5563',
+    fontStyle: 'italic',
   },
   footer: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 0.5,
+    borderTopColor: '#F3F4F6',
   },
-  footerText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
+  brandChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  brandText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#3D5AFC',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionText: {
+    fontSize: 10,
+    color: '#6B7280',
     fontWeight: '500',
-  },
-  notesBox: {
-    marginTop: 10,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    borderRadius: 8,
-    padding: 8,
-  },
-  notesText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 12,
-    lineHeight: 18,
   },
 });

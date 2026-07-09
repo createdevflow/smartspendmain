@@ -204,7 +204,7 @@ export default function RegisterScreen({ navigation }) {
                   activeOpacity={0.85}
                 >
                   <LinearGradient
-                    colors={['#2563EB', '#1D4ED8']}
+                    colors={['#2D8CFF', '#2D8CFF']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.registerGradient}

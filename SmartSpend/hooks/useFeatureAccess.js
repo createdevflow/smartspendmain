@@ -15,6 +15,9 @@ import { AuthContext } from '../context/AuthContext';
 // Map feature-toggle keys to plan feature keys when they differ
 const KEY_ALIASES = {
   feature_wealth: 'feature_wealth_hub',
+  feature_smart_invoicing: 'feature_invoices',
+  feature_invoicing: 'feature_invoices',
+  feature_ocr: 'feature_ocr_active',
 };
 
 // Helper: is the user's free trial currently active?

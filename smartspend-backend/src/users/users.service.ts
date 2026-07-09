@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MediaService } from '../media/media.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mediaService: MediaService,
+  ) {}
 
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -17,7 +21,17 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: any) {
-    const { fullName, defaultCurrency, timezone, language, avatar, phone, pushNotifications, emailReports } = dto;
+    let { fullName, defaultCurrency, timezone, language, avatar, phone, pushNotifications, emailReports } = dto;
+    if (avatar && (avatar.startsWith('data:') || avatar.length > 500)) {
+      try {
+        const uploadRes = await this.mediaService.uploadBase64(avatar, {
+          module: 'users',
+          ownerId: userId,
+          generateResponsiveSizes: true,
+        });
+        avatar = uploadRes.url;
+      } catch (e) {}
+    }
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { ...(fullName ? { fullName } : {}), ...(defaultCurrency ? { defaultCurrency } : {}), ...(timezone ? { timezone } : {}), ...(language ? { language } : {}), ...(avatar !== undefined ? { avatar } : {}), ...(phone !== undefined ? { phone } : {}), ...(pushNotifications !== undefined ? { pushNotifications } : {}), ...(emailReports !== undefined ? { emailReports } : {}) },
@@ -68,9 +82,21 @@ export class UsersService {
   }
 
   async uploadAvatar(userId: string, base64Image: string) {
-    // Store base64 image directly as avatar URL (data URI)
-    // In production you'd upload to S3/MinIO and store the URL
-    const avatarUrl = base64Image.startsWith('data:') ? base64Image : `data:image/jpeg;base64,${base64Image}`;
+    let avatarUrl = base64Image;
+    if (base64Image && (base64Image.startsWith('data:') || base64Image.length > 500)) {
+      try {
+        const uploadRes = await this.mediaService.uploadBase64(base64Image, {
+          module: 'users',
+          ownerId: userId,
+          generateResponsiveSizes: true,
+        });
+        avatarUrl = uploadRes.url;
+      } catch (e) {
+        console.error('Avatar media service upload failed:', e);
+        throw e;
+      }
+    }
+
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { avatar: avatarUrl },
@@ -103,5 +129,20 @@ export class UsersService {
     });
 
     return users;
+  }
+
+  async getAiCredits(userId: string) {
+    const credits = await this.prisma.userAiCredit.findUnique({
+      where: { userId },
+    });
+    if (!credits) {
+      return {
+        balance: 0,
+        monthlyUsage: 0,
+        lifetimeUsage: 0,
+        lastResetDate: new Date(),
+      };
+    }
+    return credits;
   }
 }

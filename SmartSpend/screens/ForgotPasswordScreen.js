@@ -39,7 +39,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <Feather name="key" size={32} color="#2563EB" />
+              <Feather name="key" size={32} color="#2D8CFF" />
             </View>
             <Text style={styles.title}>Forgot Password</Text>
             <Text style={styles.subtitle}>Enter your email to receive a password reset code</Text>
@@ -60,7 +60,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             </View>
 
             <TouchableOpacity style={styles.submitBtn} onPress={handleRequestReset} disabled={loading}>
-              <LinearGradient colors={['#2563EB', '#1D4ED8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
+              <LinearGradient colors={['#2D8CFF', '#2D8CFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
                 {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Send Reset Code</Text>}
               </LinearGradient>
             </TouchableOpacity>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, Sparkles, TrendingUp, Shield, Zap } from 'lucide-react';
+import { ArrowRight, TrendingUp, Shield, Zap } from 'lucide-react';
 
 // Animated phone screen cycling through app screens
 const PHONE_SCREENS = [
@@ -133,7 +133,7 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center pt-32 pb-24 md:pt-40 md:pb-32 overflow-hidden">
+    <section className="relative min-h-screen flex items-center pt-24 pb-16 md:pt-28 md:pb-20 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-blue-50/60 via-white to-white" />
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-blue-100/40 to-transparent rounded-full blur-3xl pointer-events-none" />
@@ -157,20 +157,9 @@ export default function HeroSection() {
             transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="flex flex-col items-start"
           >
-            {/* Badge */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-700 text-sm font-semibold px-4 py-2 rounded-full mb-8"
-            >
-              <Sparkles size={14} className="text-blue-500" />
-              Smart Finance for Modern India
-            </motion.div>
-
             <h1 className="text-5xl md:text-6xl xl:text-7xl font-black text-gray-900 tracking-tight leading-[1.08] mb-6">
               Finance,{' '}
-              <span className="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
+              <span style={{ background: 'linear-gradient(135deg, #2D8CFF 0%, #1D7AF0 60%, #F26D21 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                 beautifully
               </span>
               <br />
@@ -185,7 +174,8 @@ export default function HeroSection() {
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mb-12">
               <Link
                 href="#download"
-                className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-bold px-7 py-4 rounded-2xl hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-500/30 transition-all text-base"
+                className="inline-flex items-center justify-center gap-2 text-white font-bold px-7 py-4 rounded-2xl hover:opacity-90 hover:shadow-xl transition-all text-base"
+                style={{ background: 'linear-gradient(135deg, #2D8CFF, #1D7AF0)' }}
               >
                 Get Cashtro Free
                 <ArrowRight size={16} />
@@ -315,8 +305,9 @@ export default function HeroSection() {
                     key={i}
                     onClick={() => setActiveScreen(i)}
                     className={`transition-all rounded-full ${
-                      i === activeScreen ? 'w-5 h-2 bg-blue-600' : 'w-2 h-2 bg-gray-300'
+                      i === activeScreen ? 'w-5 h-2' : 'w-2 h-2 bg-gray-300'
                     }`}
+                    style={i === activeScreen ? { background: '#2D8CFF' } : {}}
                   />
                 ))}
               </div>

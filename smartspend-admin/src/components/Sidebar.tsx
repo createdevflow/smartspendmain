@@ -1,7 +1,7 @@
 'use client';
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Users, CreditCard, Settings, LogOut, Ticket, BookOpen, FileDown, CreditCard as TxIcon, Activity, ShieldAlert, Bell } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, Settings, LogOut, Ticket, BookOpen, FileDown, CreditCard as TxIcon, Activity, ShieldAlert, Bell, PenSquare, Database } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function decodeJwt(token: string) {
@@ -37,6 +37,7 @@ export function Sidebar() {
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
+    localStorage.removeItem('admin_token');
     router.push('/login');
   };
 
@@ -48,8 +49,10 @@ export function Sidebar() {
     { href: '/cashbooks', icon: <BookOpen className="nav-icon" />, label: 'Shared Cashbooks' },
     { href: '/tax-exports', icon: <FileDown className="nav-icon" />, label: 'Tax Exports' },
     { href: '/communication', icon: <Bell className="nav-icon" />, label: 'Communication' },
+    { href: '/blog', icon: <PenSquare className="nav-icon" />, label: 'Blog' },
     { href: '/support', icon: <Ticket className="nav-icon" />, label: 'Support' },
     { href: '/logs', icon: <ShieldAlert className="nav-icon" />, label: 'Logs & Monitoring' },
+    { href: '/media', icon: <Database className="nav-icon" />, label: 'Media Library' },
     { href: '/settings', icon: <Settings className="nav-icon" />, label: 'Settings' },
   ];
 

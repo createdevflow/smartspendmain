@@ -148,6 +148,13 @@ enum AdminNotifStatus {
   CANCELLED
 }
 
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+  ARCHIVED
+}
+
 // ─── USER ───────────────────────────────────────────────────
 
 model User {
@@ -191,15 +198,15 @@ model User {
   taxExportLogs    TaxExportLog[]
 
   // Chat relations
-  contactsFrom     ChatContact[]         @relation("ContactFrom")
-  contactsTo       ChatContact[]         @relation("ContactTo")
-  chatMemberships  ChatMember[]          @relation("ChatMemberships")
-  sentMessages     ChatMessage[]         @relation("SentMessages")
-  messageReactions ChatMessageReaction[] @relation("MessageReactions")
-  messageReads     ChatMessageRead[]     @relation("MessageReads")
-  starredMessages  StarredMessage[]      @relation("StarredMessages")
+  contactsFrom          ChatContact[]          @relation("ContactFrom")
+  contactsTo            ChatContact[]          @relation("ContactTo")
+  chatMemberships       ChatMember[]           @relation("ChatMemberships")
+  sentMessages          ChatMessage[]          @relation("SentMessages")
+  messageReactions      ChatMessageReaction[]  @relation("MessageReactions")
+  messageReads          ChatMessageRead[]      @relation("MessageReads")
+  starredMessages       StarredMessage[]       @relation("StarredMessages")
   scheduledChatMessages ScheduledChatMessage[] @relation("ScheduledMessages")
-  messageReminders MessageReminder[]     @relation("MessageReminders")
+  messageReminders      MessageReminder[]      @relation("MessageReminders")
 
   // Wealth Hub relations
   watchlists        Watchlist[]
@@ -214,6 +221,15 @@ model User {
   scheduledMessages      ScheduledMessage[]
   notificationPreference NotificationPreference?
   adminNotifRecipients   AdminNotifRecipient[]
+
+  userNotes   UserNote[]   @relation("UserNotes")
+  adminNotes  UserNote[]   @relation("AdminNotes")
+  blogs       Blog[]
+  mediaAssets MediaAsset[]
+
+  // AI Integration
+  aiCredit      UserAiCredit?
+  aiRequestLogs AiRequestLog[]
 
   @@index([email])
   @@index([role, status])
@@ -472,6 +488,8 @@ model Transaction {
   @@index([userId, type, date])
   @@index([localId])
   @@index([userId, deletedAt])
+  @@index([userId, deletedAt, date])
+  @@index([cashbookId, deletedAt, date])
 }
 
 model TransactionSplit {
@@ -618,6 +636,19 @@ model Notification {
 }
 
 // ─── AUDIT LOGS ──────────────────────────────────────────────
+
+model UserNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserNotes", fields: [userId], references: [id], onDelete: Cascade)
+  adminId   String
+  admin     User     @relation("AdminNotes", fields: [adminId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
 
 model AuditLog {
   id        String      @id @default(cuid())
@@ -867,13 +898,14 @@ model ChatMessage {
   isPinned        Boolean          @default(false)
   createdAt       DateTime         @default(now())
 
-  reactions   ChatMessageReaction[]
-  readBy      ChatMessageRead[]
-  starredBy   StarredMessage[]
-  reminders   MessageReminder[]
+  reactions ChatMessageReaction[]
+  readBy    ChatMessageRead[]
+  starredBy StarredMessage[]
+  reminders MessageReminder[]
 
   @@index([conversationId, createdAt])
   @@index([senderId])
+  @@index([conversationId, deletedAt, createdAt])
 }
 
 model ChatMessageReaction {
@@ -1086,26 +1118,26 @@ model SubscriptionOrder {
 // ─── COMMUNICATION CENTER ────────────────────────────────────
 
 model ScheduledEmail {
-  id          String          @id @default(cuid())
+  id          String         @id @default(cuid())
   userId      String
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recipients  String[]        // email addresses
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipients  String[] // email addresses
   subject     String
   body        String
-  attachments Json?           // [{name, url, type}]
-  emailType   String          @default("custom") // custom | receipt | invoice | report | export
+  attachments Json? // [{name, url, type}]
+  emailType   String         @default("custom") // custom | receipt | invoice | report | export
   scheduledAt DateTime
-  timezone    String          @default("Asia/Kolkata")
-  repeat      ScheduleRepeat  @default(ONE_TIME)
-  status      ScheduleStatus  @default(PENDING)
+  timezone    String         @default("Asia/Kolkata")
+  repeat      ScheduleRepeat @default(ONE_TIME)
+  status      ScheduleStatus @default(PENDING)
   lastSentAt  DateTime?
   nextRunAt   DateTime?
-  sentCount   Int             @default(0)
-  failCount   Int             @default(0)
+  sentCount   Int            @default(0)
+  failCount   Int            @default(0)
   lastError   String?
-  metadata    Json?           // source data (cashbookId, reportType, etc.)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  metadata    Json? // source data (cashbookId, reportType, etc.)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   deliveryLogs EmailDeliveryLog[]
 
@@ -1118,7 +1150,7 @@ model EmailDeliveryLog {
   id               String         @id @default(cuid())
   scheduledEmailId String
   scheduledEmail   ScheduledEmail @relation(fields: [scheduledEmailId], references: [id], onDelete: Cascade)
-  status           String         // sent | failed
+  status           String // sent | failed
   recipients       String[]
   error            String?
   sentAt           DateTime       @default(now())
@@ -1133,7 +1165,7 @@ model ScheduledMessage {
   conversationId String
   content        String
   messageType    String         @default("TEXT") // TEXT | RECEIPT | TRANSACTION | INVOICE | REMINDER
-  attachmentData Json?          // shared data (transactionId, invoiceId, etc.)
+  attachmentData Json? // shared data (transactionId, invoiceId, etc.)
   scheduledAt    DateTime
   repeat         ScheduleRepeat @default(ONE_TIME)
   status         ScheduleStatus @default(PENDING)
@@ -1150,7 +1182,7 @@ model ScheduledMessage {
 }
 
 model AdminNotification {
-  id              String              @id @default(cuid())
+  id              String             @id @default(cuid())
   title           String
   subtitle        String?
   body            String
@@ -1158,18 +1190,18 @@ model AdminNotification {
   iconName        String?
   buttonText      String?
   actionUrl       String?
-  notifType       AdminNotifType      @default(ANNOUNCEMENT)
-  audience        AdminNotifAudience  @default(ALL)
+  notifType       AdminNotifType     @default(ANNOUNCEMENT)
+  audience        AdminNotifAudience @default(ALL)
   selectedUserIds String[]
-  channelInApp    Boolean             @default(true)
-  channelPush     Boolean             @default(false)
-  status          AdminNotifStatus    @default(DRAFT)
+  channelInApp    Boolean            @default(true)
+  channelPush     Boolean            @default(false)
+  status          AdminNotifStatus   @default(DRAFT)
   scheduledAt     DateTime?
   sentAt          DateTime?
-  sentCount       Int                 @default(0)
+  sentCount       Int                @default(0)
   createdById     String
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
   recipients AdminNotifRecipient[]
 
@@ -1194,23 +1226,133 @@ model AdminNotifRecipient {
 }
 
 model NotificationPreference {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  budgetAlerts          Boolean  @default(true)
-  goalAlerts            Boolean  @default(true)
-  transactionAlerts     Boolean  @default(true)
-  reportAlerts          Boolean  @default(true)
-  schedulerAlerts       Boolean  @default(true)
-  securityAlerts        Boolean  @default(true)
-  systemAlerts          Boolean  @default(true)
-  wealthAlerts          Boolean  @default(true)
-  adminAlerts           Boolean  @default(true)
-  pushEnabled           Boolean  @default(true)
-  emailEnabled          Boolean  @default(true)
-  inAppEnabled          Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetAlerts      Boolean  @default(true)
+  goalAlerts        Boolean  @default(true)
+  transactionAlerts Boolean  @default(true)
+  reportAlerts      Boolean  @default(true)
+  schedulerAlerts   Boolean  @default(true)
+  securityAlerts    Boolean  @default(true)
+  systemAlerts      Boolean  @default(true)
+  wealthAlerts      Boolean  @default(true)
+  adminAlerts       Boolean  @default(true)
+  pushEnabled       Boolean  @default(true)
+  emailEnabled      Boolean  @default(true)
+  inAppEnabled      Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([userId])
+}
+
+// ─── BLOG ────────────────────────────────────────────────────
+
+model Blog {
+  id             String        @id @default(cuid())
+  title          String
+  slug           String        @unique
+  excerpt        String?       @db.Text
+  content        Json // Rich editor blocks as JSON array
+  coverImage     String?
+  ogImage        String?
+  seoTitle       String?
+  seoDescription String?       @db.Text
+  focusKeywords  String?
+  canonicalUrl   String?
+  metaRobots     String        @default("index,follow")
+  status         BlogStatus    @default(DRAFT)
+  featured       Boolean       @default(false)
+  readingTime    Int? // estimated minutes
+  publishedAt    DateTime?
+  scheduledAt    DateTime?
+  authorId       String
+  author         User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  categoryId     String?
+  category       BlogCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags           BlogTag[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([slug])
+  @@index([authorId])
+}
+
+model BlogCategory {
+  id    String @id @default(cuid())
+  name  String @unique
+  slug  String @unique
+  color String @default("#2563EB")
+  blogs Blog[]
+
+  @@index([slug])
+}
+
+model BlogTag {
+  id    String @id @default(cuid())
+  name  String @unique
+  slug  String @unique
+  blogs Blog[]
+
+  @@index([slug])
+}
+
+model MediaAsset {
+  id              String   @id @default(cuid())
+  filePath        String   @unique
+  storageKey      String   @unique
+  url             String
+  hash            String
+  size            Int
+  compressedSize  Int?
+  originalSize    Int?
+  type            String
+  dimensions      Json?
+  metadata        Json?
+  ownerId         String?
+  owner           User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  module          String
+  uploadDate      DateTime @default(now())
+  status          String   @default("ACTIVE")
+  downloads       Int      @default(0)
+  usageCount      Int      @default(1)
+  storageLocation String   @default("MINIO")
+
+  @@index([hash, status])
+  @@index([module, status])
+  @@index([ownerId])
+  @@index([uploadDate])
+}
+
+// --- AI INTEGRATION -----------------------------------------
+
+model UserAiCredit {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance       Int      @default(0) // Current available credits
+  monthlyUsage  Int      @default(0) // Credits used this month
+  lifetimeUsage Int      @default(0) // Total credits ever used
+  lastResetDate DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AiRequestLog {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feature        String // e.g., 'RECEIPT_SCAN', 'FINANCIAL_INSIGHT'
+  modelUsed      String // e.g., 'gemini-2.5-flash'
+  tokensConsumed Int      @default(0)
+  creditsCost    Int      @default(0)
+  durationMs     Int      @default(0)
+  status         String // 'SUCCESS', 'FAILED', 'RATE_LIMITED'
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([feature])
+  @@index([createdAt])
 }

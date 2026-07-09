@@ -1,10 +1,12 @@
 import { IsEmail, IsString, MinLength, MaxLength, IsOptional, Matches, IsMobilePhone } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SanitizeHtml } from '../../common/decorators/sanitize.decorator';
 
 export class RegisterDto {
   @ApiProperty({ example: 'Ankur Sharma' })
-  @IsString() @MaxLength(100)
+  @IsString() @MaxLength(100) @SanitizeHtml()
   fullName: string;
+
 
   @ApiProperty({ example: 'ankur@example.com' })
   @IsEmail()

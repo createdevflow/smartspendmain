@@ -10,10 +10,10 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Image,
   Modal,
   FlatList,
   Pressable,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -22,6 +22,7 @@ import * as Clipboard from "expo-clipboard";
 import { AuthContext } from "../context/AuthContext";
 import { api } from "../utils/api";
 import { useFeatureAccess } from "../hooks/useFeatureAccess";
+import OptimizedImage from "../components/OptimizedImage";
 
 const CURRENCIES = [
   { code: "INR", name: "Indian Rupee", symbol: "₹" },
@@ -61,7 +62,7 @@ export default function ProfileScreen({ navigation }) {
     setPhone(user?.phone || "");
     setDefaultCurrency(user?.defaultCurrency || "INR");
     setAvatarUri(user?.avatar || null);
-  }, [user]);
+  }, [user?.id]);
 
   // Password Form
   const [currentPassword, setCurrentPassword] = useState("");
@@ -94,10 +95,15 @@ export default function ProfileScreen({ navigation }) {
         const asset = result.assets[0];
         setAvatarLoading(true);
         try {
-          const base64 = asset.base64
-            ? `data:image/jpeg;base64,${asset.base64}`
-            : asset.uri;
+          let base64 = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
           setAvatarUri(asset.uri); // Show locally immediately
+          
+          // Proactively upload via MediaService
+          if (base64.startsWith('data:')) {
+            const uploadRes = await api.post('/media/upload-base64', { base64, module: 'users' });
+            base64 = uploadRes.data?.data?.url || uploadRes.data?.url || base64;
+          }
+
           const res = await api.post("/users/avatar", { image: base64 });
           if (updateProfileInContext) {
             updateProfileInContext(res.data?.data || res.data);
@@ -187,15 +193,20 @@ export default function ProfileScreen({ navigation }) {
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {/* ── Free Trial Banner ── */}
           {showTrialBanner && isTrialActive && (
-            <View style={{ backgroundColor: '#DBEAFE', padding: 12, borderRadius: 12, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#BFDBFE' }}>
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Feather name="zap" size={16} color="#2563EB" />
-                <Text style={{ fontSize: 13, color: '#1E3A8A', fontWeight: '600' }}>
-                  Free Trial Active (ends {new Date(user.trialExpiresAt).toLocaleDateString()})
-                </Text>
+            <View style={{ backgroundColor: '#EFF6FF', padding: 12, borderRadius: 12, marginHorizontal: 20, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#BFDBFE' }}>
+              <View style={{ flex: 1, flexDirection: 'column', gap: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Feather name="zap" size={16} color="#F26D21" />
+                  <Text style={{ fontSize: 13, color: '#232333', fontWeight: '600' }}>
+                    Free trial enjoy all pro features
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => Linking.openURL('https://cashtro.in/terms')}>
+                  <Text style={{ fontSize: 10, color: '#2D8CFF', marginLeft: 24, textDecorationLine: 'underline' }}>*T&C apply (View Terms of Service)</Text>
+                </TouchableOpacity>
               </View>
               <TouchableOpacity onPress={() => setShowTrialBanner(false)} style={{ padding: 4 }}>
-                <Feather name="x" size={16} color="#1E3A8A" />
+                <Feather name="x" size={16} color="#747487" />
               </TouchableOpacity>
             </View>
           )}
@@ -210,7 +221,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.avatarWrapper}>
                 <View style={styles.avatarCircle}>
                   {avatarUri ? (
-                    <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                    <OptimizedImage source={{ uri: avatarUri }} style={styles.avatarImage} size="medium" />
                   ) : (
                     <Text style={styles.avatarText}>{initial}</Text>
                   )}
@@ -412,7 +423,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Current Plan</Text>
               <TouchableOpacity onPress={() => setExpandedText(prev => ({ ...prev, planName: !prev.planName }))} style={{ flex: 1, alignItems: "flex-end", paddingLeft: 20 }}>
-                <Text style={[styles.infoValue, { color: "#2563EB", fontWeight: "700", maxWidth: "100%" }]} numberOfLines={expandedText.planName ? undefined : 1} ellipsizeMode="tail">
+                <Text style={[styles.infoValue, { color: "#2D8CFF", fontWeight: "700", maxWidth: "100%" }]} numberOfLines={expandedText.planName ? undefined : 1} ellipsizeMode="tail">
                   {user?.plan?.name || "Free"}
                 </Text>
               </TouchableOpacity>
@@ -467,7 +478,7 @@ export default function ProfileScreen({ navigation }) {
                     <Text style={styles.currencyCode}>{item.code}</Text>
                     <Text style={styles.currencyName}>{item.name}</Text>
                   </View>
-                  {defaultCurrency === item.code && <Feather name="check" size={20} color="#4F46E5" />}
+                  {defaultCurrency === item.code && <Feather name="check" size={20} color="#2D8CFF" />}
                 </TouchableOpacity>
               )}
             />
@@ -498,9 +509,9 @@ const styles = StyleSheet.create({
   avatarSection: { alignItems: "center", marginBottom: 28 },
   avatarWrapper: { width: 96, height: 96, position: "relative", alignItems: "center", justifyContent: "center" },
   avatarCircle: {
-    width: 92, height: 92, borderRadius: 46, backgroundColor: "#2563EB",
+    width: 92, height: 92, borderRadius: 46, backgroundColor: "#2D8CFF",
     alignItems: "center", justifyContent: "center", overflow: "hidden",
-    shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 5,
+    shadowColor: "#2D8CFF", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 5,
   },
   avatarImage: { width: 92, height: 92 },
   avatarText: { fontSize: 36, fontWeight: "700", color: "#FFFFFF" },
@@ -526,13 +537,13 @@ const styles = StyleSheet.create({
   inputIcon: { paddingHorizontal: 13 },
   input: { flex: 1, height: "100%", color: "#111827", fontSize: 14 },
 
-  saveBtn: { backgroundColor: "#2563EB", borderRadius: 12, height: 50, alignItems: "center", justifyContent: "center", marginTop: 6 },
+  saveBtn: { backgroundColor: "#2D8CFF", borderRadius: 12, height: 50, alignItems: "center", justifyContent: "center", marginTop: 6 },
   saveBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
   saveBtnAlt: {
     backgroundColor: "#EFF6FF", borderRadius: 12, height: 50, alignItems: "center", justifyContent: "center",
     marginTop: 6, borderWidth: 1, borderColor: "#BFDBFE",
   },
-  saveBtnAltText: { color: "#1D4ED8", fontSize: 15, fontWeight: "700" },
+  saveBtnAltText: { color: "#2D8CFF", fontSize: 15, fontWeight: "700" },
 
   // Account Info Rows
   infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderColor: "rgba(148,163,184,0.12)" },
@@ -560,7 +571,7 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
   currencyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#F3F4F6' },
-  currencyRowSelected: { backgroundColor: '#EEF2FF', borderRadius: 12, paddingHorizontal: 12, borderBottomWidth: 0 },
+  currencyRowSelected: { backgroundColor: '#EFF6FF', borderRadius: 12, paddingHorizontal: 12, borderBottomWidth: 0 },
   currencySymbolBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   currencySymbol: { fontSize: 18, fontWeight: '700', color: '#4B5563' },
   currencyCode: { fontSize: 15, fontWeight: '700', color: '#111827' },

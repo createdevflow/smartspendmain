@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { AuditAction } from '@prisma/client';
 import { CacheService } from '../cache/cache.service';
+import { MediaCleanupService } from '../media/media.cleanup.service';
+import { MediaStorageProvider } from '../media/media.storage';
 
 // ── Feature toggle keys for AppConfig ───────────────────────────────────────
 export const APP_FEATURE_KEYS = [
@@ -39,6 +41,8 @@ export const APP_FEATURE_KEYS = [
   'feature_panic_button_active',
   'feature_gallery',
   'feature_chat',
+  'feature_invoices',
+  'feature_payment_reminders',
   // Scheduler & Communication
   'feature_scheduler',
   'feature_scheduled_communications',
@@ -49,6 +53,17 @@ export const APP_FEATURE_KEYS = [
   'download_android_url',
   'download_ios_enabled',
   'download_ios_url',
+  'min_app_version',
+  'force_update_enabled',
+  // AI Settings
+  'ai_maintenance_mode',
+  'ai_gemini_model',
+  'ai_max_prompt_length',
+  'ai_credit_cost_ocr',
+  'ai_credit_cost_insight',
+  'ai_safety_harassment',
+  'ai_safety_hate',
+  'ai_safety_dangerous',
 ];
 
 @Injectable()
@@ -58,6 +73,8 @@ export class AdminService {
     private jwt: JwtService,
     private config: ConfigService,
     private cache: CacheService,
+    private mediaCleanup: MediaCleanupService,
+    private mediaStorage: MediaStorageProvider,
   ) {}
 
   // ── Dashboard ────────────────────────────────────────────────────────────────
@@ -116,8 +133,16 @@ export class AdminService {
         totalTransactions: totalTx,
         activeSubscriptions: totalBooks,
         newUsersThisMonth,
+        newUsersToday: await this.prisma.user.count({ where: { deletedAt: null, createdAt: { gte: new Date(new Date().setHours(0,0,0,0)) } } }),
+        newUsersThisWeek: await this.prisma.user.count({ where: { deletedAt: null, createdAt: { gte: new Date(new Date().setDate(new Date().getDate() - 7)) } } }),
         verifiedUsers,
         suspendedUsers,
+        bannedUsers: await this.prisma.user.count({ where: { deletedAt: null, status: 'BANNED' } }),
+        pendingVerification: await this.prisma.user.count({ where: { deletedAt: null, status: 'PENDING_VERIFICATION' } }),
+        premiumUsers: await this.prisma.user.count({ where: { deletedAt: null, plan: { slug: { not: 'free' } } } }),
+        freeUsers: await this.prisma.user.count({ where: { deletedAt: null, plan: { slug: 'free' } } }),
+        onlineNow: await this.prisma.session.count({ where: { isValid: true, expiresAt: { gt: new Date() } } }),
+        deletedUsers: await this.prisma.user.count({ where: { deletedAt: { not: null } } }),
         totalBudgets,
         totalGoals,
         totalDevices,
@@ -130,23 +155,59 @@ export class AdminService {
 
   // ── Users ────────────────────────────────────────────────────────────────────
 
-  async getUsers(
-    search?: string,
-    status?: string,
-    role?: string,
-    page = 1,
-    limit = 20,
-  ) {
-    const skip = (page - 1) * limit;
+  async getUsers(params: {
+    search?: string;
+    status?: string;
+    role?: string;
+    planId?: string;
+    isEmailVerified?: boolean;
+    dateRange?: string;
+    activity?: string;
+    sortField?: string;
+    sortOrder?: 'asc' | 'desc';
+    page: number;
+    limit: number;
+  }) {
+    const skip = (params.page - 1) * params.limit;
     const where: any = { deletedAt: null };
-    if (status) where.status = status;
-    if (role) where.role = role;
-    if (search) {
+    if (params.status) where.status = params.status;
+    if (params.role) where.role = params.role;
+    if (params.planId) where.planId = params.planId;
+    if (params.isEmailVerified !== undefined) where.isEmailVerified = String(params.isEmailVerified) === 'true';
+
+    if (params.dateRange) {
+      const now = new Date();
+      if (params.dateRange === 'today') {
+        where.createdAt = { gte: new Date(now.setHours(0,0,0,0)) };
+      } else if (params.dateRange === 'week') {
+        where.createdAt = { gte: new Date(now.setDate(now.getDate() - 7)) };
+      } else if (params.dateRange === 'month') {
+        where.createdAt = { gte: new Date(now.setMonth(now.getMonth() - 1)) };
+      }
+    }
+
+    if (params.activity === 'online') {
+      where.sessions = { some: { isValid: true, expiresAt: { gt: new Date() } } };
+    } else if (params.activity === 'offline') {
+      where.sessions = { none: { isValid: true, expiresAt: { gt: new Date() } } };
+    }
+
+    if (params.search) {
       where.OR = [
-        { email: { contains: search, mode: 'insensitive' } },
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
+        { email: { contains: params.search, mode: 'insensitive' } },
+        { fullName: { contains: params.search, mode: 'insensitive' } },
+        { phone: { contains: params.search, mode: 'insensitive' } },
+        { id: { equals: params.search } },
       ];
+    }
+
+    let orderBy: any = { createdAt: 'desc' };
+    if (params.sortField) {
+      if (['fullName', 'email', 'createdAt', 'lastLoginAt'].includes(params.sortField)) {
+        orderBy = { [params.sortField]: params.sortOrder || 'asc' };
+      } else if (params.sortField === 'plan') {
+        orderBy = { plan: { name: params.sortOrder || 'asc' } };
+      }
     }
 
     const [users, total] = await Promise.all([
@@ -156,20 +217,98 @@ export class AdminService {
           id: true, email: true, fullName: true, phone: true,
           status: true, role: true, isEmailVerified: true,
           plan: { select: { name: true, slug: true, color: true } },
-          createdAt: true, lastLoginAt: true,
+          createdAt: true, lastLoginAt: true, avatar: true,
+          defaultCurrency: true, timezone: true,
           _count: { select: { cashbooks: true, transactions: true, devices: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
-        take: limit,
+        take: params.limit,
       }),
       this.prisma.user.count({ where }),
     ]);
 
     return {
       data: users,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      meta: { total, page: params.page, limit: params.limit, totalPages: Math.ceil(total / params.limit) },
     };
+  }
+
+  // ── Deep Profile & Enterprise Actions ────────────────────────────────────────
+
+  async getUserProfileFull(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        plan: true,
+        devices: { orderBy: { lastSeenAt: 'desc' } },
+        sessions: { orderBy: { createdAt: 'desc' }, take: 10 },
+        userNotes: { include: { admin: { select: { fullName: true } } }, orderBy: { createdAt: 'desc' } },
+        transactions: { orderBy: { createdAt: 'desc' }, take: 5, include: { category: true } },
+        auditLogs: { orderBy: { createdAt: 'desc' }, take: 15 },
+        _count: { select: { cashbooks: true, transactions: true, devices: true, sessions: true } },
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  async getUserNotes(userId: string) {
+    return this.prisma.userNote.findMany({
+      where: { userId },
+      include: { admin: { select: { fullName: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async addUserNote(userId: string, adminId: string, content: string) {
+    return this.prisma.userNote.create({
+      data: { userId, adminId, content },
+      include: { admin: { select: { fullName: true } } },
+    });
+  }
+
+  async bulkAssignPlan(userIds: string[], planId: string) {
+    await this.prisma.user.updateMany({
+      where: { id: { in: userIds } },
+      data: { planId },
+    });
+    return { success: true, count: userIds.length };
+  }
+
+  async bulkAssignRole(userIds: string[], role: any) {
+    await this.prisma.user.updateMany({
+      where: { id: { in: userIds } },
+      data: { role },
+    });
+    return { success: true, count: userIds.length };
+  }
+
+  async bulkAssignStatus(userIds: string[], status: any) {
+    await this.prisma.user.updateMany({
+      where: { id: { in: userIds } },
+      data: { status },
+    });
+    return { success: true, count: userIds.length };
+  }
+
+  async bulkDeleteUsers(userIds: string[]) {
+    await this.prisma.user.updateMany({
+      where: { id: { in: userIds } },
+      data: { deletedAt: new Date() },
+    });
+    return { success: true, count: userIds.length };
+  }
+
+  async logoutAllDevices(userId: string) {
+    await this.prisma.session.updateMany({
+      where: { userId },
+      data: { isValid: false },
+    });
+    await this.prisma.auditLog.create({
+      data: { userId, action: AuditAction.LOGOUT, entity: 'Session', metadata: { event: 'logout_all' } }
+    });
+    return { success: true };
   }
 
   async getSoftDeletedUsers(search?: string, page = 1, limit = 20) {
@@ -460,6 +599,14 @@ export class AdminService {
     });
   }
 
+  async reorderPlans(orderedIds: string[]) {
+    const updates = orderedIds.map((id, index) =>
+      this.prisma.plan.update({ where: { id }, data: { sortOrder: index } })
+    );
+    await this.prisma.$transaction(updates);
+    return { success: true };
+  }
+
   async assignUsersToPlan(planId: string, emails: string[]) {
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) throw new NotFoundException('Plan not found');
@@ -713,7 +860,8 @@ export class AdminService {
       let val = found?.value;
       if (val === undefined) {
         if (key.endsWith('_url')) val = '';
-        else if (['maintenance_mode', 'feature_beta', 'download_ios_enabled'].includes(key)) val = 'false';
+        else if (key === 'min_app_version') val = '1.0.0';
+        else if (['maintenance_mode', 'feature_beta', 'download_ios_enabled', 'force_update_enabled'].includes(key)) val = 'false';
         else val = 'true';
       }
       configMap[key] = {
@@ -726,7 +874,6 @@ export class AdminService {
   }
 
   async updateAppConfig(config: { key: string; value: string; teaseMode?: boolean }[]) {
-    console.log('[DEBUG] updateAppConfig called with config:', config);
     if (!config || !Array.isArray(config)) {
       throw new BadRequestException('Invalid config payload: must be an array');
     }
@@ -840,5 +987,149 @@ export class AdminService {
 
     return { success: true, recipientsCount: allUsers.length, message: `Broadcast scheduled/sent to ${allUsers.length} users.` };
   }
+
+  // ── Media Library Management ──────────────────────────────────────────────────
+
+  async getMediaAssets(params: { page?: number; limit?: number; module?: string; status?: string; search?: string; type?: string }) {
+    const page = Number(params.page) || 1;
+    const limit = Number(params.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (params.module && params.module !== 'ALL') {
+      where.module = params.module;
+    }
+    if (params.status && params.status !== 'ALL') {
+      where.status = params.status;
+    }
+    if (params.type && params.type !== 'ALL') {
+      where.type = { startsWith: params.type };
+    }
+    if (params.search) {
+      where.OR = [
+        { storageKey: { contains: params.search, mode: 'insensitive' } },
+        { filePath: { contains: params.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [assets, total] = await Promise.all([
+      this.prisma.mediaAsset.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { uploadDate: 'desc' },
+        include: {
+          owner: {
+            select: { id: true, fullName: true, email: true, avatar: true },
+          },
+        },
+      }),
+      this.prisma.mediaAsset.count({ where }),
+    ]);
+
+    return {
+      data: assets,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getMediaStats() {
+    const allAssets = await this.prisma.mediaAsset.findMany({
+      where: { status: { not: 'DELETED' } },
+      select: {
+        size: true,
+        compressedSize: true,
+        originalSize: true,
+        downloads: true,
+        usageCount: true,
+        module: true,
+        status: true,
+      },
+    });
+
+    let totalFiles = allAssets.length;
+    let totalBytesStored = 0;
+    let totalOriginalBytes = 0;
+    let totalDownloads = 0;
+    let totalUsage = 0;
+
+    const byModule: Record<string, { count: number; bytes: number }> = {};
+    const byStatus: Record<string, number> = { ACTIVE: 0, ARCHIVED: 0, EXPIRED: 0, DELETED: 0 };
+
+    for (const asset of allAssets) {
+      totalBytesStored += asset.size || 0;
+      totalOriginalBytes += asset.originalSize || asset.size || 0;
+      totalDownloads += asset.downloads || 0;
+      totalUsage += asset.usageCount || 1;
+
+      const mod = asset.module || 'system';
+      if (!byModule[mod]) byModule[mod] = { count: 0, bytes: 0 };
+      byModule[mod].count++;
+      byModule[mod].bytes += asset.size || 0;
+
+      const st = asset.status || 'ACTIVE';
+      byStatus[st] = (byStatus[st] || 0) + 1;
+    }
+
+    const totalBytesSaved = Math.max(0, totalOriginalBytes - totalBytesStored);
+    const compressionRatio = totalOriginalBytes > 0 ? ((totalBytesSaved / totalOriginalBytes) * 100).toFixed(1) : '0.0';
+
+    return {
+      totalFiles,
+      totalBytesStored,
+      totalOriginalBytes,
+      totalBytesSaved,
+      compressionRatio,
+      totalDownloads,
+      totalUsage,
+      byModule,
+      byStatus,
+    };
+  }
+
+  async updateMediaAssetStatus(id: string, status: string) {
+    const asset = await this.prisma.mediaAsset.findUnique({ where: { id } });
+    if (!asset) throw new NotFoundException('Media asset not found');
+
+    return this.prisma.mediaAsset.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
+  async bulkDeleteMediaAssets(ids: string[]) {
+    const assets = await this.prisma.mediaAsset.findMany({
+      where: { id: { in: ids } },
+    });
+
+    const defaultBucket = this.config.get<string>('minio.bucketMedia', 'media');
+    let deletedCount = 0;
+
+    for (const asset of assets) {
+      try {
+        await this.mediaStorage.removeObject(defaultBucket, asset.storageKey);
+        await this.prisma.mediaAsset.update({
+          where: { id: asset.id },
+          data: { status: 'DELETED' },
+        });
+        deletedCount++;
+      } catch (e) {
+        // Ignore individual storage deletion failure
+      }
+    }
+
+    return { success: true, deletedCount };
+  }
+
+  async runMediaCleanup() {
+    await this.mediaCleanup.handleDailyCleanup();
+    return { success: true, message: 'Media maintenance and cleanup job executed successfully.' };
+  }
 }
+
 

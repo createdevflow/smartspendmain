@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MediaService } from '../media/media.service';
 
 @Injectable()
 export class SupportService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mediaService: MediaService,
+  ) {}
 
   async getTickets(userId: string) {
     return this.prisma.supportTicket.findMany({
@@ -14,8 +18,18 @@ export class SupportService {
   }
 
   async createTicket(userId: string, dto: any) {
+    let attachmentUrl = dto.attachmentUrl || null;
+    if (attachmentUrl && (attachmentUrl.startsWith('data:') || attachmentUrl.length > 500)) {
+      try {
+        const uploadRes = await this.mediaService.uploadBase64(attachmentUrl, {
+          module: 'system',
+          ownerId: userId,
+        });
+        attachmentUrl = uploadRes.url;
+      } catch (e) {}
+    }
     return this.prisma.supportTicket.create({
-      data: { userId, subject: dto.subject, message: dto.message, type: dto.type || 'contact_us', attachmentUrl: dto.attachmentUrl || null },
+      data: { userId, subject: dto.subject, message: dto.message, type: dto.type || 'contact_us', attachmentUrl },
     });
   }
 

@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Linking } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { getCatMeta } from '../utils/categories.js';
 
 function formatDate(iso) {
@@ -23,9 +24,16 @@ export default function TxCard({ t, onEdit, onDelete, onInvoice, onSchedule, cur
   const meta = getCatMeta(catName);
   const amountRaw = parseFloat(t.amount || 0);
   const amountText = privateMode ? '••••' : `${isIn ? '+' : '−'}${currencySymbol}${amountRaw.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const gradientColor = isIn ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)';
 
   return (
-    <View style={[styles.txCard, { borderLeftColor: isIn ? '#16A34A' : '#DC2626' }]}>
+    <View style={styles.txCard}>
+      <LinearGradient
+        colors={[gradientColor, 'rgba(255,255,255,0)']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 0.45, y: 0.5 }}
+        style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
+      />
       <View style={styles.txMain}>
         {/* Category chip + icon */}
         <View style={[styles.txEmojiBox, { backgroundColor: meta.bg }]}>
@@ -33,7 +41,25 @@ export default function TxCard({ t, onEdit, onDelete, onInvoice, onSchedule, cur
         </View>
 
         <View style={styles.txInfo}>
-          <Text style={styles.txName} numberOfLines={1}>{catName}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.txName} numberOfLines={1}>{catName}</Text>
+            {(t.receiptUrl || t.receiptKey) && (
+              <TouchableOpacity
+                onPress={() => Linking.openURL(t.receiptUrl || t.receiptKey)}
+              >
+                {String(t.receiptUrl || t.receiptKey).toLowerCase().endsWith('.pdf') ? (
+                  <View style={{ backgroundColor: '#EFF6FF', borderRadius: 4, padding: 4 }}>
+                    <Feather name="file-text" size={14} color="#2D8CFF" />
+                  </View>
+                ) : (
+                  <Image 
+                    source={{ uri: t.receiptUrl || t.receiptKey }} 
+                    style={{ width: 24, height: 24, borderRadius: 4, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#F3F4F6' }} 
+                  />
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={styles.txMeta}>
             {formatDate(t.date)} · {formatTime(t.date)}
             {t.paymentMethod ? ` · ${t.paymentMethod}` : ''}
@@ -79,12 +105,12 @@ export default function TxCard({ t, onEdit, onDelete, onInvoice, onSchedule, cur
           </TouchableOpacity>
           {onSchedule && (
             <TouchableOpacity style={[styles.actionIcon, styles.actionIconSchedule]} onPress={() => onSchedule(t)}>
-              <Feather name="clock" size={15} color="#7C3AED" />
+              <Feather name="clock" size={15} color="#F26D21" />
             </TouchableOpacity>
           )}
           {onEdit && (
             <TouchableOpacity style={styles.actionIcon} onPress={() => onEdit(t)}>
-              <Feather name="edit-2" size={15} color="#4F46E5" />
+              <Feather name="edit-2" size={15} color="#2D8CFF" />
             </TouchableOpacity>
           )}
           {onDelete && (
@@ -101,9 +127,7 @@ export default function TxCard({ t, onEdit, onDelete, onInvoice, onSchedule, cur
 const styles = StyleSheet.create({
   txCard: {
     backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: '#F3F4F6', borderLeftWidth: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    borderWidth: 1, borderColor: '#F3F4F6',
   },
   txMain: { flexDirection: 'row', alignItems: 'center' },
   txEmojiBox: {
@@ -118,9 +142,14 @@ const styles = StyleSheet.create({
   txRight: { alignItems: 'flex-end' },
   txAmount: { fontSize: 16, fontWeight: '800' },
   txGstBadge: {
-    marginTop: 4, fontSize: 10, fontWeight: '700', color: '#4F46E5',
-    backgroundColor: '#EEF2FF', paddingHorizontal: 6, paddingVertical: 2,
+    marginTop: 4, fontSize: 10, fontWeight: '700', color: '#2D8CFF',
+    backgroundColor: '#EFF6FF', paddingHorizontal: 6, paddingVertical: 2,
     borderRadius: 4, overflow: 'hidden',
+  },
+  recurringBadge: {
+    marginTop: 4, fontSize: 10, fontWeight: '700', color: '#2D8CFF',
+    backgroundColor: '#EFF6FF', alignSelf: 'flex-start', paddingHorizontal: 6,
+    paddingVertical: 3, borderRadius: 4, overflow: 'hidden'
   },
   txActions: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

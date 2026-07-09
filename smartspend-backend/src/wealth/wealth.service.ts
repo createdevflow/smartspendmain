@@ -68,7 +68,39 @@ export class WealthService {
   getMFNav(code: string)      { return this.market.getMFNav(code); }
 
   // ── News ───────────────────────────────────────────────────────
-  getNews(category: string)   { return this.market.getFinancialNews(category); }
+  async getNews(category: string) {
+    const [externalNews, ourPosts] = await Promise.all([
+      this.market.getFinancialNews(category).catch(() => []),
+      this.prisma.blog.findMany({
+        where: {
+          status: 'PUBLISHED',
+          ...(category && category !== 'all' ? {
+            category: { name: { equals: category, mode: 'insensitive' } }
+          } : {})
+        },
+        include: { category: true, author: true },
+        orderBy: { publishedAt: 'desc' },
+        take: 15,
+      }).catch(() => []),
+    ]);
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3002';
+
+    const formattedOurPosts = ourPosts.map(post => ({
+      id: post.id,
+      title: post.title,
+      url: `${siteUrl}/blog/${post.slug}`,
+      summary: post.excerpt || '',
+      imageUrl: post.coverImage || null,
+      source: 'Cashtro Editorial',
+      category: post.category?.name?.toLowerCase() || 'all',
+      publishedAt: post.publishedAt?.toISOString() || post.createdAt?.toISOString() || null,
+      isCashtroBlog: true,
+      slug: post.slug,
+    }));
+
+    return [...formattedOurPosts, ...externalNews];
+  }
 
   async saveArticle(userId: string, body: any) {
     return this.prisma.savedArticle.upsert({

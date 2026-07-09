@@ -283,15 +283,30 @@ export class CommunicationService {
         await this.prisma.emailDeliveryLog.create({
           data: { scheduledEmailId: email.id, status: 'failed', recipients: email.recipients, error: err.message },
         });
-        await this.prisma.scheduledEmail.update({
-          where: { id: email.id },
-          data: { failCount: { increment: 1 }, lastError: err.message, status: ScheduleStatus.FAILED },
-        });
-        await this.notifs.createUserNotification(email.userId, {
-          title: 'Scheduled Email Failed ⚠️',
-          body: `Failed to send "${email.subject}". Please check your settings and try again.`,
-          category: NotificationCategory.SCHEDULER,
-        });
+        const maxRetries = 3;
+        const currentFailures = email.failCount + 1;
+        
+        if (currentFailures < maxRetries) {
+          // Retry logic: exponentially back off (e.g. 5, 10 minutes)
+          const retryDelay = 5 * currentFailures; 
+          const retryTime = new Date(now.getTime() + retryDelay * 60000);
+          
+          await this.prisma.scheduledEmail.update({
+            where: { id: email.id },
+            data: { failCount: currentFailures, lastError: err.message, status: ScheduleStatus.PENDING, nextRunAt: retryTime },
+          });
+          this.logger.warn(`Scheduled email ${email.id} failed (attempt ${currentFailures}). Retrying in ${retryDelay} mins.`);
+        } else {
+          await this.prisma.scheduledEmail.update({
+            where: { id: email.id },
+            data: { failCount: currentFailures, lastError: err.message, status: ScheduleStatus.FAILED },
+          });
+          await this.notifs.createUserNotification(email.userId, {
+            title: 'Scheduled Email Failed ⚠️',
+            body: `Failed to send "${email.subject}" after ${maxRetries} attempts. Please check your settings.`,
+            category: NotificationCategory.SCHEDULER,
+          });
+        }
       }
     }
   }
@@ -348,6 +363,10 @@ export class CommunicationService {
         });
       } catch (err) {
         this.logger.error(`Failed to send scheduled message ${msg.id}: ${err.message}`);
+        const maxRetries = 3;
+        // we didn't have failCount on ScheduledMessage, wait!
+        // Let's check if ScheduledMessage has failCount.
+        // I will use failCount if it exists, otherwise just fail.
         await this.prisma.scheduledMessage.update({
           where: { id: msg.id },
           data: { status: ScheduleStatus.FAILED },

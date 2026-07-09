@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { api } from "../utils/api";
 import { AuthContext } from "./AuthContext";
+import { useOnboarding } from "./OnboardingContext";
 
 const BooksContext = createContext(null);
 
@@ -10,6 +11,7 @@ export function BooksProvider({ children }) {
   const [books, setBooks] = useState([]);
   const [activeBookId, setActiveBookId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { updateChecklist } = useOnboarding();
 
   const refreshBooks = useCallback(async () => {
     if (!user) return;
@@ -18,10 +20,13 @@ export function BooksProvider({ children }) {
       const data = res.data?.data || [];
       setBooks(data);
       setActiveBookId((prev) => prev || (data.length > 0 ? data[0].id : null));
+      if (data.length > 0) {
+        updateChecklist('firstCashbook');
+      }
     } catch (e) {
       console.log("Failed to load books", e);
     }
-  }, [user]);
+  }, [user?.id, updateChecklist]);
 
   useEffect(() => {
     if (!user) {
@@ -32,19 +37,23 @@ export function BooksProvider({ children }) {
     }
     setLoading(true);
     refreshBooks().finally(() => setLoading(false));
-  }, [user, refreshBooks]);
+  }, [user?.id, refreshBooks]);
 
   const addBook = async ({ name, description, color }) => {
     try {
       const res = await api.post('/cashbooks', {
         name,
         description: description || "",
-        color: color || "#2563EB",
+        color: color || "#2D8CFF",
         currency: (user ? user.defaultCurrency : null) || "INR"
       });
       const newBook = res.data.data;
       setBooks((prev) => [newBook, ...prev]);
       if (!activeBookId) setActiveBookId(newBook.id);
+      
+      // Update checklist on successful creation
+      updateChecklist('firstCashbook');
+      
       return newBook;
     } catch (e) {
       console.log('Error adding book', e);
