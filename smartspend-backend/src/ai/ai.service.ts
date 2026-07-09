@@ -165,9 +165,9 @@ export class AiService {
       // Parse JSON if expected
       if (options.expectedJson) {
         try {
-           // Strip markdown code blocks if AI returned them
-           resultText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
-           return JSON.parse(resultText);
+           const jsonMatch = resultText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+           const cleanJson = jsonMatch ? jsonMatch[0] : resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+           return JSON.parse(cleanJson);
         } catch (e) {
            this.logger.error('Failed to parse AI JSON response:', resultText);
            throw new HttpException('AI returned an invalid format.', HttpStatus.UNPROCESSABLE_ENTITY);
@@ -183,7 +183,7 @@ export class AiService {
       this.logger.error(`AI Request Failed [${options.feature}]: ${errorMsg}`);
       
       // MOCK FALLBACK for Rate Limit, Quota, or any external AI API errors
-      // So the user can still test and use the UI cleanly
+      // So the user can still test and use the UI cleanly without corrupting real financial records
       const isApiOrQuotaError = 
         err.status === 429 || err.status === 404 || err.status === 400 ||
         err.statusCode === 429 || err.statusCode === 404 || err.statusCode === 400 ||
@@ -201,10 +201,10 @@ export class AiService {
         
         if (options.feature === 'NOTE_ANALYSIS') {
           return {
-            isActionable: true,
-            summary: "Analyzed your note successfully (simulated insight due to AI quota limit).",
-            transactions: [{ type: "EXPENSE", amount: 150, merchant: "Mock Store", date: new Date().toISOString().split('T')[0] }],
-            tasks: [], budgets: [], goals: [], tags: ["mock"], categories: ["Other"]
+            isActionable: false,
+            summary: "Note saved securely. (Live AI extraction temporarily skipped due to API quota limit or rate limit).",
+            transactions: [],
+            tasks: [], budgets: [], goals: [], tags: ["note"], categories: ["General"]
           };
         } else if (options.feature === 'MINI_INSIGHT') {
           return "Your spending ratio is looking great today! Keep up the good work.";
@@ -212,13 +212,13 @@ export class AiService {
           return "Your financial health score is strong! You spent approximately 65% on essentials and 35% on discretionary categories this period. Recommendation: Consider increasing automated transfers to your emergency savings by 10% next month to optimize your wealth growth.";
         } else if (options.feature === 'RECEIPT_SCAN') {
           return {
-            amount: 99.99,
-            merchant: "Mock Merchant",
+            amount: 0,
+            merchant: "Unprocessed Receipt",
             date: new Date().toISOString(),
             categorySuggestion: "Shopping",
             hasWarranty: false,
             warrantyUntil: null,
-            notes: "Mock scanned receipt",
+            notes: "Receipt saved. OCR processing temporarily skipped due to API quota limit.",
           };
         } else if (options.feature === 'NOTE_ACTION') {
           return "Action completed successfully (Simulated result).";
