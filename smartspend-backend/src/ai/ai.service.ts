@@ -55,7 +55,7 @@ export class AiService {
 
       // 2. Fetch AI Config
       modelUsed = await this.getConfig('ai_gemini_model', 'gemini-2.0-flash');
-      if (modelUsed === 'gemini-2.5-flash' || !modelUsed) {
+      if (!modelUsed || modelUsed === 'true' || modelUsed === 'false' || modelUsed === 'gemini-2.5-flash') {
         modelUsed = 'gemini-2.0-flash';
       }
       const apiKey = process.env.GEMINI_API_KEY || (await this.getConfig('gemini_api_key', ''));
@@ -64,7 +64,8 @@ export class AiService {
       }
 
       // 3. Validation
-      const maxLength = parseInt(await this.getConfig('ai_max_prompt_length', '50000'), 10);
+      const maxLenRaw = parseInt(await this.getConfig('ai_max_prompt_length', '15000'), 10);
+      const maxLength = isNaN(maxLenRaw) || maxLenRaw <= 0 ? 15000 : maxLenRaw;
       this.validator.validatePrompt(options.prompt, maxLength);
       
       if (options.imagePart) {
@@ -72,13 +73,15 @@ export class AiService {
       }
 
       // 4. Determine Credit Cost based on feature
+      let rawCost = 1;
       if (options.feature === 'RECEIPT_SCAN') {
-        creditsCost = parseInt(await this.getConfig('ai_credit_cost_ocr', '2'), 10);
+        rawCost = parseInt(await this.getConfig('ai_credit_cost_ocr', '2'), 10);
       } else if (options.feature === 'FINANCIAL_INSIGHT') {
-        creditsCost = parseInt(await this.getConfig('ai_credit_cost_insight', '1'), 10);
+        rawCost = parseInt(await this.getConfig('ai_credit_cost_insight', '1'), 10);
       } else {
-        creditsCost = parseInt(await this.getConfig(`ai_credit_cost_${options.feature.toLowerCase()}`, '1'), 10);
+        rawCost = parseInt(await this.getConfig(`ai_credit_cost_${options.feature.toLowerCase()}`, '1'), 10);
       }
+      creditsCost = isNaN(rawCost) || rawCost < 0 ? 1 : rawCost;
 
       // 5. Check user credits and limits
       let userCredit = await this.prisma.userAiCredit.findUnique({ where: { userId: options.userId } });
@@ -111,10 +114,17 @@ export class AiService {
         });
       }
 
-      // Build safety settings from DB or fallback
-      const harassmentThreshold = await this.getConfig('ai_safety_harassment', HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE);
-      const hateThreshold = await this.getConfig('ai_safety_hate', HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE);
-      const dangerousThreshold = await this.getConfig('ai_safety_dangerous', HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE);
+      // Build safety settings from DB or fallback (preventing "true"/"false" or invalid DB values from throwing 400 Invalid Argument)
+      const normalizeThreshold = (val: string): HarmBlockThreshold => {
+        if (val && typeof val === 'string' && val.startsWith('BLOCK_')) {
+          return val as HarmBlockThreshold;
+        }
+        return HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE;
+      };
+
+      const harassmentThreshold = normalizeThreshold(await this.getConfig('ai_safety_harassment', HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE));
+      const hateThreshold = normalizeThreshold(await this.getConfig('ai_safety_hate', HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE));
+      const dangerousThreshold = normalizeThreshold(await this.getConfig('ai_safety_dangerous', HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE));
 
       const requestOptions: any = {
         model: modelUsed,
