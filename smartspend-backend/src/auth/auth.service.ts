@@ -64,6 +64,8 @@ export class AuthService {
     // Determine trial expiration
     const trialConfig = await this.prisma.appConfig.findUnique({ where: { key: 'free_trial_days' } });
     const trialDays = trialConfig ? parseInt(trialConfig.value, 10) : 7;
+    const creditConfig = await this.prisma.appConfig.findUnique({ where: { key: 'ai_default_credits' } });
+    const defaultAiCredits = creditConfig && !isNaN(parseInt(creditConfig.value, 10)) ? parseInt(creditConfig.value, 10) : 30;
     const trialExpiresAt = new Date();
     trialExpiresAt.setDate(trialExpiresAt.getDate() + trialDays);
 
@@ -80,7 +82,7 @@ export class AuthService {
         trialExpiresAt,
         aiCredit: {
           create: {
-            balance: 1000,
+            balance: defaultAiCredits,
           }
         }
       },

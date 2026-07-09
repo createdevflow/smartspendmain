@@ -127,7 +127,8 @@ const DEFAULT_SETTINGS = {
   razorpay_key_secret: '',
   ai_maintenance_mode: false,
   ai_gemini_model: 'gemini-2.0-flash',
-  ai_max_prompt_length: 50000,
+  ai_default_credits: 30,
+  ai_max_prompt_length: 15000,
   ai_credit_cost_ocr: 2,
   ai_credit_cost_insight: 1,
   ai_safety_harassment: 'BLOCK_MEDIUM_AND_ABOVE',
@@ -806,8 +807,14 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="input-group" style={{ marginTop: '1rem' }}>
+                    <label className="input-label">Default New User AI Credits</label>
+                    <input className="input-field" type="number" value={settings.ai_default_credits ?? 30} onChange={e => set('ai_default_credits', e.target.value)} />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.35rem' }}>Free AI credits automatically granted to every new user upon registration or first AI use.</p>
+                  </div>
+
+                  <div className="input-group" style={{ marginTop: '1rem' }}>
                     <label className="input-label">Max Prompt Length (Characters)</label>
-                    <input className="input-field" type="number" value={settings.ai_max_prompt_length || 50000} onChange={e => set('ai_max_prompt_length', e.target.value)} />
+                    <input className="input-field" type="number" value={settings.ai_max_prompt_length ?? 15000} onChange={e => set('ai_max_prompt_length', e.target.value)} />
                   </div>
                 </div>
 

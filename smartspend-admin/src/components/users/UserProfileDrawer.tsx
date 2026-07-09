@@ -11,6 +11,20 @@ export function UserProfileDrawer({ userId, onClose, onUpdated }: any) {
   const [newNote, setNewNote] = useState('');
   const [noteLoading, setNoteLoading] = useState(false);
 
+  const [editingCredits, setEditingCredits] = useState(false);
+  const [creditInput, setCreditInput] = useState<any>('');
+
+  const updateCredits = async () => {
+    try {
+      const res = await api.patch(`/admin/users/${userId}/ai-credits`, { balance: Number(creditInput) });
+      setUser({ ...user, aiCredit: { ...(user.aiCredit || {}), balance: res.data?.balance ?? Number(creditInput) } });
+      setEditingCredits(false);
+      if (onUpdated) onUpdated();
+    } catch (e) {
+      alert('Failed to update AI credits');
+    }
+  };
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -213,6 +227,34 @@ export function UserProfileDrawer({ userId, onClose, onUpdated }: any) {
                     <div className="card" style={{ padding: '1rem' }}>
                       <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.25rem' }}>Phone</p>
                       <p style={{ color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 500 }}>{user.phone || 'Not provided'}</p>
+                    </div>
+                  </div>
+
+                  {/* AI Credits Management */}
+                  <div className="card" style={{ overflow: 'hidden' }}>
+                    <div style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h4 style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        ⚡ AI Credits Balance
+                      </h4>
+                      {!editingCredits ? (
+                        <button onClick={() => { setCreditInput(user?.aiCredit?.balance ?? 0); setEditingCredits(true); }} className="btn btn-secondary" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', minHeight: 'auto' }}>Edit Balance</button>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                          <input type="number" className="input-field" style={{ width: '80px', padding: '0.2rem 0.5rem', fontSize: '0.8rem', minHeight: 'auto' }} value={creditInput} onChange={e => setCreditInput(e.target.value)} />
+                          <button onClick={updateCredits} className="btn btn-primary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', minHeight: 'auto' }}>Save</button>
+                          <button onClick={() => setEditingCredits(false)} className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', minHeight: 'auto' }}>Cancel</button>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-primary)' }}>{user?.aiCredit?.balance ?? 0}</span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginLeft: '0.5rem' }}>available credits</span>
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        <div>Used this month: <strong style={{ color: 'var(--text-primary)' }}>{user?.aiCredit?.monthlyUsage ?? 0}</strong></div>
+                        <div>Lifetime total: <strong style={{ color: 'var(--text-primary)' }}>{user?.aiCredit?.lifetimeUsage ?? 0}</strong></div>
+                      </div>
                     </div>
                   </div>
 

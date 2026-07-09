@@ -85,6 +85,12 @@ export class AdminController {
     return this.adminService.addUserNote(id, admin.id, body.content);
   }
 
+  @Patch('users/:id/ai-credits')
+  @ApiOperation({ summary: 'Update user AI credit balance' })
+  updateUserAiCredits(@Param('id') id: string, @Body() body: { balance: number }) {
+    return this.adminService.updateUserAiCredits(id, body.balance);
+  }
+
   @Post('users/bulk/plan')
   @ApiOperation({ summary: 'Bulk assign plan to users' })
   bulkAssignPlan(@Body() body: { userIds: string[], planId: string }) {

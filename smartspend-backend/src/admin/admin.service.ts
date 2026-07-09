@@ -59,6 +59,7 @@ export const APP_FEATURE_KEYS = [
   'ai_maintenance_mode',
   'gemini_api_key',
   'ai_gemini_model',
+  'ai_default_credits',
   'ai_max_prompt_length',
   'ai_credit_cost_ocr',
   'ai_credit_cost_insight',
@@ -247,6 +248,7 @@ export class AdminService {
         userNotes: { include: { admin: { select: { fullName: true } } }, orderBy: { createdAt: 'desc' } },
         transactions: { orderBy: { createdAt: 'desc' }, take: 5, include: { category: true } },
         auditLogs: { orderBy: { createdAt: 'desc' }, take: 15 },
+        aiCredit: true,
         _count: { select: { cashbooks: true, transactions: true, devices: true, sessions: true } },
       },
     });
@@ -266,6 +268,14 @@ export class AdminService {
     return this.prisma.userNote.create({
       data: { userId, adminId, content },
       include: { admin: { select: { fullName: true } } },
+    });
+  }
+
+  async updateUserAiCredits(userId: string, balance: number) {
+    return this.prisma.userAiCredit.upsert({
+      where: { userId },
+      update: { balance: Number(balance) },
+      create: { userId, balance: Number(balance) },
     });
   }
 

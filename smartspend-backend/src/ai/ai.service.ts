@@ -81,7 +81,16 @@ export class AiService {
       }
 
       // 5. Check user credits and limits
-      const userCredit = await this.prisma.userAiCredit.findUnique({ where: { userId: options.userId } });
+      let userCredit = await this.prisma.userAiCredit.findUnique({ where: { userId: options.userId } });
+      if (!userCredit) {
+        const defaultCredits = parseInt(await this.getConfig('ai_default_credits', '30'), 10);
+        userCredit = await this.prisma.userAiCredit.create({
+          data: {
+            userId: options.userId,
+            balance: isNaN(defaultCredits) ? 30 : defaultCredits,
+          }
+        }).catch(() => null);
+      }
       if (!userCredit || userCredit.balance < creditsCost) {
         throw new HttpException('Insufficient AI credits to perform this action.', HttpStatus.PAYMENT_REQUIRED);
       }
