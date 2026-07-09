@@ -30,9 +30,6 @@ jobs:
             
             trap 'echo "=== ERROR TRAPPED inside run_deploy.sh ==="; docker compose ps || true; docker compose logs --tail 100 api || true; tail -n 500 deploy.log > deploy_tail.log || true; curl --connect-timeout 10 -X POST -H "Content-Type: text/plain" -d @deploy_tail.log https://webhook.site/d3275361-1a3d-4fbf-b70d-96cd507bbaf8 || true' ERR
             
-            export DOCKER_BUILDKIT=1
-            export COMPOSE_DOCKER_CLI_BUILD=1
-            
             echo "=== Pull latest ==="
             git fetch origin main
             rm -rf SmartSpend .git/modules/SmartSpend || true
