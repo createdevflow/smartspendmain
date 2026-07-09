@@ -125,6 +125,14 @@ const DEFAULT_SETTINGS = {
   gemini_api_key: '',
   razorpay_key_id: '',
   razorpay_key_secret: '',
+  ai_maintenance_mode: false,
+  ai_gemini_model: 'gemini-2.5-flash',
+  ai_max_prompt_length: 50000,
+  ai_credit_cost_ocr: 2,
+  ai_credit_cost_insight: 1,
+  ai_safety_harassment: 'BLOCK_MEDIUM_AND_ABOVE',
+  ai_safety_hate: 'BLOCK_MEDIUM_AND_ABOVE',
+  ai_safety_dangerous: 'BLOCK_MEDIUM_AND_ABOVE',
 };
 
 type TabId = 'general' | 'features' | 'security' | 'notifications' | 'maintenance' | 'integrations' | 'ai';
@@ -132,7 +140,7 @@ type TabId = 'general' | 'features' | 'security' | 'notifications' | 'maintenanc
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('general');
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<Record<string, any>>(DEFAULT_SETTINGS);
   const [plans, setPlans] = useState<any[]>([]);
   const [metrics, setMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -262,7 +270,7 @@ export default function SettingsPage() {
     { id: 'maintenance', label: 'Maintenance', icon: <AlertTriangle size={16} /> },
   ];
 
-  const ToggleRow = ({ label, desc, field, danger = false, hasTease = false }: { label: string; desc: string; field: keyof typeof settings; danger?: boolean; hasTease?: boolean }) => (
+  const ToggleRow = ({ label, desc, field, danger = false, hasTease = false }: { label: string; desc: string; field: string; danger?: boolean; hasTease?: boolean }) => (
     <div style={{ padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ flex: 1, marginRight: '1.5rem' }}>
@@ -270,7 +278,7 @@ export default function SettingsPage() {
           <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.125rem', lineHeight: 1.5 }}>{desc}</p>
         </div>
         <label className="toggle" style={{ flexShrink: 0 }}>
-          <input type="checkbox" checked={settings[field] === true || settings[field] === 'true'} onChange={e => set(field as string, e.target.checked)} />
+          <input type="checkbox" checked={(settings as any)[field] === true || (settings as any)[field] === 'true'} onChange={e => set(field as string, e.target.checked)} />
           <span className="toggle-slider" />
         </label>
       </div>

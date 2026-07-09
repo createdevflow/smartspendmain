@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Save } from 'lucide-react';
 
-interface Feature { id: string; key: string; name: string; type: string; category?: string; }
+interface Feature { id: string; key: string; name: string; type: string; category?: string; defaultValue?: string; unit?: string; [key: string]: any; }
 interface PlanFeature { feature: { key: string }; value: string; }
 interface Plan { id: string; name: string; slug: string; description?: string; color: string; isActive: boolean; priceMonthly?: number; priceYearly?: number; features: PlanFeature[]; }
 
