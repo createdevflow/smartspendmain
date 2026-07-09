@@ -26,6 +26,9 @@ jobs:
             
             cat << 'EOF' > run_deploy.sh
             set -e
+            export DOCKER_BUILDKIT=1
+            export COMPOSE_DOCKER_CLI_BUILD=1
+            
             echo "=== Pull latest ==="
             git fetch origin main
             rm -rf SmartSpend .git/modules/SmartSpend || true
@@ -41,13 +44,18 @@ jobs:
             echo "=== Build LANDING ==="
             docker compose build landing
             
-            echo "=== Start ==="
-            docker compose up -d
+            echo "=== Start Data Store Services ==="
+            docker compose up -d db redis minio
+            
+            echo "=== Wait for Database to be ready ==="
+            sleep 5
             
             echo "=== Run Database Migrations & Seeding ==="
-            sleep 5
-            docker compose exec -T api npm run db:deploy
-            docker compose exec -T api npm run db:seed
+            docker compose run --rm api npm run db:deploy
+            docker compose run --rm api npm run db:seed
+            
+            echo "=== Start All Application Services ==="
+            docker compose up -d --remove-orphans
             
             echo "=== Restart Nginx ==="
             docker compose restart nginx
@@ -59,14 +67,22 @@ jobs:
             docker compose ps
             EOF
             
+            set +e
             bash run_deploy.sh > deploy.log 2>&1
             EXIT_CODE=$?
+            set -e
             
-            echo "=== API Logs ===" >> deploy.log
-            docker compose logs api >> deploy.log 2>&1 || true
+            echo "=== Final Status ===" >> deploy.log
+            docker compose ps >> deploy.log 2>&1 || true
             
-            echo "=== WEB Logs ===" >> deploy.log
-            docker compose logs web >> deploy.log 2>&1 || true
+            echo "=== API Logs (Tail 100) ===" >> deploy.log
+            docker compose logs --tail 100 api >> deploy.log 2>&1 || true
+            
+            echo "=== WEB Logs (Tail 50) ===" >> deploy.log
+            docker compose logs --tail 50 web >> deploy.log 2>&1 || true
+            
+            echo "=== DB Logs (Tail 50) ===" >> deploy.log
+            docker compose logs --tail 50 db >> deploy.log 2>&1 || true
             
             tail -n 500 deploy.log > deploy_tail.log
             curl -X POST -H "Content-Type: text/plain" -d @deploy_tail.log https://webhook.site/d3275361-1a3d-4fbf-b70d-96cd507bbaf8 || true

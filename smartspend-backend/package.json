@@ -21,7 +21,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma db push --accept-data-loss",
-    "db:seed": "npx -y tsx prisma/seed.ts",
+    "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force"
   },
@@ -68,6 +68,7 @@
     "rxjs": "^7.8.1",
     "sharp": "^0.33.5",
     "socket.io": "^4.8.3",
+    "tsx": "^4.19.0",
     "uuid": "^11.0.3",
     "winston": "^3.19.0",
     "xss": "^1.0.15"
