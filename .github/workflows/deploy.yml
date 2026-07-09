@@ -20,12 +20,16 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
+          command_timeout: 30m
           envs: SERVER_ENV,CLIENT_ENV
           script: |
             cd ${{ secrets.VPS_TARGET_DIR }} || exit 1
             
             cat << 'EOF' > run_deploy.sh
             set -e
+            
+            trap 'echo "=== ERROR TRAPPED inside run_deploy.sh ==="; docker compose ps || true; docker compose logs --tail 100 api || true; tail -n 500 deploy.log > deploy_tail.log || true; curl --connect-timeout 10 -X POST -H "Content-Type: text/plain" -d @deploy_tail.log https://webhook.site/d3275361-1a3d-4fbf-b70d-96cd507bbaf8 || true' ERR
+            
             export DOCKER_BUILDKIT=1
             export COMPOSE_DOCKER_CLI_BUILD=1
             
@@ -51,8 +55,8 @@ jobs:
             sleep 5
             
             echo "=== Run Database Migrations & Seeding ==="
-            docker compose run --rm api npm run db:deploy
-            docker compose run --rm api npm run db:seed
+            docker compose run --rm -T api npm run db:deploy
+            docker compose run --rm -T api npm run db:seed
             
             echo "=== Start All Application Services ==="
             docker compose up -d --remove-orphans
@@ -85,6 +89,6 @@ jobs:
             docker compose logs --tail 50 db >> deploy.log 2>&1 || true
             
             tail -n 500 deploy.log > deploy_tail.log
-            curl -X POST -H "Content-Type: text/plain" -d @deploy_tail.log https://webhook.site/d3275361-1a3d-4fbf-b70d-96cd507bbaf8 || true
+            curl --connect-timeout 10 -X POST -H "Content-Type: text/plain" -d @deploy_tail.log https://webhook.site/d3275361-1a3d-4fbf-b70d-96cd507bbaf8 || true
             
             exit $EXIT_CODE
