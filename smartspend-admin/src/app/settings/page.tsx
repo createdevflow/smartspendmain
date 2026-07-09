@@ -126,7 +126,7 @@ const DEFAULT_SETTINGS = {
   razorpay_key_id: '',
   razorpay_key_secret: '',
   ai_maintenance_mode: false,
-  ai_gemini_model: 'gemini-2.5-flash',
+  ai_gemini_model: 'gemini-2.0-flash',
   ai_max_prompt_length: 50000,
   ai_credit_cost_ocr: 2,
   ai_credit_cost_insight: 1,
@@ -798,8 +798,8 @@ export default function SettingsPage() {
 
                   <div className="input-group" style={{ marginTop: '1rem' }}>
                     <label className="input-label">Gemini Model</label>
-                    <select className="input-field" value={settings.ai_gemini_model || 'gemini-2.5-flash'} onChange={e => set('ai_gemini_model', e.target.value)}>
-                      <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default/Free)</option>
+                    <select className="input-field" value={settings.ai_gemini_model || 'gemini-2.0-flash'} onChange={e => set('ai_gemini_model', e.target.value)}>
+                      <option value="gemini-2.0-flash">Gemini 2.0 Flash (Default/Free)</option>
                       <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                       <option value="gemini-1.5-pro">Gemini 1.5 Pro (Paid)</option>
                     </select>
