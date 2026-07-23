@@ -99,18 +99,20 @@ export default function CookiePolicy() {
       </Section>
 
       <Section id="managing" number={7} color="bg-rose-50 text-rose-600" title="Managing & Controlling Cookies">
-        <SubSection title="In-App Controls" />
-        <ul className="list-disc pl-5 space-y-1.5">
-          <li>Clear your session: Settings &gt; Security &gt; Sign Out of All Devices</li>
-          <li>Reset preferences: Settings &gt; Appearance &gt; Reset to Defaults</li>
-        </ul>
-        <SubSection title="Browser Controls" />
-        <p>You can control cookies through your browser settings. Note that disabling essential cookies will prevent you from logging in. Common browser cookie controls:</p>
-        <ul className="list-disc pl-5 space-y-1.5 mt-2">
-          <li>Chrome: Settings → Privacy and security → Cookies</li>
-          <li>Safari: Settings → Privacy → Manage Website Data</li>
-          <li>Firefox: Settings → Privacy & Security → Cookies</li>
-        </ul>
+        <SubSection title="In-App Controls">
+          <ul className="list-disc pl-5 space-y-1.5">
+            <li>Clear your session: Settings &gt; Security &gt; Sign Out of All Devices</li>
+            <li>Reset preferences: Settings &gt; Appearance &gt; Reset to Defaults</li>
+          </ul>
+        </SubSection>
+        <SubSection title="Browser Controls">
+          <p>You can control cookies through your browser settings. Note that disabling essential cookies will prevent you from logging in. Common browser cookie controls:</p>
+          <ul className="list-disc pl-5 space-y-1.5 mt-2">
+            <li>Chrome: Settings → Privacy and security → Cookies</li>
+            <li>Safari: Settings → Privacy → Manage Website Data</li>
+            <li>Firefox: Settings → Privacy & Security → Cookies</li>
+          </ul>
+        </SubSection>
         <InfoBox type="warning">
           Clearing essential authentication cookies will log you out of Cashtro on that device.
         </InfoBox>
