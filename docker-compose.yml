@@ -109,15 +109,15 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
 
-      # HTTPS router for cashtro.in
-      - "traefik.http.routers.smartspend.rule=Host(`cashtro.in`) || Host(`www.cashtro.in`)"
+      # HTTPS router for cashtro.in & app.cashtro.in
+      - "traefik.http.routers.smartspend.rule=Host(`cashtro.in`) || Host(`www.cashtro.in`) || Host(`app.cashtro.in`)"
       - "traefik.http.routers.smartspend.entrypoints=websecure"
       - "traefik.http.routers.smartspend.tls=true"
       - "traefik.http.routers.smartspend.tls.certresolver=le"
       - "traefik.http.services.smartspend.loadbalancer.server.port=80"
 
       # HTTP → HTTPS redirect
-      - "traefik.http.routers.smartspend-http.rule=Host(`cashtro.in`) || Host(`www.cashtro.in`)"
+      - "traefik.http.routers.smartspend-http.rule=Host(`cashtro.in`) || Host(`www.cashtro.in`) || Host(`app.cashtro.in`)"
       - "traefik.http.routers.smartspend-http.entrypoints=web"
       - "traefik.http.routers.smartspend-http.middlewares=smartspend-https-redirect"
       - "traefik.http.middlewares.smartspend-https-redirect.redirectscheme.scheme=https"
