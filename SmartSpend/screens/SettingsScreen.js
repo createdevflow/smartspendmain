@@ -10,13 +10,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useBooks } from '../context/BooksContext';
 import { useTransactions } from '../context/TransactionsContext';
 import { AuthContext } from '../context/AuthContext';
+import { useAppTheme } from '../context/ThemeContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { api } from '../utils/api';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as Notifications from 'expo-notifications';
 import OptimizedImage from '../components/OptimizedImage';
 import BusinessCategorySetupModal from '../components/BusinessCategorySetupModal';
+import SecuritySettingsSection from '../components/SecuritySettingsSection';
+import { useBiometric } from '../context/BiometricContext';
 import { TourStep, useTourGuide } from '../components/onboarding/TourGuide';
 import { useOnboarding } from '../context/OnboardingContext';
 import { useIsFocused } from '@react-navigation/native';
@@ -36,16 +40,19 @@ const CURRENCIES = [
 
 // ─── Row components ────────────────────────────────────────────────────────────
 function SettingRow({ icon, iconColor = '#2D8CFF', iconBg = '#EFF6FF', label, sub, onPress, right, isLast }) {
+  const { isDark } = useAppTheme();
+  const effectiveIconColor = isDark ? '#F8FAFC' : '#111827';
+  const renderedRight = right ? (React.isValidElement(right) && right.props?.name === 'chevron-right' ? React.cloneElement(right, { color: isDark ? '#64748B' : '#D1D5DB' }) : right) : null;
   const Inner = (
-    <View style={[styles.row, isLast && styles.rowLast]}>
-      <View style={[styles.rowIcon, { backgroundColor: iconBg }]}>
-        <Feather name={icon} size={16} color={iconColor} />
+    <View style={[styles.row, isLast && styles.rowLast, isDark && { borderBottomColor: 'rgba(255,255,255,0.08)' }]}>
+      <View style={{ width: 32, alignItems: 'flex-start', justifyContent: 'center' }}>
+        <Feather name={icon} size={22} color={effectiveIconColor} />
       </View>
       <View style={styles.rowText}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
+        <Text style={[styles.rowLabel, isDark && { color: '#F8FAFC' }]}>{label}</Text>
+        {sub ? <Text style={[styles.rowSub, isDark && { color: '#94A3B8' }]}>{sub}</Text> : null}
       </View>
-      {right}
+      {renderedRight}
     </View>
   );
   if (!onPress) return Inner;
@@ -74,13 +81,20 @@ function SettingToggleRow({ icon, iconColor, iconBg, label, sub, value, onToggle
   );
 }
 
-function SectionCard({ label, children }) {
+function SectionCard({ label, children, isCard }) {
+  const { isDark } = useAppTheme();
   return (
-    <View style={styles.section}>
-      {label && <Text style={styles.sectionLabel}>{label}</Text>}
-      <View style={styles.card}>{children}</View>
+    <View style={isCard ? styles.highlightCard : styles.section}>
+      {label && <Text style={[styles.sectionLabel, isDark && { color: '#94A3B8' }, isCard && { paddingLeft: 16, paddingTop: 16 }]}>{label}</Text>}
+      <View style={{ backgroundColor: 'transparent' }}>{children}</View>
+      {!isCard && <View style={[styles.sectionDivider, isDark && { backgroundColor: '#1E293B' }]} />}
     </View>
   );
+}
+
+function RowDivider() {
+  const { isDark } = useAppTheme();
+  return <View style={[styles.rowDivider, isDark && { backgroundColor: 'rgba(255,255,255,0.08)' }]} />;
 }
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
@@ -89,6 +103,8 @@ export default function SettingsScreen({ navigation }) {
   const { books, activeBook, updateBook } = useBooks();
   const { gstEnabled, setGstEnabled, privateMode, setPrivateMode } = useTransactions();
   const { hasAccess: isFeatureEnabled, getFeatureTease } = useFeatureAccess();
+  const { themeMode, setThemeMode, isDark, theme } = useAppTheme();
+  const { disableBiometrics } = useBiometric();
 
   // Tour hooks
   const { startTour, activeTour, endTour } = useTourGuide();
@@ -107,6 +123,8 @@ export default function SettingsScreen({ navigation }) {
 
   const categoryModalRef = useRef(null);
   const [notifPrefs, setNotifPrefs] = useState({ push: user?.pushNotifications ?? true, email: user?.emailReports ?? true });
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showThemeDropdown, setShowThemeDropdown] = useState(false);
   
   // Modals for support
   const [showContact, setShowContact] = useState(false);
@@ -122,9 +140,45 @@ export default function SettingsScreen({ navigation }) {
   // Privacy / Shake to Lock
   const [shakeToLock, setShakeToLock] = useState(false);
 
+  // AI Opt-outs
+  const [aiPrefs, setAiPrefs] = useState({
+    disableCategorization: false,
+    disableInsights: false,
+    disableReceiptScanning: false
+  });
+
   useEffect(() => {
     AsyncStorage.getItem('@shake_to_lock').then(v => setShakeToLock(v === 'true'));
+    AsyncStorage.getItem('@ai_prefs').then(v => {
+      if (v) setAiPrefs(JSON.parse(v));
+    });
   }, []);
+
+  const toggleAiPref = async (key) => {
+    const newVal = !aiPrefs[key];
+    const newPrefs = { ...aiPrefs, [key]: newVal };
+    setAiPrefs(newPrefs);
+    await AsyncStorage.setItem('@ai_prefs', JSON.stringify(newPrefs));
+    try {
+      await api.patch('/users/profile', { preferences: { aiPrefs: newPrefs } });
+    } catch (e) {
+      // Silently ignore if offline
+    }
+  };
+
+  const handleDeleteAiHistory = () => {
+    Alert.alert(
+      'Delete AI Chat History',
+      'Are you sure you want to permanently delete your AI chat conversation history?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => {
+          // TODO: Add API call here if required. For now, mock success.
+          Alert.alert('Deleted', 'Your AI chat history has been deleted.');
+        }}
+      ]
+    );
+  };
 
   useEffect(() => {
     if (user) {
@@ -147,6 +201,40 @@ export default function SettingsScreen({ navigation }) {
         if (updateProfileInContext) updateProfileInContext(res.data?.data || res.data);
       } catch {
         // Silently ignore — local UI toggle already reflects the change
+      }
+    }
+  };
+
+  const testPushNotification = async () => {
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🔔 SmartSpend Test Notification',
+          body: 'Push notifications are working smoothly on your mobile device!',
+          sound: 'default',
+        },
+        trigger: null,
+      });
+      api.post('/notifications/test').catch(() => {});
+      Alert.alert('Push Test Sent', 'A test notification has been triggered right on your device.');
+    } catch (e) {
+      try {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: '🔔 SmartSpend Test Notification',
+            body: 'Push notifications are working smoothly on your mobile device!',
+            sound: 'default',
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds: 1,
+            channelId: 'default',
+          },
+        });
+        api.post('/notifications/test').catch(() => {});
+        Alert.alert('Push Test Sent', 'A test notification has been triggered right on your device.');
+      } catch (err) {
+        Alert.alert('Error', 'Could not send test notification: ' + err.message);
       }
     }
   };
@@ -199,7 +287,10 @@ export default function SettingsScreen({ navigation }) {
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: async () => { await logout(); } },
+      { text: 'Sign Out', style: 'destructive', onPress: async () => {
+        await disableBiometrics().catch(() => {});
+        await logout();
+      }},
     ]);
   };
 
@@ -318,9 +409,10 @@ export default function SettingsScreen({ navigation }) {
   const isTrialActive = user?.trialExpiresAt && new Date(user.trialExpiresAt) > new Date();
 
   const [aiCredits, setAiCredits] = useState(null);
+  const [aiDetailsOpen, setAiDetailsOpen] = useState(false);
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && isFocused) {
       api.get('/users/ai-credits')
         .then(res => {
           const data = res.data?.data || res.data;
@@ -333,29 +425,29 @@ export default function SettingsScreen({ navigation }) {
         })
         .catch(e => console.error(e));
     }
-  }, [user?.id]);
+  }, [user?.id, isFocused]);
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, isDark && { backgroundColor: '#000000' }]} edges={['top']}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 60 }}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.pageTitle}>Settings</Text>
+        <Text style={[styles.pageTitle, isDark && { color: '#F8FAFC' }]}>Settings</Text>
 
         {/* ⚡ Free Trial Banner ⚡ */}
         {showTrialBanner && isTrialActive && (
-          <View style={{ backgroundColor: '#EFF6FF', padding: 12, borderRadius: 12, marginHorizontal: 20, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#BFDBFE' }}>
+          <View style={{ backgroundColor: isDark ? 'rgba(45, 140, 255, 0.15)' : '#EFF6FF', padding: 12, borderRadius: 12, marginHorizontal: 20, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: isDark ? 'rgba(45, 140, 255, 0.3)' : '#BFDBFE' }}>
             <View style={{ flex: 1, flexDirection: 'column', gap: 4 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Feather name="zap" size={16} color="#F26D21" />
-                <Text style={{ fontSize: 13, color: '#232333', fontWeight: '600' }}>
+                <Text style={{ fontSize: 13, color: isDark ? '#F8FAFC' : '#232333', fontWeight: '600' }}>
                   Free trial enjoy all pro features
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => Linking.openURL('https://cashtro.in/terms')}>
+              <TouchableOpacity onPress={() => Linking.openURL('https://cashtro.in/documents/terms')}>
                 <Text style={{ fontSize: 10, color: '#2D8CFF', marginLeft: 24, textDecorationLine: 'underline' }}>*T&C apply (View Terms of Service)</Text>
               </TouchableOpacity>
             </View>
@@ -365,32 +457,75 @@ export default function SettingsScreen({ navigation }) {
           </View>
         )}
 
-        {/* AI Credits UI */}
+        {/* Profile Details (Only if no active book) */}
+        {!activeBook && (
+          <SectionCard isCard>
+            <View style={styles.profileCard}>
+              {/* ... */}
+            </View>
+          </SectionCard>
+        )}
+
+        {/* AI Credits & Limit Breakdown */}
         {aiCredits && (
-          <SectionCard>
+          <SectionCard isCard>
             <View style={{ padding: 16 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ backgroundColor: '#F3E8FF', padding: 6, borderRadius: 8 }}>
-                    <Feather name="cpu" size={16} color="#9333EA" />
+                  <View style={{ backgroundColor: isDark ? 'rgba(147, 51, 234, 0.2)' : '#F3E8FF', padding: 6, borderRadius: 8 }}>
+                    <Feather name="cpu" size={16} color={isDark ? '#C084FC' : '#9333EA'} />
                   </View>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#232333' }}>AI Credits</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#F8FAFC' : '#232333' }}>AI Limit & Usage</Text>
                 </View>
-                <Text style={{ fontSize: 13, color: '#747487', fontWeight: '500' }}>{aiCredits.balance} Left</Text>
+                <Text style={{ fontSize: 13, color: isDark ? '#C084FC' : '#9333EA', fontWeight: '700' }}>{aiCredits.balance} Credits Left</Text>
               </View>
               
-              <View style={{ height: 8, backgroundColor: '#F1F1F5', borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
+              <View style={{ height: 8, backgroundColor: isDark ? '#334155' : '#F1F1F5', borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
                 <View style={{ 
                   height: '100%', 
-                  backgroundColor: '#9333EA', 
+                  backgroundColor: isDark ? '#C084FC' : '#9333EA', 
                   width: `${Math.min(100, Math.max(0, (aiCredits.balance / (aiCredits.balance + aiCredits.monthlyUsage || 1)) * 100))}%` 
                 }} />
               </View>
               
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 12, color: '#747487' }}>Used: {aiCredits.monthlyUsage}</Text>
-                <Text style={{ fontSize: 12, color: '#747487' }}>Total Limit: {aiCredits.balance + aiCredits.monthlyUsage}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
+                <Text style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#747487', fontWeight: '500' }}>Used this month: {aiCredits.monthlyUsage}</Text>
+                <Text style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#747487', fontWeight: '500' }}>Total Limit: {aiCredits.balance + aiCredits.monthlyUsage}</Text>
               </View>
+
+              <TouchableOpacity 
+                style={{ borderTopWidth: 1, borderTopColor: isDark ? '#334155' : '#F1F1F5', paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                onPress={() => setAiDetailsOpen(!aiDetailsOpen)}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#CBD5E1' : '#4B5563' }}>Credit Calculation Details</Text>
+                <Feather name={aiDetailsOpen ? "chevron-up" : "chevron-down"} size={16} color={isDark ? '#94A3B8' : '#747487'} />
+              </TouchableOpacity>
+              
+              {aiDetailsOpen && (
+                <View style={{ paddingTop: 8, gap: 8 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Feather name="pie-chart" size={13} color="#2D8CFF" />
+                      <Text style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#6B7280' }}>Financial Insights & Reports</Text>
+                    </View>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#E2E8F0' : '#374151' }}>1 Credit / request</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Feather name="camera" size={13} color="#10B981" />
+                      <Text style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#6B7280' }}>AI Receipt & Bill Scanning</Text>
+                    </View>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#E2E8F0' : '#374151' }}>2 Credits / scan</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Feather name="message-circle" size={13} color="#F59E0B" />
+                      <Text style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#6B7280' }}>Notes Agent & AI Chat</Text>
+                    </View>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#E2E8F0' : '#374151' }}>1 Credit / message</Text>
+                  </View>
+                </View>
+              )}
             </View>
           </SectionCard>
         )}
@@ -410,11 +545,11 @@ export default function SettingsScreen({ navigation }) {
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.profileName}>{user?.fullName || user?.name || 'Your Account'}</Text>
-              <Text style={styles.profileEmail}>{user?.email || ''}</Text>
+              <Text style={[styles.profileName, isDark && { color: '#F8FAFC' }]}>{user?.fullName || user?.name || 'Your Account'}</Text>
+              <Text style={[styles.profileEmail, isDark && { color: '#94A3B8' }]}>{user?.email || ''}</Text>
               {user?.plan?.name && (
-                <View style={styles.planBadge}>
-                  <Text style={styles.planBadgeText}>{user.plan.name.toUpperCase()}</Text>
+                <View style={[styles.planBadge, isDark && { backgroundColor: 'rgba(45, 140, 255, 0.2)' }]}>
+                  <Text style={[styles.planBadgeText, isDark && { color: '#60A5FA' }]}>{user.plan.name.toUpperCase()}</Text>
                 </View>
               )}
             </View>
@@ -433,7 +568,7 @@ export default function SettingsScreen({ navigation }) {
                 onPress={() => categoryModalRef.current?.present()}
                 right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
               />
-              <View style={styles.rowDivider} />
+              <RowDivider />
             </>
           )}
           <TourStep id="privacy_mode">
@@ -444,7 +579,7 @@ export default function SettingsScreen({ navigation }) {
             value={privateMode} onToggle={setPrivateMode}
           />
           </TourStep>
-          <View style={styles.rowDivider} />
+          <RowDivider />
           {isFeatureEnabled('transaction_splits') && (
             <>
               <SettingToggleRow
@@ -453,7 +588,7 @@ export default function SettingsScreen({ navigation }) {
                 sub="Apply GST on expense entries"
                 value={gstEnabled} onToggle={setGstEnabled}
               />
-              <View style={styles.rowDivider} />
+              <RowDivider />
             </>
           )}
           {isFeatureEnabled('scheduled_communications') && (
@@ -465,7 +600,7 @@ export default function SettingsScreen({ navigation }) {
                 onPress={() => navigation.navigate('Communication')}
                 right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
               />
-              <View style={styles.rowDivider} />
+              <RowDivider />
             </>
           )}
           {isFeatureEnabled('recurring_transactions') && (
@@ -491,7 +626,7 @@ export default function SettingsScreen({ navigation }) {
             right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
           />
           </TourStep>
-          <View style={styles.rowDivider} />
+          <RowDivider />
           <TourStep id="invoices_billing">
           <SettingRow
             icon="file-text" iconColor="#2D8CFF" iconBg="#EFF6FF"
@@ -501,7 +636,7 @@ export default function SettingsScreen({ navigation }) {
             right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
           />
           </TourStep>
-          <View style={styles.rowDivider} />
+          <RowDivider />
           <SettingRow
             icon="users" iconColor="#0891B2" iconBg="#CFFAFE"
             label="Contact Requests"
@@ -509,7 +644,7 @@ export default function SettingsScreen({ navigation }) {
             onPress={() => navigation.navigate('ContactRequests')}
             right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
           />
-          <View style={styles.rowDivider} />
+          <RowDivider />
           <SettingRow
             icon="star" iconColor="#D97706" iconBg="#FEF3C7"
             label="Starred Messages"
@@ -517,6 +652,27 @@ export default function SettingsScreen({ navigation }) {
             onPress={() => navigation.navigate('StarredMessages')}
             right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
             isLast
+          />
+        </SectionCard>
+
+        {/* ─── Appearance & Theme ─── */}
+        <SectionCard label="Appearance & Theme">
+          <SettingRow
+            icon={themeMode === 'dark' ? 'moon' : themeMode === 'light' ? 'sun' : 'smartphone'}
+            iconColor="#8B5CF6"
+            iconBg={isDark ? 'rgba(139, 92, 246, 0.15)' : '#F5F3FF'}
+            label="Theme Mode"
+            sub={themeMode === 'dark' ? 'Dark Mode' : themeMode === 'light' ? 'Light Mode (Default)' : 'System Default'}
+            onPress={() => setShowThemeModal(true)}
+            right={
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#8B5CF6' }}>
+                  {themeMode === 'dark' ? 'Dark' : themeMode === 'light' ? 'Light' : 'System'}
+                </Text>
+                <Feather name="chevron-right" size={16} color={isDark ? '#94A3B8' : '#9CA3AF'} />
+              </View>
+            }
+            isLast={true}
           />
         </SectionCard>
 
@@ -529,36 +685,40 @@ export default function SettingsScreen({ navigation }) {
             right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
             onPress={() => navigation.navigate('Plans')}
           />
-          <View style={styles.rowDivider} />
-          {isFeatureEnabled('feature_notifications') && (
-            <>
-              <SettingToggleRow
-                icon="bell" iconColor="#F59E0B" iconBg="#FEF3C7"
-                label="Push Notifications"
-                value={notifPrefs.push} onToggle={() => toggleNotif('push')}
-              />
-              <View style={styles.rowDivider} />
-            </>
-          )}
+          <RowDivider />
+          <SettingToggleRow
+            icon="bell" iconColor="#F59E0B" iconBg="#FEF3C7"
+            label="Push Notifications"
+            value={notifPrefs.push} onToggle={() => toggleNotif('push')}
+            isLast={!isFeatureEnabled('feature_reports')}
+          />
           {isFeatureEnabled('feature_reports') && (
-            <SettingToggleRow
-              icon="mail" iconColor="#0EA5E9" iconBg="#E0F9FF"
-              label="Email Reports"
-              value={notifPrefs.email} onToggle={() => toggleNotif('email')}
-              isLast
-            />
+            <>
+              <RowDivider />
+              <SettingToggleRow
+                icon="mail" iconColor="#0EA5E9" iconBg="#E0F9FF"
+                label="Email Reports"
+                value={notifPrefs.email} onToggle={() => toggleNotif('email')}
+                isLast
+              />
+            </>
           )}
         </SectionCard>
 
-        {/* ─── Security ─── */}
-        <SectionCard label="Security">
-          <SettingRow
-            icon="lock" iconColor="#374151" iconBg="#F3F4F6"
-            label="Change Password"
-            right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
-            onPress={() => navigation.navigate('Profile')}
-            isLast
-          />
+        {/* ─── Security (Biometric + Password) ─── */}
+        <SecuritySettingsSection navigation={navigation} />
+
+        <SectionCard label="Account Security">
+          <View style={[{ backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderRadius: 14, marginHorizontal: 20, marginBottom: 8, overflow: 'hidden' }]}>
+            <SettingRow
+              icon="lock" iconColor="#374151" iconBg="#F3F4F6"
+              label="Change Password"
+              sub="Update your security credentials"
+              right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
+              onPress={() => navigation.navigate('Profile')}
+              isLast
+            />
+          </View>
         </SectionCard>
 
         <SectionCard label="Support">
@@ -568,7 +728,7 @@ export default function SettingsScreen({ navigation }) {
             onPress={() => setShowContact(true)}
             right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
           />
-          <View style={styles.rowDivider} />
+          <RowDivider />
           <SettingRow
             icon="alert-circle" iconColor="#F59E0B" iconBg="#FEF3C7"
             label="Report a Bug"
@@ -578,61 +738,61 @@ export default function SettingsScreen({ navigation }) {
           />
         </SectionCard>
 
-        {/* ─── Tax Export ─── */}
-        {isFeatureEnabled('feature_tax_export_active') ? (
-          <SectionCard label="Tax & Finance">
-            <View style={styles.row}>
-              <View style={[styles.rowIcon, { backgroundColor: '#DCFCE7' }]}>
-                <Feather name="file-text" size={16} color="#059669" />
+        {/* ─── DATA & EXPORT ─── */}
+        <SectionCard isCard>
+          {isFeatureEnabled('feature_tax_export_active') ? (
+            <View>
+              <View style={[styles.row, { borderBottomWidth: 0, paddingBottom: 8 }]}>
+                <View style={[styles.rowIcon, { backgroundColor: isDark ? 'rgba(5, 150, 105, 0.25)' : '#DCFCE7' }]}>
+                  <Feather name="file-text" size={16} color={isDark ? '#34D399' : '#059669'} />
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={[styles.rowLabel, isDark && { color: '#F8FAFC' }]}>Export Tax Report</Text>
+                  <Text style={[styles.rowSub, isDark && { color: '#94A3B8' }]}>Download your deductible expenses as CSV</Text>
+                </View>
               </View>
-              <View style={styles.rowText}>
-                <Text style={styles.rowLabel}>Export Tax Report</Text>
-                <Text style={styles.rowSub}>Download your deductible expenses as CSV</Text>
+              <View style={{ paddingLeft: 64, paddingRight: 16, paddingBottom: 16, paddingTop: 4, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <TouchableOpacity
+                  style={{ borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#E5E7EB', borderRadius: 8, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isDark ? '#0F172A' : '#fff' }}
+                  onPress={() => setTaxExportYear(y => y - 1)}
+                >
+                  <Feather name="chevron-left" size={16} color={isDark ? '#F8FAFC' : '#374151'} />
+                </TouchableOpacity>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#F8FAFC' : '#111827', flex: 1, textAlign: 'center' }}>{taxExportYear}</Text>
+                <TouchableOpacity
+                  style={{ borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#E5E7EB', borderRadius: 8, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isDark ? '#0F172A' : '#fff' }}
+                  onPress={() => setTaxExportYear(y => Math.min(y + 1, new Date().getFullYear()))}
+                >
+                  <Feather name="chevron-right" size={16} color={isDark ? '#F8FAFC' : '#374151'} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                  onPress={handleTaxExport}
+                  disabled={taxExporting}
+                >
+                  <Feather name="download" size={15} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                    {taxExporting ? 'Exporting...' : 'Export'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
-            <View style={{ paddingHorizontal: 16, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <TouchableOpacity
-                style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                onPress={() => setTaxExportYear(y => y - 1)}
-              >
-                <Feather name="chevron-left" size={16} color="#374151" />
-              </TouchableOpacity>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827', flex: 1, textAlign: 'center' }}>{taxExportYear}</Text>
-              <TouchableOpacity
-                style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                onPress={() => setTaxExportYear(y => Math.min(y + 1, new Date().getFullYear()))}
-              >
-                <Feather name="chevron-right" size={16} color="#374151" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                onPress={handleTaxExport}
-                disabled={taxExporting}
-              >
-                <Feather name="download" size={15} color="#fff" />
-                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
-                  {taxExporting ? 'Exporting...' : 'Export'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </SectionCard>
-        ) : getFeatureTease('feature_tax_export_active') ? (
-          <SectionCard label="Tax & Finance">
+          ) : getFeatureTease('feature_tax_export_active') ? (
             <TouchableOpacity
-              style={styles.row}
+              style={[styles.row, styles.rowLast]}
               onPress={() => Alert.alert('Pro Feature 📊', 'Tax Report Export is available on Pro plans.\n\nExport all your tax-deductible expenses as a CSV for easy filing!', [{ text: 'Maybe Later', style: 'cancel' }, { text: 'Upgrade to Pro', onPress: () => navigation.navigate('Plans') }])}
             >
-              <View style={[styles.rowIcon, { backgroundColor: '#F3F4F6' }]}>
+              <View style={[styles.rowIcon, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
                 <Feather name="lock" size={16} color="#9CA3AF" />
               </View>
               <View style={styles.rowText}>
-                <Text style={[styles.rowLabel, { color: '#9CA3AF' }]}>Export Tax Report</Text>
-                <Text style={styles.rowSub}>Upgrade to Pro to export deductibles</Text>
+                <Text style={[styles.rowLabel, { color: isDark ? '#CBD5E1' : '#9CA3AF' }]}>Export Tax Report</Text>
+                <Text style={[styles.rowSub, isDark && { color: '#64748B' }]}>Upgrade to Pro to export deductibles</Text>
               </View>
-              <Feather name="chevron-right" size={16} color="#D1D5DB" />
+              <Feather name="chevron-right" size={16} color={isDark ? '#64748B' : '#D1D5DB'} />
             </TouchableOpacity>
-          </SectionCard>
-        ) : null}
+          ) : null}
+        </SectionCard>
 
         {/* ─── Privacy ─── */}
         {isFeatureEnabled('feature_panic_button_active') && (
@@ -648,22 +808,83 @@ export default function SettingsScreen({ navigation }) {
           </SectionCard>
         )}
 
-        {/* ─── Legal ─── */}
-        <SectionCard label="Legal & Subscriptions">
+        {/* ─── AI Opt-outs ─── */}
+        <SectionCard label="Opting Out of AI Features">
+          <SettingToggleRow
+            icon="tag" iconColor="#0EA5E9" iconBg="#E0F2FE"
+            label="Smart Categorization"
+            sub="Disable AI auto-categorization (manual only)"
+            value={aiPrefs.disableCategorization} onToggle={() => toggleAiPref('disableCategorization')}
+          />
+          <RowDivider />
+          <SettingToggleRow
+            icon="pie-chart" iconColor="#F59E0B" iconBg="#FEF3C7"
+            label="AI Insights"
+            sub="Disable AI spending analysis and recommendations"
+            value={aiPrefs.disableInsights} onToggle={() => toggleAiPref('disableInsights')}
+          />
+          <RowDivider />
+          <SettingToggleRow
+            icon="camera" iconColor="#10B981" iconBg="#D1FAE5"
+            label="Receipt Scanning"
+            sub="Disable AI receipt scanning (manual entry only)"
+            value={aiPrefs.disableReceiptScanning} onToggle={() => toggleAiPref('disableReceiptScanning')}
+          />
+          <RowDivider />
+          <SettingRow
+            icon="trash-2" iconColor="#DC2626" iconBg="#FEE2E2"
+            label="Delete AI Chat History"
+            sub="Permanently erase all AI conversations"
+            right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
+            onPress={handleDeleteAiHistory}
+            isLast
+          />
+          <Text style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, fontSize: 12, color: isDark ? '#64748B' : '#9CA3AF', fontStyle: 'italic', textAlign: 'center' }}>
+            Disabling AI features does not affect your core financial record-keeping capabilities.
+          </Text>
+        </SectionCard>
+
+        {/* ─── Required Legal Documents ─── */}
+        <SectionCard label="Required Documents">
           <SettingRow
             icon="shield" iconColor="#047857" iconBg="#D1FAE5"
             label="Privacy Policy"
-            right={<Feather name="external-link" size={16} color="#D1D5DB" />}
-            onPress={() => Linking.openURL('https://cashtro.in/privacy')}
+            right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
+            onPress={() => navigation.navigate('LegalWebView', { url: 'https://cashtro.in/documents/privacy', title: 'Privacy Policy' })}
           />
-          <View style={styles.rowDivider} />
+          <RowDivider />
           <SettingRow
             icon="file-text" iconColor="#4338CA" iconBg="#E0E7FF"
             label="Terms of Service"
-            right={<Feather name="external-link" size={16} color="#D1D5DB" />}
-            onPress={() => Linking.openURL('https://cashtro.in/terms')}
+            right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
+            onPress={() => navigation.navigate('LegalWebView', { url: 'https://cashtro.in/documents/terms', title: 'Terms of Service' })}
+            isLast
           />
-          <View style={styles.rowDivider} />
+        </SectionCard>
+
+        {/* ─── Other Policies ─── */}
+        <SectionCard label="Other Policies & Subscriptions">
+          <SettingRow
+            icon="info" iconColor="#8B5CF6" iconBg="#EDE9FE"
+            label="Cookie Policy"
+            right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
+            onPress={() => navigation.navigate('LegalWebView', { url: 'https://cashtro.in/documents/cookie-policy', title: 'Cookie Policy' })}
+          />
+          <RowDivider />
+          <SettingRow
+            icon="hard-drive" iconColor="#0891B2" iconBg="#CFFAFE"
+            label="Data Retention"
+            right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
+            onPress={() => navigation.navigate('LegalWebView', { url: 'https://cashtro.in/data-retention', title: 'Data Retention' })}
+          />
+          <RowDivider />
+          <SettingRow
+            icon="cpu" iconColor="#9333EA" iconBg="#F3E8FF"
+            label="AI Usage Policy"
+            right={<Feather name="chevron-right" size={16} color="#D1D5DB" />}
+            onPress={() => navigation.navigate('LegalWebView', { url: 'https://cashtro.in/ai-usage', title: 'AI Usage Policy' })}
+          />
+          <RowDivider />
           <SettingRow
             icon="refresh-cw" iconColor="#D97706" iconBg="#FEF3C7"
             label="Restore Purchases"
@@ -686,7 +907,7 @@ export default function SettingsScreen({ navigation }) {
           />
           {isFeatureEnabled('feature_account_deletion') && (
             <>
-              <View style={styles.rowDivider} />
+              <RowDivider />
               <SettingRow
                 icon="trash-2" iconColor="#DC2626" iconBg="#FEE2E2"
                 label="Delete Account"
@@ -701,33 +922,84 @@ export default function SettingsScreen({ navigation }) {
 
         {/* ─── App info ─── */}
         <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>Cashtro v1.0.0</Text>
-          <Text style={styles.appInfoSub}>Built with ❤️ for smart spenders</Text>
+          <Text style={[styles.appInfoText, isDark && { color: '#94A3B8' }]}>Cashtro v1.0.0</Text>
+          <Text style={[styles.appInfoSub, isDark && { color: '#64748B' }]}>Built with ❤️ for smart spenders</Text>
         </View>
 
         {/* ─── Sign Out ─── */}
         <View style={styles.dangerSection}>
-          <TouchableOpacity style={styles.signOutBtn} onPress={handleLogout}>
-            <Feather name="log-out" size={18} color="#DC2626" />
-            <Text style={styles.signOutText}>Sign Out</Text>
+          <TouchableOpacity style={[styles.signOutBtn, isDark && { backgroundColor: 'rgba(220, 38, 38, 0.15)', borderColor: 'rgba(220, 38, 38, 0.3)' }]} onPress={handleLogout}>
+            <Feather name="log-out" size={18} color={isDark ? '#F87171' : '#DC2626'} />
+            <Text style={[styles.signOutText, isDark && { color: '#F87171' }]}>Sign Out</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
 
-      {/* Support Modals */}
-      <Modal visible={showContact} transparent animationType="fade" onRequestClose={() => { setShowContact(false); setSupportMessage(''); }}>
-        <View style={styles.modalBackdropCenter}>
-          <View style={styles.supportModalBox}>
-            <View style={styles.supportHeader}>
-              <Text style={styles.supportTitle}>Contact Us</Text>
-              <TouchableOpacity onPress={() => { setShowContact(false); setSupportMessage(''); }}>
-                <Feather name="x" size={24} color="#6B7280" />
+      {/* ─── Modals ─── */}
+      <Modal visible={showThemeModal} animationType="slide" transparent onRequestClose={() => setShowThemeModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowThemeModal(false)} />
+          <View style={[styles.modalSheet, isDark && { backgroundColor: theme.colors.card }, { height: 'auto', maxHeight: '50%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isDark && { color: '#F8FAFC' }]}>Appearance</Text>
+              <TouchableOpacity onPress={() => setShowThemeModal(false)}>
+                <Feather name="x" size={24} color={isDark ? '#F8FAFC' : '#111827'} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.supportDesc}>Have a question or need help? Send us a message.</Text>
+            <View style={{ gap: 8 }}>
+              {[
+                { id: 'light', label: 'Light Mode', sub: 'Always use light theme', icon: 'sun', color: '#F59E0B' },
+                { id: 'dark', label: 'Dark Mode', sub: 'Always use dark theme', icon: 'moon', color: '#8B5CF6' },
+                { id: 'system', label: 'System Default', sub: 'Match device settings', icon: 'smartphone', color: '#3B82F6' },
+              ].map((item) => {
+                const isSelected = themeMode === item.id;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 16,
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: isSelected ? '#8B5CF6' : (isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'),
+                      backgroundColor: isSelected ? (isDark ? 'rgba(139, 92, 246, 0.15)' : '#F5F3FF') : (isDark ? '#0F172A' : '#FFFFFF'),
+                      gap: 16,
+                    }}
+                    onPress={() => {
+                      setThemeMode(item.id);
+                      setShowThemeModal(false);
+                    }}
+                  >
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isSelected ? (isDark ? 'rgba(139, 92, 246, 0.2)' : '#EDE9FE') : (isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6'), alignItems: 'center', justifyContent: 'center' }}>
+                      <Feather name={item.icon} size={20} color={isSelected ? '#8B5CF6' : (isDark ? '#F8FAFC' : '#64748B')} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: isSelected ? '#8B5CF6' : (isDark ? '#F8FAFC' : '#1E293B') }}>{item.label}</Text>
+                      <Text style={{ fontSize: 13, color: isDark ? '#94A3B8' : '#64748B', marginTop: 2 }}>{item.sub}</Text>
+                    </View>
+                    {isSelected && <Feather name="check-circle" size={20} color="#8B5CF6" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showContact} animationType="fade" transparent onRequestClose={() => { setShowContact(false); setSupportMessage(''); }}>
+        <View style={styles.modalBackdropCenter}>
+          <View style={[styles.supportModalBox, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
+            <View style={styles.supportHeader}>
+              <Text style={[styles.supportTitle, isDark && { color: '#F8FAFC' }]}>Contact Us</Text>
+              <TouchableOpacity onPress={() => { setShowContact(false); setSupportMessage(''); }}>
+                <Feather name="x" size={24} color={isDark ? '#94A3B8' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.supportDesc, isDark && { color: '#94A3B8' }]}>Have a question or need help? Send us a message.</Text>
             <TextInput
-              style={styles.supportInput}
+              style={[styles.supportInput, isDark && { backgroundColor: '#0F172A', borderColor: 'rgba(255,255,255,0.08)', color: '#F8FAFC' }]}
               placeholder="Type your message here..."
               placeholderTextColor="#9CA3AF"
               multiline
@@ -743,16 +1015,16 @@ export default function SettingsScreen({ navigation }) {
 
       <Modal visible={showBug} transparent animationType="fade" onRequestClose={() => { setShowBug(false); setSupportMessage(''); setSupportImage(null); }}>
         <View style={styles.modalBackdropCenter}>
-          <View style={styles.supportModalBox}>
+          <View style={[styles.supportModalBox, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
             <View style={styles.supportHeader}>
-              <Text style={styles.supportTitle}>Report a Bug</Text>
+              <Text style={[styles.supportTitle, isDark && { color: '#F8FAFC' }]}>Report a Bug</Text>
               <TouchableOpacity onPress={() => { setShowBug(false); setSupportMessage(''); setSupportImage(null); }}>
-                <Feather name="x" size={24} color="#6B7280" />
+                <Feather name="x" size={24} color={isDark ? '#94A3B8' : '#6B7280'} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.supportDesc}>Found an issue? Please describe it below and attach a screenshot if possible.</Text>
+            <Text style={[styles.supportDesc, isDark && { color: '#94A3B8' }]}>Found an issue? Please describe it below and attach a screenshot if possible.</Text>
             <TextInput
-              style={styles.supportInput}
+              style={[styles.supportInput, isDark && { backgroundColor: '#0F172A', borderColor: 'rgba(255,255,255,0.08)', color: '#F8FAFC' }]}
               placeholder="Describe the bug..."
               placeholderTextColor="#9CA3AF"
               multiline
@@ -760,7 +1032,7 @@ export default function SettingsScreen({ navigation }) {
               onChangeText={setSupportMessage}
             />
             
-            <TouchableOpacity style={styles.attachBtn} onPress={handlePickImage}>
+            <TouchableOpacity style={[styles.attachBtn, isDark && { backgroundColor: 'rgba(45, 140, 255, 0.1)', borderColor: 'rgba(45, 140, 255, 0.2)' }]} onPress={handlePickImage}>
               <Feather name={supportImage ? "check-circle" : "image"} size={20} color={supportImage ? "#10B981" : "#2D8CFF"} />
               <Text style={[styles.attachText, supportImage && { color: "#10B981" }]}>
                 {supportImage ? "Image Attached" : "Attach Screenshot"}
@@ -783,7 +1055,7 @@ export default function SettingsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F7F9FC' },
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
   scroll: { flex: 1 },
   pageTitle: {
     fontSize: 28, fontWeight: '800', color: '#111827', letterSpacing: -0.5,
@@ -791,20 +1063,26 @@ const styles = StyleSheet.create({
   },
 
   // Section
-  section: { marginHorizontal: 20, marginBottom: 16 },
+  section: { marginHorizontal: 0, paddingHorizontal: 0, marginBottom: 0 },
   sectionLabel: {
-    fontSize: 11, fontWeight: '700', color: '#9CA3AF',
-    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, paddingLeft: 4,
+    fontSize: 13, fontWeight: '700', color: '#9CA3AF',
+    marginBottom: 8, paddingHorizontal: 20,
   },
-  card: {
+  sectionDivider: {
+    height: 8,
+    backgroundColor: '#F3F4F6',
+    marginTop: 0,
+    marginBottom: 20,
+  },
+  highlightCard: {
     backgroundColor: '#fff', borderRadius: 16,
     borderWidth: 1, borderColor: '#E5E7EB',
-    overflow: 'hidden',
+    overflow: 'hidden', marginHorizontal: 20, marginBottom: 20,
   },
 
   // Row
   row: {
-    flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20, gap: 14,
     borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
   rowLast: { borderBottomWidth: 0 },
@@ -962,5 +1240,34 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 28,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
   },
 });

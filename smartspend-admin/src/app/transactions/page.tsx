@@ -6,6 +6,7 @@ import {
   Search, Filter, Download, ChevronLeft, ChevronRight,
   ArrowUpCircle, ArrowDownCircle, RefreshCw, Calendar,
 } from 'lucide-react';
+import { StatCard } from '@/components/ui/StatCard';
 
 function formatAmount(amount: number | string, currency = 'INR') {
   const n = parseFloat(String(amount));
@@ -80,39 +81,47 @@ export default function TransactionsPage() {
     <>
       <Sidebar />
       <main className="main-content">
-        <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <header style={{ marginBottom: 'var(--space-8)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }} className="responsive-form-grid">
           <div>
-            <h1 className="animate-fade-in">Transactions</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>
+            <h1 className="page-title animate-fade-in">Transactions</h1>
+            <p className="body-text">
               View and manage all transactions across all users. ({meta.total.toLocaleString()} total)
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button className="btn btn-secondary" onClick={fetchTransactions} style={{ gap: '0.5rem' }}>
+            <button className="btn btn-secondary" onClick={fetchTransactions}>
               <RefreshCw size={15} /> Refresh
             </button>
-            <button className="btn btn-primary" onClick={handleExportCSV} style={{ gap: '0.5rem' }}>
+            <button className="btn btn-primary" onClick={handleExportCSV}>
               <Download size={15} /> Export CSV
             </button>
           </div>
         </header>
 
         {/* Summary Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-          {[
-            { label: 'Total Records', value: meta.total.toLocaleString(), color: 'var(--accent-primary)', bg: 'rgba(37,99,235,0.08)' },
-            { label: 'Total Income (page)', value: formatAmount(totalIncome), color: 'var(--success)', bg: 'rgba(16,185,129,0.08)' },
-            { label: 'Total Expense (page)', value: formatAmount(totalExpense), color: 'var(--danger)', bg: 'rgba(239,68,68,0.08)' },
-          ].map(card => (
-            <div key={card.label} className="card" style={{ padding: '1.25rem', borderLeft: `3px solid ${card.color}` }}>
-              <p style={{ fontSize: '1.5rem', fontWeight: 700, color: card.color }}>{card.value}</p>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{card.label}</p>
-            </div>
-          ))}
+        <div className="stats-grid" style={{ marginBottom: 'var(--space-6)' }}>
+          <StatCard 
+            title="Total Records" 
+            value={meta.total.toLocaleString()} 
+            icon={Filter} 
+            variant="primary" 
+          />
+          <StatCard 
+            title="Total Income (page)" 
+            value={formatAmount(totalIncome)} 
+            icon={ArrowUpCircle} 
+            variant="success" 
+          />
+          <StatCard 
+            title="Total Expense (page)" 
+            value={formatAmount(totalExpense)} 
+            icon={ArrowDownCircle} 
+            variant="danger" 
+          />
         </div>
 
         {/* Filters */}
-        <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
+        <div className="card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
             {/* Search */}
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
@@ -148,7 +157,7 @@ export default function TransactionsPage() {
                 onChange={e => { setFrom(e.target.value); setPage(1); }}
                 style={{ width: '140px', margin: 0 }}
               />
-              <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>to</span>
+              <span className="caption-text">to</span>
               <input
                 type="date"
                 className="input-field"
@@ -171,24 +180,22 @@ export default function TransactionsPage() {
         </div>
 
         {/* Table */}
-        <div className="card glass-panel" style={{ overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="card" style={{ padding: 0 }}>
+          <div className="table-wrapper">
+            <table className="table">
               <thead>
-                <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
+                <tr>
                   {['User', 'Type', 'Amount', 'Category', 'Payment', 'Date'].map(h => (
-                    <th key={h} style={{ padding: '0.875rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      {h}
-                    </th>
+                    <th key={h}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   Array.from({ length: 8 }).map((_, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <tr key={i}>
                       {Array.from({ length: 6 }).map((_, j) => (
-                        <td key={j} style={{ padding: '0.875rem 1rem' }}>
+                        <td key={j}>
                           <div className="skeleton" style={{ height: '14px', borderRadius: '4px', width: j === 0 ? '140px' : '80px' }} />
                         </td>
                       ))}
@@ -201,38 +208,33 @@ export default function TransactionsPage() {
                     </td>
                   </tr>
                 ) : transactions.map(tx => (
-                  <tr key={tx.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '0.875rem 1rem' }}>
+                  <tr key={tx.id}>
+                    <td>
                       <div>
-                        <p style={{ fontWeight: 500, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{tx.user?.fullName || '—'}</p>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{tx.user?.email || '—'}</p>
+                        <p style={{ fontWeight: 600, margin: 0 }}>{tx.user?.fullName || '—'}</p>
+                        <p className="caption-text" style={{ margin: 0 }}>{tx.user?.email || '—'}</p>
                       </div>
                     </td>
-                    <td style={{ padding: '0.875rem 1rem' }}>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                        fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem', borderRadius: '999px',
-                        background: tx.type === 'INCOME' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-                        color: tx.type === 'INCOME' ? 'var(--success)' : 'var(--danger)',
-                      }}>
-                        {tx.type === 'INCOME' ? <ArrowUpCircle size={12} /> : <ArrowDownCircle size={12} />}
+                    <td>
+                      <span className={`badge ${tx.type === 'INCOME' ? 'badge-success' : 'badge-danger'}`}>
+                        {tx.type === 'INCOME' ? <ArrowUpCircle size={12} style={{marginRight: '4px'}}/> : <ArrowDownCircle size={12} style={{marginRight: '4px'}}/>}
                         {tx.type}
                       </span>
                     </td>
-                    <td style={{ padding: '0.875rem 1rem', fontWeight: 600, color: tx.type === 'INCOME' ? 'var(--success)' : 'var(--danger)', fontSize: '0.875rem' }}>
+                    <td style={{ fontWeight: 600, color: tx.type === 'INCOME' ? 'var(--success)' : 'var(--danger)' }}>
                       {tx.type === 'INCOME' ? '+' : '-'}{formatAmount(tx.amount, tx.currency)}
                     </td>
-                    <td style={{ padding: '0.875rem 1rem' }}>
+                    <td>
                       {tx.category ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                           {tx.category.emoji} {tx.category.name}
                         </span>
-                      ) : <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>—</span>}
+                      ) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
                     </td>
-                    <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <td style={{ color: 'var(--text-secondary)' }}>
                       {tx.paymentMethod || '—'}
                     </td>
-                    <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <td style={{ color: 'var(--text-secondary)' }}>
                       {formatDate(tx.date)}
                     </td>
                   </tr>

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from '@/components/Sidebar';
+import { StatCard } from '@/components/ui/StatCard';
 import { api } from '@/lib/api';
 import { Search, ChevronLeft, ChevronRight, RefreshCw, ShieldAlert, LogIn, LogOut, AlertTriangle, UserCheck, Lock } from 'lucide-react';
 
@@ -99,87 +100,73 @@ export default function LogsPage() {
     <>
       <Sidebar />
       <main className="main-content">
-        <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h1 className="animate-fade-in">Logs & Monitoring</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>
-              Security audit trail, login events, and activity monitoring.
-            </p>
+        <div className="page-header animate-fade-in">
+          <div className="page-header-left">
+            <h1 className="page-title">Logs &amp; Monitoring</h1>
+            <p className="body-text" style={{ marginTop: 'var(--sp-1)' }}>Security audit trail, login events, and activity monitoring.</p>
           </div>
-          <button className="btn btn-secondary" onClick={() => { fetchLogs(); fetchSummary(); }} style={{ gap: '0.5rem' }}>
-            <RefreshCw size={15} /> Refresh
+          <button className="btn btn-secondary btn-sm" onClick={() => { fetchLogs(); fetchSummary(); }} aria-label="Refresh logs">
+            <RefreshCw size={14} aria-hidden="true" /> Refresh
           </button>
-        </header>
+        </div>
 
         {/* Summary Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-          {[
-            { label: 'Failed Logins', value: summary.loginFailed, color: '#DC2626', bg: 'rgba(220,38,38,0.08)', icon: '🔴' },
-            { label: 'Total Logins', value: summary.totalLogins, color: '#059669', bg: 'rgba(5,150,105,0.08)', icon: '🟢' },
-            { label: 'Suspensions', value: summary.suspensions, color: '#D97706', bg: 'rgba(217,119,6,0.08)', icon: '🟡' },
-            { label: 'Data Deletes', value: summary.dataDeletes, color: '#7C3AED', bg: 'rgba(124,58,237,0.08)', icon: '🟣' },
-          ].map(card => (
-            <div key={card.label} className="card" style={{ padding: '1.125rem', borderLeft: `3px solid ${card.color}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
-                <span style={{ fontSize: '1.25rem' }}>{card.icon}</span>
-              </div>
-              <p style={{ fontSize: '1.625rem', fontWeight: 700, color: card.color }}>{card.value.toLocaleString()}</p>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.125rem' }}>{card.label}</p>
-            </div>
-          ))}
+        <div className="stats-grid" style={{ marginBottom: 'var(--sp-6)' }}>
+          <StatCard title="Failed Logins" value={summary.loginFailed} icon={AlertTriangle} variant="danger" accentBorder loading={loading} />
+          <StatCard title="Total Logins" value={summary.totalLogins} icon={LogIn} variant="success" accentBorder loading={loading} />
+          <StatCard title="Suspensions" value={summary.suspensions} icon={ShieldAlert} variant="warning" accentBorder loading={loading} />
+          <StatCard title="Data Deletes" value={summary.dataDeletes} icon={AlertTriangle} variant="primary" accentBorder loading={loading} />
         </div>
 
         {/* Filters */}
-        <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ position: 'relative', flex: '1 1 200px' }}>
-              <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
-              <input
-                className="input-field"
-                placeholder="Filter by email or IP..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                style={{ paddingLeft: '2.25rem', margin: 0 }}
-              />
-            </div>
-            <select
+        <div className="filter-bar" style={{ marginBottom: 'var(--sp-3)' }}>
+          <div style={{ position: 'relative', flex: '1 1 200px' }}>
+            <Search size={14} style={{ position: 'absolute', left: 'var(--sp-3)', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} aria-hidden="true" />
+            <input
               className="input-field"
-              value={actionFilter}
-              onChange={e => { setActionFilter(e.target.value); setPage(1); }}
-              style={{ width: '180px', margin: 0 }}
-            >
-              <option value="">All Actions</option>
-              {AUDIT_ACTIONS.map(a => (
-                <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
-            {(actionFilter || search) && (
-              <button className="btn btn-secondary" onClick={() => { setActionFilter(''); setSearch(''); setPage(1); }} style={{ fontSize: '0.8rem', padding: '0.5rem 1rem' }}>
-                Clear
-              </button>
-            )}
+              placeholder="Filter by email or IP…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ paddingLeft: 'calc(var(--sp-3) + 18px)', margin: 0 }}
+              aria-label="Search logs"
+            />
           </div>
+          <select
+            className="input-field"
+            value={actionFilter}
+            onChange={e => { setActionFilter(e.target.value); setPage(1); }}
+            style={{ width: '180px', margin: 0 }}
+            aria-label="Filter by action"
+          >
+            <option value="">All Actions</option>
+            {AUDIT_ACTIONS.map(a => (
+              <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+          {(actionFilter || search) && (
+            <button className="btn btn-ghost btn-sm" onClick={() => { setActionFilter(''); setSearch(''); setPage(1); }}>
+              Clear
+            </button>
+          )}
         </div>
 
         {/* Logs Table */}
-        <div className="card glass-panel" style={{ overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="table-shell">
+          <div className="table-wrapper">
+            <table className="table">
               <thead>
-                <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
+                <tr>
                   {['Action', 'User', 'IP Address', 'User Agent', 'Date'].map(h => (
-                    <th key={h} style={{ padding: '0.875rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      {h}
-                    </th>
+                    <th key={h} scope="col">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   Array.from({ length: 10 }).map((_, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <tr key={i}>
                       {Array.from({ length: 5 }).map((_, j) => (
-                        <td key={j} style={{ padding: '0.875rem 1rem' }}>
+                        <td key={j}>
                           <div className="skeleton" style={{ height: '14px', borderRadius: '4px', width: j === 0 ? '120px' : '80px' }} />
                         </td>
                       ))}
@@ -187,39 +174,39 @@ export default function LogsPage() {
                   ))
                 ) : filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      No logs found
+                    <td colSpan={5} style={{ padding: 0 }}>
+                      <div className="state-empty">
+                        <div className="state-empty-icon"><ShieldAlert size={28} aria-hidden="true" /></div>
+                        <p className="state-empty-title">No logs found</p>
+                        <p className="state-empty-desc">Try clearing your filters.</p>
+                      </div>
                     </td>
                   </tr>
                 ) : filteredLogs.map(log => {
-                  const actionMeta = ACTION_META[log.action] || { label: log.action, color: '#6B7280', bg: 'rgba(107,114,128,0.1)' };
+                  const actionMeta = ACTION_META[log.action] || { label: log.action, color: 'var(--text-secondary)', bg: 'var(--surface-raised)' };
                   return (
-                    <tr key={log.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.875rem 1rem' }}>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                          fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem', borderRadius: '999px',
-                          background: actionMeta.bg, color: actionMeta.color,
-                        }}>
+                    <tr key={log.id}>
+                      <td>
+                        <span className="pill" style={{ background: actionMeta.bg, color: actionMeta.color, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                           {actionMeta.icon}
                           {actionMeta.label || log.action.replace(/_/g, ' ')}
                         </span>
                       </td>
-                      <td style={{ padding: '0.875rem 1rem' }}>
+                      <td>
                         {log.user ? (
                           <div>
-                            <p style={{ fontWeight: 500, fontSize: '0.8125rem', color: 'var(--text-primary)' }}>{log.user.fullName}</p>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{log.user.email}</p>
+                            <p style={{ fontWeight: 600, margin: 0 }}>{log.user.fullName}</p>
+                            <p className="caption-text" style={{ margin: 0 }}>{log.user.email}</p>
                           </div>
-                        ) : <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>—</span>}
+                        ) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
                       </td>
-                      <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                      <td style={{ fontFamily: 'monospace' }}>
                         {log.ipAddress || '—'}
                       </td>
-                      <td style={{ padding: '0.875rem 1rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {log.userAgent ? log.userAgent.substring(0, 50) + (log.userAgent.length > 50 ? '…' : '') : '—'}
                       </td>
-                      <td style={{ padding: '0.875rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      <td>
                         {formatDate(log.createdAt)}
                       </td>
                     </tr>
@@ -229,22 +216,12 @@ export default function LogsPage() {
             </table>
           </div>
 
-          {/* Pagination */}
           {meta.totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderTop: '1px solid var(--border)' }}>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                {meta.total.toLocaleString()} total logs
-              </p>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <button className="btn btn-secondary" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '0.4rem 0.75rem' }}>
-                  <ChevronLeft size={15} />
-                </button>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0 0.5rem' }}>
-                  Page {page} of {meta.totalPages}
-                </span>
-                <button className="btn btn-secondary" onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page === meta.totalPages} style={{ padding: '0.4rem 0.75rem' }}>
-                  <ChevronRight size={15} />
-                </button>
+            <div className="pagination">
+              <span className="pagination-info">{meta.total.toLocaleString()} total &bull; Page {page} of {meta.totalPages}</span>
+              <div className="pagination-controls">
+                <button className="page-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} aria-label="Previous page">‹</button>
+                <button className="page-btn" onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page === meta.totalPages} aria-label="Next page">›</button>
               </div>
             </div>
           )}

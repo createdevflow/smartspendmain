@@ -8,6 +8,7 @@ import {
   Alert, Keyboard, ActivityIndicator, Image, ImageBackground, ScrollView,
   Modal, Pressable, Animated,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -24,6 +25,7 @@ import MessageBubble from '../components/chat/MessageBubble';
 import TypingIndicator from '../components/chat/TypingIndicator';
 import { useTransactions } from '../context/TransactionsContext';
 import { useBooks } from '../context/BooksContext';
+import { useAppTheme } from '../context/ThemeContext';
 import ScheduleMessageSheet from '../components/chat/ScheduleMessageSheet';
 import { getCurrencySymbol } from '../utils/planFeatures';
 import { api } from '../utils/api';
@@ -162,15 +164,16 @@ function VoiceRecordButton({ onVoiceSent, isRecording, setIsRecording }) {
 
 // ── Picker Modal (reusable) ───────────────────────────────────────────────────
 function PickerModal({ visible, onClose, title, items, renderItem, keyExtractor, emptyText, onCreatePress, insets }) {
+  const { isDark, theme } = useAppTheme();
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.sheetModal, { maxHeight: '80%', paddingBottom: Math.max(insets?.bottom || 0, 28) }]}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetHeaderModal}>
-            <Text style={styles.sheetTitleModal}>{title}</Text>
-            <TouchableOpacity onPress={onClose}><Feather name="x" size={22} color="#374151" /></TouchableOpacity>
+        <View style={[styles.sheetModal, { maxHeight: '80%', paddingBottom: Math.max(insets?.bottom || 0, 28) }, isDark && { backgroundColor: theme.colors.card }]}>
+          <View style={[styles.sheetHandle, isDark && { backgroundColor: 'rgba(255,255,255,0.2)' }]} />
+          <View style={[styles.sheetHeaderModal, isDark && { borderBottomColor: theme.colors.border }]}>
+            <Text style={[styles.sheetTitleModal, isDark && { color: '#F8FAFC' }]}>{title}</Text>
+            <TouchableOpacity onPress={onClose}><Feather name="x" size={22} color={isDark ? '#F8FAFC' : '#374151'} /></TouchableOpacity>
           </View>
           <FlatList
             data={items}
@@ -214,6 +217,7 @@ export default function ChatScreen() {
     reactToMessage, sendTyping, markRead, typingUsers,
     analyzeNoteMessage, executeNoteAction
   } = useChat();
+  const { isDark, theme } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState([]);
@@ -846,14 +850,15 @@ export default function ChatScreen() {
   const hasText = input.trim().length > 0;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, isDark && { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <StatusBar style={isDark ? "light" : "dark"} backgroundColor={isDark ? theme.colors.background : '#fff'} />
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isDark && { borderBottomColor: 'rgba(255,255,255,0.08)' }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Feather name="chevron-left" size={24} color="#111827" />
+          <Feather name="chevron-left" size={24} color={isDark ? '#F8FAFC' : '#111827'} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+          <Text style={[styles.headerTitle, isDark && { color: '#F8FAFC' }]} numberOfLines={1}>{title}</Text>
           {otherTypingUsers.length > 0 ? (
             <Text style={styles.typingLabel}>typing...</Text>
           ) : (
@@ -863,10 +868,10 @@ export default function ChatScreen() {
         <View style={{ flexDirection: 'row', gap: 4 }}>
           <TouchableOpacity style={styles.headerAction}
             onPress={() => navigation.navigate('ChatMediaGallery', { conversationId, title })}>
-            <Feather name="image" size={18} color="#374151" />
+            <Feather name="image" size={18} color={isDark ? '#F8FAFC' : '#374151'} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerAction} onPress={handleHeaderOptions}>
-            <Feather name="more-vertical" size={20} color="#374151" />
+            <Feather name="more-vertical" size={20} color={isDark ? '#F8FAFC' : '#374151'} />
           </TouchableOpacity>
         </View>
       </View>
@@ -885,7 +890,7 @@ export default function ChatScreen() {
             <View style={{ width: '65%', height: 60, backgroundColor: '#F3F4F6', borderRadius: 20, alignSelf: 'flex-start' }} />
           </View>
         ) : (
-          <ImageBackground source={require('../assets/images/chat_bg.png')} style={{ flex: 1 }} resizeMode="cover">
+          <ImageBackground source={isDark ? require('../assets/images/chat_bg.png') : require('../assets/images/chat_bg.png')} style={{ flex: 1, backgroundColor: isDark ? '#0F172A' : 'transparent' }} imageStyle={isDark ? { opacity: 0.1 } : { opacity: 0.4 }} resizeMode="cover">
             <FlatList
               ref={flatRef}
               data={groupedMessages}
@@ -901,10 +906,10 @@ export default function ChatScreen() {
               contentContainerStyle={{ paddingVertical: 16, paddingBottom: 28, flexGrow: 1 }}
               ListEmptyComponent={
                 <View style={{ paddingHorizontal: 16, paddingVertical: 24, alignItems: 'center', justifyContent: 'center' }}>
-                  <View style={{ backgroundColor: '#EFF6FF', width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: 14, borderWidth: 1, borderColor: '#BFDBFE' }}>
+                  <View style={{ backgroundColor: isDark ? 'rgba(45,140,255,0.1)' : '#EFF6FF', width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: 14, borderWidth: 1, borderColor: isDark ? 'rgba(45,140,255,0.2)' : '#BFDBFE' }}>
                     <Feather name="cpu" size={32} color="#2D8CFF" />
                   </View>
-                  <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B', textAlign: 'center', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? '#F8FAFC' : '#1E293B', textAlign: 'center', marginBottom: 6 }}>
                     {isNotesSelf ? 'Welcome to your AI Smart Note Book!' : 'Hello! I am your Financial AI Assistant'}
                   </Text>
                   <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', lineHeight: 20, maxWidth: 320, marginBottom: 24 }}>
@@ -927,7 +932,7 @@ export default function ChatScreen() {
                     ].map((topic, idx) => (
                       <TouchableOpacity
                         key={idx}
-                        style={{
+                        style={[{
                           backgroundColor: '#ffffff',
                           borderRadius: 14,
                           padding: 13,
@@ -942,20 +947,20 @@ export default function ChatScreen() {
                           shadowOpacity: 0.04,
                           shadowRadius: 3,
                           elevation: 1
-                        }}
+                        }, isDark && { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
                         activeOpacity={0.7}
                         onPress={() => {
                           setInput(topic.text);
                         }}
                       >
-                        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }}>
+                        <View style={[{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }, isDark && { backgroundColor: 'rgba(45,140,255,0.1)' }]}>
                           <Feather name={topic.icon} size={18} color="#2D8CFF" />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }} adjustsFontSizeToFit numberOfLines={1}>{topic.title}</Text>
-                          <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2 }} numberOfLines={1}>{topic.text}</Text>
+                          <Text style={[{ fontSize: 13, fontWeight: '700', color: '#1E293B' }, isDark && { color: '#F8FAFC' }]} adjustsFontSizeToFit numberOfLines={1}>{topic.title}</Text>
+                          <Text style={[{ fontSize: 12, color: '#64748B', marginTop: 2 }, isDark && { color: '#94A3B8' }]} numberOfLines={1}>{topic.text}</Text>
                         </View>
-                        <Feather name="chevron-right" size={16} color="#94A3B8" />
+                        <Feather name="chevron-right" size={16} color={isDark ? '#64748B' : "#94A3B8"} />
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -967,12 +972,12 @@ export default function ChatScreen() {
         )}
 
         {/* Quick Templates & Financial Questions Suggestion Bar */}
-        <View style={{ backgroundColor: '#F8FAFC', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0' }}>
+        <View style={[{ backgroundColor: '#F8FAFC', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0' }, isDark && { backgroundColor: theme.colors.background, borderTopColor: theme.colors.border }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 8 }}>
             {quickSuggestions.map((tpl) => (
               <TouchableOpacity
                 key={tpl}
-                style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#BFDBFE' }}
+                style={[{ backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#BFDBFE' }, isDark && { backgroundColor: 'rgba(45,140,255,0.1)', borderColor: 'rgba(45,140,255,0.2)' }]}
                 onPress={() => setInput(tpl)}
               >
                 <Text style={{ fontSize: 12, color: '#2D8CFF', fontWeight: '600' }}>{tpl}</Text>
@@ -1000,7 +1005,7 @@ export default function ChatScreen() {
         )}
 
         {/* Input bar */}
-        <View style={[styles.inputBar, { paddingBottom: Math.max(8, insets.bottom) }]}>
+        <View style={[styles.inputBar, { paddingBottom: Math.max(8, insets.bottom) }, isDark && { backgroundColor: theme.colors.background, borderTopColor: theme.colors.border }]}>
           {!isRecordingVoice && (
             <>
               {/* Attach button */}
@@ -1013,9 +1018,9 @@ export default function ChatScreen() {
 
               {/* Text Input */}
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, isDark && { backgroundColor: theme.colors.inputBg, color: '#F8FAFC' }]}
                 placeholder="Message..."
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={isDark ? '#94A3B8' : '#9CA3AF'}
                 value={input}
                 onChangeText={handleInputChange}
                 multiline
@@ -1057,45 +1062,45 @@ export default function ChatScreen() {
         <Modal visible={showAttachMenu} animationType="slide" transparent onRequestClose={() => setShowAttachMenu(false)}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
             <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowAttachMenu(false)} />
-            <View style={styles.sheetModal}>
-              <View style={styles.sheetHandle} />
-              <View style={styles.sheetHeaderModal}>
-                <Text style={styles.sheetTitleModal}>📎 Attach to Chat</Text>
+            <View style={[styles.sheetModal, isDark && { backgroundColor: theme.colors.card }]}>
+              <View style={[styles.sheetHandle, isDark && { backgroundColor: 'rgba(255,255,255,0.2)' }]} />
+              <View style={[styles.sheetHeaderModal, isDark && { borderBottomColor: theme.colors.border }]}>
+                <Text style={[styles.sheetTitleModal, isDark && { color: '#F8FAFC' }]}>📎 Attach to Chat</Text>
                 <TouchableOpacity onPress={() => setShowAttachMenu(false)}>
-                  <Feather name="x" size={22} color="#374151" />
+                  <Feather name="x" size={22} color={isDark ? '#F8FAFC' : '#374151'} />
                 </TouchableOpacity>
               </View>
               <View style={styles.sheetGridModal}>
                 {/* Image */}
                 <TouchableOpacity style={styles.sheetGridItemModal} onPress={handlePickImage}>
-                  <View style={[styles.sheetGridIconModal, { backgroundColor: '#EFF6FF' }]}>
+                  <View style={[styles.sheetGridIconModal, { backgroundColor: isDark ? 'rgba(45,140,255,0.1)' : '#EFF6FF' }]}>
                     <Feather name="image" size={24} color="#2D8CFF" />
                   </View>
-                  <Text style={styles.sheetGridLabelModal}>Image</Text>
+                  <Text style={[styles.sheetGridLabelModal, isDark && { color: '#F8FAFC' }]}>Image</Text>
                 </TouchableOpacity>
 
                 {/* Document (real file picker) */}
                 <TouchableOpacity style={styles.sheetGridItemModal} onPress={handlePickDocument}>
-                  <View style={[styles.sheetGridIconModal, { backgroundColor: '#EFF6FF' }]}>
+                  <View style={[styles.sheetGridIconModal, { backgroundColor: isDark ? 'rgba(45,140,255,0.1)' : '#EFF6FF' }]}>
                     <Feather name="file" size={24} color="#2D8CFF" />
                   </View>
-                  <Text style={styles.sheetGridLabelModal}>Document</Text>
+                  <Text style={[styles.sheetGridLabelModal, isDark && { color: '#F8FAFC' }]}>Document</Text>
                 </TouchableOpacity>
 
                 {/* Transaction */}
                 <TouchableOpacity style={styles.sheetGridItemModal} onPress={() => { setShowAttachMenu(false); setTxPickerMode('TRANSACTION'); setShowTxPicker(true); }}>
-                  <View style={[styles.sheetGridIconModal, { backgroundColor: '#D1FAE5' }]}>
+                  <View style={[styles.sheetGridIconModal, { backgroundColor: isDark ? 'rgba(16,185,129,0.1)' : '#D1FAE5' }]}>
                     <Feather name="trending-up" size={24} color="#059669" />
                   </View>
-                  <Text style={styles.sheetGridLabelModal}>Transaction</Text>
+                  <Text style={[styles.sheetGridLabelModal, isDark && { color: '#F8FAFC' }]}>Transaction</Text>
                 </TouchableOpacity>
 
                 {/* Receipt (transaction as receipt) */}
                 <TouchableOpacity style={styles.sheetGridItemModal} onPress={() => { setShowAttachMenu(false); setTxPickerMode('RECEIPT'); setShowTxPicker(true); }}>
-                  <View style={[styles.sheetGridIconModal, { backgroundColor: '#FEF3C7' }]}>
+                  <View style={[styles.sheetGridIconModal, { backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#FEF3C7' }]}>
                     <Feather name="file-text" size={24} color="#D97706" />
                   </View>
-                  <Text style={styles.sheetGridLabelModal}>Receipt</Text>
+                  <Text style={[styles.sheetGridLabelModal, isDark && { color: '#F8FAFC' }]}>Receipt</Text>
                 </TouchableOpacity>
 
                 {/* Budget */}

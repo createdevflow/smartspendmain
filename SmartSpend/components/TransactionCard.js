@@ -4,19 +4,22 @@ import { View, Text, StyleSheet, TouchableOpacity, Linking, Image } from "react-
 import { Feather } from "@expo/vector-icons";
 import colors from "../theme/colors";
 import { formatDate, formatTime } from "../utils/dateUtils";
+import { maskCurrency } from "../context/TransactionsContext";
+import { useAppTheme } from "../context/ThemeContext";
 
 export default function TransactionCard({
   tx,
   privateMode,
   onDelete,
 }) {
+  const { isDark } = useAppTheme();
   const isIn = tx.type === "in";
-  const amountText = privateMode ? "••••" : `₹${tx.amount.toFixed(2)}`;
+  const amountText = privateMode ? maskCurrency(tx.amount, '₹', isIn ? '+' : '−') : `₹${tx.amount.toFixed(2)}`;
   const hasGst = tx.isGstApplied && tx.gstRate > 0;
   const gstTotal = (tx.cgst || 0) + (tx.sgst || 0) + (tx.igst || 0);
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
       <View style={styles.headerRow}>
         <View style={styles.iconRow}>
           <View
@@ -34,7 +37,7 @@ export default function TransactionCard({
 
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.category} numberOfLines={1}>
+              <Text style={[styles.category, isDark && { color: '#F8FAFC' }]} numberOfLines={1}>
                 {tx.category || (isIn ? "Cash-in" : "Cash-out")}
               </Text>
               {(tx.receiptUrl || tx.receiptKey) && (
@@ -42,24 +45,24 @@ export default function TransactionCard({
                   onPress={() => Linking.openURL(tx.receiptUrl || tx.receiptKey)}
                 >
                   {String(tx.receiptUrl || tx.receiptKey).toLowerCase().endsWith('.pdf') ? (
-                    <View style={{ backgroundColor: '#EFF6FF', borderRadius: 4, padding: 4 }}>
+                    <View style={{ backgroundColor: isDark ? 'rgba(45,140,255,0.2)' : '#EFF6FF', borderRadius: 4, padding: 4 }}>
                       <Feather name="file-text" size={14} color={colors.primary} />
                     </View>
                   ) : (
                     <Image 
                       source={{ uri: tx.receiptUrl || tx.receiptKey }} 
-                      style={{ width: 24, height: 24, borderRadius: 4, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#F3F4F6' }} 
+                      style={{ width: 24, height: 24, borderRadius: 4, borderWidth: 1, borderColor: isDark ? '#334155' : '#E5E7EB', backgroundColor: isDark ? '#1E293B' : '#F3F4F6' }} 
                     />
                   )}
                 </TouchableOpacity>
               )}
             </View>
-            <Text style={styles.meta}>
+            <Text style={[styles.meta, isDark && { color: '#94A3B8' }]}>
               {formatDate(tx.date)} · {formatTime(tx.date)} ·{" "}
               {tx.paymentMethod || "No method"}
             </Text>
             {tx.isScheduled && (
-              <Text style={[styles.meta, { color: '#2563EB', marginTop: 4, fontWeight: '600' }]}>
+              <Text style={[styles.meta, { color: '#38BDF8', marginTop: 4, fontWeight: '600' }]}>
                 📅 Scheduled{tx.scheduledAt ? ` for ${formatDate(tx.scheduledAt)} ${formatTime(tx.scheduledAt)}` : ''}
               </Text>
             )}
@@ -70,13 +73,13 @@ export default function TransactionCard({
           <Text
             style={[
               styles.amount,
-              { color: isIn ? colors.success : colors.danger },
+              { color: isIn ? (isDark ? '#4ADE80' : colors.success) : (isDark ? '#F87171' : colors.danger) },
             ]}
           >
             {amountText}
           </Text>
           {hasGst && (
-            <Text style={styles.gstText}>
+            <Text style={[styles.gstText, isDark && { color: '#94A3B8' }]}>
               GST {tx.gstRate}% · ₹{gstTotal.toFixed(2)}
             </Text>
           )}
@@ -84,7 +87,7 @@ export default function TransactionCard({
       </View>
 
       {tx.note ? (
-        <Text style={styles.note} numberOfLines={2}>
+        <Text style={[styles.note, isDark && { color: '#64748B' }]} numberOfLines={2}>
           {tx.note}
         </Text>
       ) : null}
@@ -92,17 +95,17 @@ export default function TransactionCard({
       <View style={styles.footerRow}>
         <View style={{ flexDirection: "row", gap: 6 }}>
           {hasGst && (
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>GST applied</Text>
+            <View style={[styles.tag, isDark && { backgroundColor: 'rgba(45,140,255,0.2)' }]}>
+              <Text style={[styles.tagText, isDark && { color: '#38BDF8' }]}>GST applied</Text>
             </View>
           )}
         </View>
 
         <TouchableOpacity
           onPress={() => onDelete(tx.id)}
-          style={styles.deleteBtn}
+          style={[styles.deleteBtn, isDark && { backgroundColor: 'rgba(239,68,68,0.2)' }]}
         >
-          <Feather name="trash-2" size={16} color={colors.danger} />
+          <Feather name="trash-2" size={16} color={isDark ? '#F87171' : colors.danger} />
         </TouchableOpacity>
       </View>
     </View>

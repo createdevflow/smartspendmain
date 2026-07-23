@@ -52,7 +52,7 @@ export default function SupportPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && !localStorage.getItem('adminToken')) {
+    if (typeof window !== 'undefined' && !(localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'))) {
       window.location.href = '/admin/login';
       return;
     }

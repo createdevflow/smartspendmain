@@ -43,7 +43,7 @@ export default function NewNotificationPage() {
     audience: 'ALL',
     selectedUserIds: '',
     channelInApp: true,
-    channelPush: false,
+    channelPush: true,
     scheduledAt: '',
     sendNow: false,
   });
@@ -116,39 +116,39 @@ export default function NewNotificationPage() {
           </div>
         </div>
 
-        <div className="responsive-grid-2" style={{ gap: '1.5rem' }}>
+        <div className="responsive-form-grid">
           {/* Main Form */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
             {/* Content */}
             <div className="card">
               <div className="card-header">
-                <h2 className="card-title">Content</h2>
+                <h2 className="section-heading">Content</h2>
               </div>
-              <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="label">Title *</label>
-                  <input className="input" value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g., New Feature Available! 🎉" />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div className="input-group">
+                  <label className="input-label">Title *</label>
+                  <input className="input-field" value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g., New Feature Available! 🎉" />
                 </div>
-                <div className="form-group">
-                  <label className="label">Subtitle</label>
-                  <input className="input" value={form.subtitle} onChange={(e) => set('subtitle', e.target.value)} placeholder="Optional short description" />
+                <div className="input-group">
+                  <label className="input-label">Subtitle</label>
+                  <input className="input-field" value={form.subtitle} onChange={(e) => set('subtitle', e.target.value)} placeholder="Optional short description" />
                 </div>
-                <div className="form-group">
-                  <label className="label">Message Body *</label>
-                  <textarea className="input" rows={5} value={form.body} onChange={(e) => set('body', e.target.value)} placeholder="Write your notification message here…" style={{ resize: 'vertical' }} />
+                <div className="input-group">
+                  <label className="input-label">Message Body *</label>
+                  <textarea className="input-field" rows={5} value={form.body} onChange={(e) => set('body', e.target.value)} placeholder="Write your notification message here…" style={{ resize: 'vertical' }} />
                 </div>
-                <div className="form-group">
-                  <label className="label">Banner Image URL</label>
-                  <input className="input" value={form.bannerImage} onChange={(e) => set('bannerImage', e.target.value)} placeholder="https://…" />
+                <div className="input-group">
+                  <label className="input-label">Banner Image URL</label>
+                  <input className="input-field" value={form.bannerImage} onChange={(e) => set('bannerImage', e.target.value)} placeholder="https://…" />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div className="form-group">
-                    <label className="label">Action Button Text</label>
-                    <input className="input" value={form.buttonText} onChange={(e) => set('buttonText', e.target.value)} placeholder="e.g., Learn More" />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
+                  <div className="input-group">
+                    <label className="input-label">Action Button Text</label>
+                    <input className="input-field" value={form.buttonText} onChange={(e) => set('buttonText', e.target.value)} placeholder="e.g., Learn More" />
                   </div>
-                  <div className="form-group">
-                    <label className="label">Deep Link / Action URL</label>
-                    <input className="input" value={form.actionUrl} onChange={(e) => set('actionUrl', e.target.value)} placeholder="cashtro://goals or https://…" />
+                  <div className="input-group">
+                    <label className="input-label">Deep Link / Action URL</label>
+                    <input className="input-field" value={form.actionUrl} onChange={(e) => set('actionUrl', e.target.value)} placeholder="cashtro://goals or https://…" />
                   </div>
                 </div>
               </div>
@@ -156,17 +156,17 @@ export default function NewNotificationPage() {
 
             {/* Notification Type */}
             <div className="card">
-              <div className="card-header"><h2 className="card-title">Notification Type</h2></div>
-              <div className="responsive-grid-4" style={{ padding: '1.25rem', gap: '0.75rem' }}>
+              <div className="card-header"><h2 className="section-heading" style={{marginBottom: 0}}>Notification Type</h2></div>
+              <div className="responsive-grid-4" style={{ marginTop: 'var(--space-4)', gap: '0.75rem' }}>
                 {NOTIF_TYPES.map((t) => (
                   <button key={t.value} onClick={() => set('notifType', t.value)}
                     style={{
-                      padding: '0.75rem', borderRadius: '10px', border: `2px solid ${form.notifType === t.value ? '#2563EB' : 'var(--border)'}`,
-                      background: form.notifType === t.value ? '#EFF6FF' : 'transparent',
+                      padding: '0.75rem', borderRadius: 'var(--radius-md)', border: `2px solid ${form.notifType === t.value ? 'var(--accent-primary)' : 'var(--border)'}`,
+                      background: form.notifType === t.value ? 'var(--accent-light)' : 'transparent',
                       cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s',
                     }}>
                     <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>{t.icon}</div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: form.notifType === t.value ? '#2563EB' : 'var(--text-muted)' }}>{t.label}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: form.notifType === t.value ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>{t.label}</div>
                   </button>
                 ))}
               </div>
@@ -174,25 +174,25 @@ export default function NewNotificationPage() {
 
             {/* Audience */}
             <div className="card">
-              <div className="card-header"><h2 className="card-title">Audience</h2></div>
-              <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div className="card-header"><h2 className="section-heading" style={{marginBottom: 0}}>Audience</h2></div>
+              <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {AUDIENCES.map((a) => (
                   <label key={a.value} style={{
                     display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-                    borderRadius: '10px', border: `2px solid ${form.audience === a.value ? '#2563EB' : 'var(--border)'}`,
-                    background: form.audience === a.value ? '#EFF6FF' : 'transparent',
+                    borderRadius: 'var(--radius-md)', border: `2px solid ${form.audience === a.value ? 'var(--accent-primary)' : 'var(--border)'}`,
+                    background: form.audience === a.value ? 'var(--accent-light)' : 'transparent',
                     cursor: 'pointer', transition: 'all 0.2s',
                   }}>
                     <input type="radio" name="audience" value={a.value} checked={form.audience === a.value} onChange={() => set('audience', a.value)} style={{ display: 'none' }} />
-                    <div style={{ color: form.audience === a.value ? '#2563EB' : 'var(--text-muted)' }}>{a.icon}</div>
+                    <div style={{ color: form.audience === a.value ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>{a.icon}</div>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{a.label}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{a.desc}</div>
+                      <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{a.label}</div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{a.desc}</div>
                     </div>
                   </label>
                 ))}
                 {form.audience === 'SELECTED' && (
-                  <textarea className="input" rows={4} value={form.selectedUserIds}
+                  <textarea className="input-field" rows={4} value={form.selectedUserIds}
                     onChange={(e) => set('selectedUserIds', e.target.value)}
                     placeholder="Enter user IDs, one per line"
                     style={{ marginTop: '0.5rem', resize: 'vertical' }} />
@@ -202,11 +202,11 @@ export default function NewNotificationPage() {
           </div>
 
           {/* Sidebar Panel */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
             {/* Delivery Channels */}
             <div className="card">
-              <div className="card-header"><h2 className="card-title">Delivery Channels</h2></div>
-              <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="card-header"><h2 className="section-heading" style={{marginBottom: 0}}>Delivery Channels</h2></div>
+              <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {[
                   { key: 'channelInApp', label: 'In-App Notification', desc: 'Appears in the notification inbox' },
                   { key: 'channelPush', label: 'Push Notification', desc: 'Native device push alert' },
@@ -214,8 +214,8 @@ export default function NewNotificationPage() {
                   <label key={ch.key} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer' }}>
                     <input type="checkbox" checked={(form as any)[ch.key]} onChange={(e) => set(ch.key, e.target.checked)} style={{ marginTop: '2px' }} />
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{ch.label}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{ch.desc}</div>
+                      <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{ch.label}</div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{ch.desc}</div>
                     </div>
                   </label>
                 ))}
@@ -224,12 +224,12 @@ export default function NewNotificationPage() {
 
             {/* Schedule */}
             <div className="card">
-              <div className="card-header"><h2 className="card-title">Schedule</h2></div>
-              <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="label">Send Date & Time</label>
-                  <input className="input" type="datetime-local" value={form.scheduledAt} onChange={(e) => set('scheduledAt', e.target.value)} />
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>Leave empty to use "Send Now"</p>
+              <div className="card-header"><h2 className="section-heading" style={{marginBottom: 0}}>Schedule</h2></div>
+              <div style={{ marginTop: 'var(--space-4)' }}>
+                <div className="input-group">
+                  <label className="input-label">Send Date & Time</label>
+                  <input className="input-field" type="datetime-local" value={form.scheduledAt} onChange={(e) => set('scheduledAt', e.target.value)} />
+                  <p className="caption-text" style={{ marginTop: '4px' }}>Leave empty to use "Send Now"</p>
                 </div>
               </div>
             </div>

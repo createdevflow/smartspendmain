@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { api } from '@/lib/api';
-import { Save, Shield, Bell, Database, Globe, RefreshCw, CheckCircle, Zap, AlertTriangle, Lock, Mail, Send, Eye, EyeOff } from 'lucide-react';
+import { Save, Shield, Bell, Database, Globe, RefreshCw, CheckCircle, Zap, AlertTriangle, Lock, Mail, Send, Eye, EyeOff, Plus, Edit, Trash2, X, Upload } from 'lucide-react';
 
 // ── All feature toggles ───────────────────────────────────────────────────────
 const FEATURE_TOGGLES = [
@@ -65,6 +65,7 @@ const FEATURE_TOGGLES = [
 const DEFAULT_SETTINGS = {
   appName: 'Cashtro',
   supportEmail: 'support@cashtro.in',
+  brand_logo_url: 'https://cashtro.in/cashtro-logo.png',
   defaultPlanSlug: 'free',
   free_trial_days: 7,
   maxLoginAttempts: 5,
@@ -131,10 +132,21 @@ const DEFAULT_SETTINGS = {
   ai_max_prompt_length: 15000,
   ai_credit_cost_ocr: 2,
   ai_credit_cost_insight: 1,
+  ai_credit_cost_chat: 1,
+  ai_credit_cost_note_analysis: 1,
+  ai_credit_cost_mini_insight: 1,
   ai_safety_harassment: 'BLOCK_MEDIUM_AND_ABOVE',
   ai_safety_hate: 'BLOCK_MEDIUM_AND_ABOVE',
   ai_safety_dangerous: 'BLOCK_MEDIUM_AND_ABOVE',
 };
+
+const DEFAULT_EMAIL_DEPARTMENTS = [
+  { id: 'noreply', name: 'Cashtro', email: 'noreply@cashtro.in', signature: `<p style="margin-top:24px;color:#64748B;font-size:14px;">Thank you,<br><strong style="color:#232333">Cashtro</strong><br>Automated Notification<br>Please do not reply to this email.<br>🌐 <a href="https://cashtro.in">https://cashtro.in</a></p>` },
+  { id: 'admin', name: 'Cashtro Administration', email: 'admin@cashtro.in', signature: `<p style="margin-top:24px;color:#64748B;font-size:14px;">Regards,<br><strong style="color:#232333">Cashtro Administration</strong><br>Internal Operations<br>🌐 <a href="https://cashtro.in">https://cashtro.in</a><br>📧 admin@cashtro.in</p>` },
+  { id: 'support', name: 'Cashtro Support', email: 'support@cashtro.in', signature: `<p style="margin-top:24px;color:#64748B;font-size:14px;">Here to help,<br><strong style="color:#232333">Cashtro Support Team</strong><br>🌐 <a href="https://cashtro.in">https://cashtro.in</a><br>📧 support@cashtro.in</p>` },
+  { id: 'billing', name: 'Cashtro Billing', email: 'billing@cashtro.in', signature: `<p style="margin-top:24px;color:#64748B;font-size:14px;">Regards,<br><strong style="color:#232333">Cashtro Billing Team</strong><br>🌐 <a href="https://cashtro.in">https://cashtro.in</a><br>📧 billing@cashtro.in</p>` },
+  { id: 'legal', name: 'Cashtro Legal', email: 'legal@cashtro.in', signature: `<p style="margin-top:24px;color:#64748B;font-size:14px;">Regards,<br><strong style="color:#232333">Cashtro Legal & Compliance</strong><br>🌐 <a href="https://cashtro.in">https://cashtro.in</a><br>📧 legal@cashtro.in</p>` }
+];
 
 type TabId = 'general' | 'features' | 'security' | 'notifications' | 'maintenance' | 'integrations' | 'ai';
 
@@ -142,6 +154,9 @@ type TabId = 'general' | 'features' | 'security' | 'notifications' | 'maintenanc
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('general');
   const [settings, setSettings] = useState<Record<string, any>>(DEFAULT_SETTINGS);
+  const [emailDepartments, setEmailDepartments] = useState<any[]>(DEFAULT_EMAIL_DEPARTMENTS);
+  const [editingDepartment, setEditingDepartment] = useState<any>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
   const [metrics, setMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -152,6 +167,32 @@ export default function SettingsPage() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailResult, setTestEmailResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [showSmtpPass, setShowSmtpPass] = useState(false);
+
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('module', 'system');
+      
+      const res = await api.post('/media/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.data?.url) {
+        setSettings(s => ({ ...s, brand_logo_url: res.data.data.url }));
+      } else {
+        alert('Upload failed: Invalid response');
+      }
+    } catch (err: any) {
+      alert('Upload failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -170,6 +211,12 @@ export default function SettingsPage() {
         // Parse system settings
         if (settingsRes.data?.data) {
           settingsRes.data.data.forEach((s: any) => {
+            if (s.key === 'email_departments') {
+              try {
+                setEmailDepartments(JSON.parse(s.value));
+              } catch (e) {}
+              return;
+            }
             if (s.value === 'true') mappedSettings[s.key] = true;
             else if (s.value === 'false') mappedSettings[s.key] = false;
             else if (!isNaN(Number(s.value)) && s.value !== '') mappedSettings[s.key] = Number(s.value);
@@ -232,6 +279,7 @@ export default function SettingsPage() {
           regularSettings.push({ key, value });
         }
       });
+      regularSettings.push({ key: 'email_departments', value: JSON.stringify(emailDepartments) });
 
       await Promise.all([
         regularSettings.length > 0 && api.patch('/admin/settings', { settings: regularSettings }),
@@ -303,16 +351,16 @@ export default function SettingsPage() {
     <>
       <Sidebar />
       <main className="main-content">
-        <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <header style={{ marginBottom: 'var(--space-8)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }} className="responsive-form-grid">
           <div>
-            <h1 className="animate-fade-in">System Settings</h1>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+            <h1 className="page-title animate-fade-in">System Settings</h1>
+            <p className="body-text">
               Configure global application parameters, feature toggles, and integrations.
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             {error && <span style={{ fontSize: '0.8rem', color: 'var(--danger)' }}>{error}</span>}
-            <button className="btn btn-primary" onClick={saveSettings} disabled={saving} style={{ gap: '0.5rem' }}>
+            <button className="btn btn-primary" onClick={saveSettings} disabled={saving}>
               {saved ? <><CheckCircle size={16} /> Saved!</> : saving ? 'Saving...' : <><Save size={16} /> Save Changes</>}
             </button>
           </div>
@@ -357,6 +405,27 @@ export default function SettingsPage() {
                   <div className="input-group">
                     <label className="input-label">Support Email</label>
                     <input className="input-field" type="email" value={settings.supportEmail} onChange={e => set('supportEmail', e.target.value)} />
+                  </div>
+                  <div className="input-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="input-label">Brand Logo (Used in Emails)</label>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>
+                        <label className="btn btn-secondary" style={{ display: 'inline-flex', padding: '0.5rem 1rem', cursor: uploadingLogo ? 'not-allowed' : 'pointer', opacity: uploadingLogo ? 0.7 : 1 }}>
+                          <Upload size={16} style={{ marginRight: '0.5rem' }} />
+                          {uploadingLogo ? 'Uploading...' : 'Upload Logo Image'}
+                          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUploadLogo} disabled={uploadingLogo} />
+                        </label>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.5rem', marginBottom: 0 }}>
+                          Recommended: PNG or JPG, max 2MB. Image will be automatically resized for emails.
+                        </p>
+                      </div>
+                      {settings.brand_logo_url && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <img src={settings.brand_logo_url} alt="Logo preview" style={{ height: '48px', objectFit: 'contain', background: '#f1f5f9', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)' }} />
+                          <button type="button" onClick={() => set('brand_logo_url', '')} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
@@ -541,19 +610,79 @@ export default function SettingsPage() {
                 </div>
 
                 <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.25rem', marginBottom: '1.5rem' }}>
-                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>SENDER IDENTITY</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div className="input-group">
-                      <label className="input-label">From Name</label>
-                      <input className="input-field" value={settings.mail_from_name} onChange={e => set('mail_from_name', e.target.value)} placeholder="Cashtro" />
-                      <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>Display name users see in their inbox.</p>
-                    </div>
-                    <div className="input-group">
-                      <label className="input-label">From Email Address</label>
-                      <input className="input-field" type="email" value={settings.mail_from_address} onChange={e => set('mail_from_address', e.target.value)} placeholder="noreply@cashtro.in" />
-                      <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>The address emails are sent from. Must match the SMTP account.</p>
-                    </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>EMAIL DEPARTMENTS</h4>
+                    <button className="btn btn-secondary" style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => setEditingDepartment({ id: '', name: '', email: '', signature: '' })}>
+                      <Plus size={14} style={{ marginRight: '0.375rem' }} /> Add Department
+                    </button>
                   </div>
+                  
+                  {editingDepartment ? (
+                    <div style={{ background: 'var(--bg-card)', padding: '1rem', borderRadius: '0.5rem', border: '1px dashed var(--border)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                        <div className="input-group" style={{ margin: 0 }}>
+                          <label className="input-label">Department ID (e.g., noreply, support)</label>
+                          <input className="input-field" value={editingDepartment.id} onChange={e => setEditingDepartment({ ...editingDepartment, id: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '') })} />
+                        </div>
+                        <div className="input-group" style={{ margin: 0 }}>
+                          <label className="input-label">From Name</label>
+                          <input className="input-field" value={editingDepartment.name} onChange={e => setEditingDepartment({ ...editingDepartment, name: e.target.value })} />
+                        </div>
+                        <div className="input-group" style={{ margin: 0, gridColumn: 'span 2' }}>
+                          <label className="input-label">From Email Address</label>
+                          <input className="input-field" type="email" value={editingDepartment.email} onChange={e => setEditingDepartment({ ...editingDepartment, email: e.target.value })} />
+                        </div>
+                        <div className="input-group" style={{ margin: 0, gridColumn: 'span 2' }}>
+                          <label className="input-label">HTML Signature</label>
+                          <textarea className="input-field" style={{ minHeight: '120px', fontFamily: 'monospace', fontSize: '13px' }} value={editingDepartment.signature} onChange={e => setEditingDepartment({ ...editingDepartment, signature: e.target.value })} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                        <button className="btn btn-secondary" onClick={() => setEditingDepartment(null)}>Cancel</button>
+                        <button className="btn btn-primary" onClick={() => {
+                          if (!editingDepartment.id || !editingDepartment.email) return;
+                          setEmailDepartments(prev => {
+                            const exists = prev.findIndex(d => d.id === editingDepartment.id);
+                            if (exists >= 0) {
+                              const newDeps = [...prev];
+                              newDeps[exists] = editingDepartment;
+                              return newDeps;
+                            }
+                            return [...prev, editingDepartment];
+                          });
+                          setEditingDepartment(null);
+                        }}>Save Department</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                            <th style={{ padding: '0.75rem', color: 'var(--text-tertiary)' }}>ID</th>
+                            <th style={{ padding: '0.75rem', color: 'var(--text-tertiary)' }}>Name</th>
+                            <th style={{ padding: '0.75rem', color: 'var(--text-tertiary)' }}>Email</th>
+                            <th style={{ padding: '0.75rem', color: 'var(--text-tertiary)' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {emailDepartments.map(dep => (
+                            <tr key={dep.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '0.75rem', fontWeight: 600 }}>{dep.id}</td>
+                              <td style={{ padding: '0.75rem' }}>{dep.name}</td>
+                              <td style={{ padding: '0.75rem' }}>{dep.email}</td>
+                              <td style={{ padding: '0.75rem' }}>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                  <button onClick={() => setEditingDepartment(dep)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><Edit size={16} /></button>
+                                  <button onClick={() => setEmailDepartments(prev => prev.filter(d => d.id !== dep.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}><Trash2 size={16} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
 
                 {/* Test Email */}
@@ -829,6 +958,18 @@ export default function SettingsPage() {
                     <div className="input-group">
                       <label className="input-label">Financial Insight Cost</label>
                       <input className="input-field" type="number" value={settings.ai_credit_cost_insight || 1} onChange={e => set('ai_credit_cost_insight', e.target.value)} />
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">Agent Chat Cost</label>
+                      <input className="input-field" type="number" value={settings.ai_credit_cost_chat || 1} onChange={e => set('ai_credit_cost_chat', e.target.value)} />
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">Note Analysis Cost</label>
+                      <input className="input-field" type="number" value={settings.ai_credit_cost_note_analysis || 1} onChange={e => set('ai_credit_cost_note_analysis', e.target.value)} />
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">Mini Insight Cost</label>
+                      <input className="input-field" type="number" value={settings.ai_credit_cost_mini_insight || 1} onChange={e => set('ai_credit_cost_mini_insight', e.target.value)} />
                     </div>
                   </div>
                 </div>

@@ -6,7 +6,7 @@ import { CurrencyService } from '../currency/currency.service';
 export class AnalyticsService {
   constructor(private prisma: PrismaService, private currency: CurrencyService) {}
 
-  async getDashboard(userId: string) {
+  async getDashboard(userId: string, cashbookId?: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     const baseCurrency = user?.defaultCurrency || 'INR';
     const now = new Date();
@@ -15,16 +15,16 @@ export class AnalyticsService {
     const endOfLastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59, 999));
 
     const [monthIncome, monthExpense, lastMonthIncome, lastMonthExpense, recentTx, netWorth] = await Promise.all([
-      this.sumTransactions(userId, 'INCOME', startOfMonth, now),
-      this.sumTransactions(userId, 'EXPENSE', startOfMonth, now),
-      this.sumTransactions(userId, 'INCOME', startOfLastMonth, endOfLastMonth),
-      this.sumTransactions(userId, 'EXPENSE', startOfLastMonth, endOfLastMonth),
+      this.sumTransactions(userId, 'INCOME', startOfMonth, now, cashbookId),
+      this.sumTransactions(userId, 'EXPENSE', startOfMonth, now, cashbookId),
+      this.sumTransactions(userId, 'INCOME', startOfLastMonth, endOfLastMonth, cashbookId),
+      this.sumTransactions(userId, 'EXPENSE', startOfLastMonth, endOfLastMonth, cashbookId),
       this.prisma.transaction.findMany({
-        where: { userId, deletedAt: null },
+        where: { userId, deletedAt: null, ...(cashbookId ? { cashbookId } : {}) },
         orderBy: { date: 'desc' }, take: 5,
         include: { category: { select: { id: true, name: true, emoji: true, color: true } }, cashbook: true },
       }),
-      this.getNetWorth(userId),
+      this.getNetWorth(userId, cashbookId),
     ]);
 
     const savings = monthIncome - monthExpense;
@@ -91,13 +91,13 @@ export class AnalyticsService {
     return points;
   }
 
-  async getCategoryBreakdown(userId: string, from?: string, to?: string, type = 'EXPENSE') {
+  async getCategoryBreakdown(userId: string, from?: string, to?: string, type = 'EXPENSE', cashbookId?: string) {
     const fromDate = from ? new Date(from) : new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
     const toDate = to ? new Date(to) : new Date();
 
     const result = await this.prisma.transaction.groupBy({
       by: ['categoryId'],
-      where: { userId, type: type as any, date: { gte: fromDate, lte: toDate }, deletedAt: null },
+      where: { userId, type: type as any, date: { gte: fromDate, lte: toDate }, deletedAt: null, ...(cashbookId ? { cashbookId } : {}) },
       _sum: { amountInBookCurrency: true },
       _count: { id: true },
     });
@@ -120,7 +120,7 @@ export class AnalyticsService {
     return { data: withCategories.sort((a, b) => b.amount - a.amount), total, type, from: fromDate, to: toDate };
   }
 
-  async getInsights(userId: string): Promise<string[]> {
+  async getInsights(userId: string, cashbookId?: string): Promise<string[]> {
     const insights: string[] = [];
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -128,8 +128,8 @@ export class AnalyticsService {
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
     const [thisMonthExpense, lastMonthExpense] = await Promise.all([
-      this.sumTransactions(userId, 'EXPENSE', startOfMonth, now),
-      this.sumTransactions(userId, 'EXPENSE', startOfLastMonth, endOfLastMonth),
+      this.sumTransactions(userId, 'EXPENSE', startOfMonth, now, cashbookId),
+      this.sumTransactions(userId, 'EXPENSE', startOfLastMonth, endOfLastMonth, cashbookId),
     ]);
 
     if (lastMonthExpense > 0) {
@@ -141,7 +141,7 @@ export class AnalyticsService {
     // Top spending category
     const topCategory = await this.prisma.transaction.groupBy({
       by: ['categoryId'],
-      where: { userId, type: 'EXPENSE', date: { gte: startOfMonth }, deletedAt: null },
+      where: { userId, type: 'EXPENSE', date: { gte: startOfMonth }, deletedAt: null, ...(cashbookId ? { cashbookId } : {}) },
       _sum: { amountInBookCurrency: true },
       orderBy: { _sum: { amountInBookCurrency: 'desc' } },
       take: 1,
@@ -155,9 +155,9 @@ export class AnalyticsService {
     return insights;
   }
 
-  async getNetWorth(userId: string) {
+  async getNetWorth(userId: string, cashbookId?: string) {
     const cashbooks = await this.prisma.cashbook.findMany({
-      where: { userId, isArchived: false, deletedAt: null },
+      where: { userId, isArchived: false, deletedAt: null, ...(cashbookId ? { id: cashbookId } : {}) },
     });
     let total = 0;
     for (const book of cashbooks) {
@@ -170,11 +170,11 @@ export class AnalyticsService {
     return { netWorth: total };
   }
 
-  async getHeatmap(userId: string, year: number) {
+  async getHeatmap(userId: string, year: number, cashbookId?: string) {
     const from = new Date(year, 0, 1);
     const to = new Date(year, 11, 31);
     const transactions = await this.prisma.transaction.findMany({
-      where: { userId, type: 'EXPENSE', date: { gte: from, lte: to }, deletedAt: null },
+      where: { userId, type: 'EXPENSE', date: { gte: from, lte: to }, deletedAt: null, ...(cashbookId ? { cashbookId } : {}) },
       select: { date: true, amountInBookCurrency: true },
     });
 

@@ -85,7 +85,7 @@ export default function CreateBlogPage() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken') || localStorage.getItem('admin_token');
+    const token = (localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'));
     if (!token) { router.push('/login'); return; }
     setAuthChecked(true);
   }, [router]);
@@ -173,7 +173,7 @@ export default function CreateBlogPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '1.5rem', alignItems: 'flex-start' }}>
+          <div className="responsive-form-grid">
 
             {/* Main editor */}
             <div>
@@ -215,27 +215,28 @@ export default function CreateBlogPage() {
             </div>
 
             {/* Sidebar settings */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
 
               {/* Status */}
               <div className="card" style={{ padding: '1rem' }}>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.5rem' }}>Status</label>
-                <select className="input-field" value={form.status} onChange={e => updateForm('status', e.target.value)} style={{ marginBottom: 0 }}>
-                  <option value="DRAFT">Draft</option>
-                  <option value="PUBLISHED">Published</option>
-                  <option value="SCHEDULED">Scheduled</option>
-                  <option value="ARCHIVED">Archived</option>
-                </select>
+                <div className="input-group">
+                  <label className="input-label">Status</label>
+                  <select className="input-field" value={form.status} onChange={e => updateForm('status', e.target.value)}>
+                    <option value="DRAFT">Draft</option>
+                    <option value="PUBLISHED">Published</option>
+                    <option value="SCHEDULED">Scheduled</option>
+                    <option value="ARCHIVED">Archived</option>
+                  </select>
+                </div>
 
                 {form.status === 'SCHEDULED' && (
-                  <div style={{ marginTop: '0.75rem' }}>
-                    <label style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.375rem' }}>Publish Date & Time</label>
+                  <div className="input-group">
+                    <label className="input-label">Publish Date & Time</label>
                     <input
                       type="datetime-local"
                       className="input-field"
                       value={form.scheduledAt}
                       onChange={e => updateForm('scheduledAt', e.target.value)}
-                      style={{ marginBottom: 0 }}
                     />
                   </div>
                 )}
@@ -249,7 +250,7 @@ export default function CreateBlogPage() {
               {/* Cover Image */}
               <div className="card" style={{ padding: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Cover Image</label>
+                  <label className="input-label" style={{ marginBottom: 0 }}>Cover Image</label>
                   <label style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 600, cursor: 'pointer' }}>
                     + Upload Image
                     <input
@@ -297,7 +298,7 @@ export default function CreateBlogPage() {
               {/* Category */}
               <div className="card" style={{ padding: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Category</label>
+                  <label className="input-label" style={{ marginBottom: 0 }}>Category</label>
                   <button type="button" onClick={() => setShowNewCat(!showNewCat)} style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>
                     {showNewCat ? 'Cancel' : '+ Create Category'}
                   </button>
@@ -318,7 +319,7 @@ export default function CreateBlogPage() {
               {/* Tags */}
               <div className="card" style={{ padding: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tags</label>
+                  <label className="input-label" style={{ marginBottom: 0 }}>Tags</label>
                   <button type="button" onClick={() => setShowNewTag(!showNewTag)} style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>
                     {showNewTag ? 'Cancel' : '+ Create Tag'}
                   </button>

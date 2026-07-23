@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: SITE_URL,
   },
+  icons: {
+    icon: '/cashtro-icon.png',
+  },
   openGraph: {
     title: 'Cashtro — Smart Finance for Modern India',
     description: 'The connected financial workspace for modern India. Track money, grow wealth, and collaborate.',

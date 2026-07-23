@@ -9,9 +9,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useBooks } from '../context/BooksContext';
-import { useTransactions } from '../context/TransactionsContext';
+import { useTransactions, maskCurrency } from '../context/TransactionsContext';
 import { getCurrencySymbol } from '../utils/planFeatures';
 import { api } from '../utils/api';
+import { LinearGradient } from 'expo-linear-gradient';
 import ContactsInviteModal from '../components/ContactsInviteModal';
 import QuickEntrySheet from '../components/QuickEntrySheet';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
@@ -19,6 +20,7 @@ import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView, BottomShe
 import { TourStep, useTourGuide } from '../components/onboarding/TourGuide';
 import { useOnboarding } from '../context/OnboardingContext';
 import { useIsFocused } from '@react-navigation/native';
+import { useAppTheme } from '../context/ThemeContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 // 68% card width ensures significant peeking (~50px) on both left and right sides
@@ -121,17 +123,31 @@ function BookCard({ book, bal, bookTxs, isActive, onPress, onDelete, onMembers, 
   const graphData = useMemo(() => generateGraphData(bookTxs), [bookTxs]);
   const cardBgColor = book.color || '#2D8CFF';
 
+  const getGradientColors = (hex) => {
+    if (hex === '#10B981') return ['#064E3B', '#059669', '#10B981']; // Green
+    if (hex === '#F59E0B') return ['#78350F', '#D97706', '#F59E0B']; // Amber
+    if (hex === '#EC4899') return ['#831843', '#DB2777', '#EC4899']; // Pink
+    if (hex === '#F26D21') return ['#7C2D12', '#EA580C', '#F97316']; // Orange
+    if (hex === '#EF4444') return ['#7F1D1D', '#DC2626', '#EF4444']; // Red
+    return ['#1E3A8A', '#2563EB', '#3B82F6']; // Default Blue
+  };
+
   return (
     <TourStep id={isFirst ? "book_card" : undefined}>
     <TouchableOpacity
       style={[
         styles.bookCard,
-        { backgroundColor: cardBgColor },
         isActive ? styles.bookCardActive : styles.bookCardInactive
       ]}
       onPress={onPress}
       activeOpacity={0.95}
     >
+      <LinearGradient
+        colors={getGradientColors(cardBgColor)}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
       {/* Top Header Section */}
       <View style={styles.cardHeader}>
         <View style={{ flex: 1, marginRight: 10 }}>
@@ -176,7 +192,7 @@ function BookCard({ book, bal, bookTxs, isActive, onPress, onDelete, onMembers, 
       <View style={styles.balanceSection}>
         <Text style={styles.cardBalLabel}>Available balance</Text>
         <Text style={styles.cardBalance}>
-          {privateMode ? '••••' : `${sym}${Math.abs(bal.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          {privateMode ? maskCurrency(bal.balance || 0, sym) : `${sym}${Math.abs(bal.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
         </Text>
       </View>
 
@@ -205,7 +221,7 @@ function BookCard({ book, bal, bookTxs, isActive, onPress, onDelete, onMembers, 
         <View style={styles.tileIn}>
           <Text style={styles.tileInLabel}>CASH IN</Text>
           <Text style={styles.tileInAmount} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
-            {privateMode ? '••••' : `+${sym}${(bal.inTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            {privateMode ? maskCurrency(bal.inTotal || 0, sym, '+') : `+${sym}${(bal.inTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </Text>
           <View style={styles.progressTrackIn}>
             <View style={[styles.progressFillIn, { width: `${inRatio}%` }]} />
@@ -216,7 +232,7 @@ function BookCard({ book, bal, bookTxs, isActive, onPress, onDelete, onMembers, 
         <View style={styles.tileOut}>
           <Text style={styles.tileOutLabel}>CASH OUT</Text>
           <Text style={styles.tileOutAmount} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
-            {privateMode ? '••••' : `−${sym}${(bal.outTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            {privateMode ? maskCurrency(bal.outTotal || 0, sym, '−') : `−${sym}${(bal.outTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </Text>
           <View style={styles.progressTrackOut}>
             <View style={[styles.progressFillOut, { width: `${outRatio}%` }]} />
@@ -273,6 +289,7 @@ function SproutCoin({ sym }) {
 }
 
 export default function BooksScreen() {
+  const { isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const {
     books,
@@ -600,9 +617,9 @@ export default function BooksScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, isDark && { backgroundColor: '#0F172A' }]} edges={['top']}>
       <ScrollView
-        style={styles.scroll}
+        style={[styles.scroll, isDark && { backgroundColor: '#0F172A' }]}
         contentContainerStyle={{ paddingBottom: 130 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2D8CFF" />}
@@ -610,11 +627,11 @@ export default function BooksScreen() {
         {/* Header Row */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Cashbooks</Text>
-            <Text style={styles.subtitle}>{books.length} {books.length === 1 ? 'book' : 'books'}</Text>
+            <Text style={[styles.title, isDark && { color: '#F8FAFC' }]}>Cashbooks</Text>
+            <Text style={[styles.subtitle, isDark && { color: '#94A3B8' }]}>{books.length} {books.length === 1 ? 'book' : 'books'}</Text>
           </View>
           <TouchableOpacity
-            style={styles.headerAddBtn}
+            style={[styles.headerAddBtn, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' }]}
             onPress={() => {
               setEditBook(null);
               setBookName('');
@@ -629,10 +646,10 @@ export default function BooksScreen() {
 
         {/* Search Input Pill */}
         {books.length > 0 && (
-          <View style={styles.searchContainer}>
+          <View style={[styles.searchContainer, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' }]}>
             <Feather name="search" size={18} color="#8A8D99" style={{ marginRight: 10 }} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, isDark && { color: '#F8FAFC' }]}
               placeholder="Search cashbooks by name"
               placeholderTextColor="#8A8D99"
               value={searchQuery}
@@ -647,12 +664,12 @@ export default function BooksScreen() {
         )}
 
         {books.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <View style={{ width: 64, height: 64, backgroundColor: '#EFF6FF', borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          <View style={[styles.emptyCard, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
+            <View style={{ width: 64, height: 64, backgroundColor: isDark ? 'rgba(45,140,255,0.2)' : '#EFF6FF', borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <Text style={{ fontSize: 32 }}>📒</Text>
             </View>
-            <Text style={styles.emptyTitle}>No cashbooks yet</Text>
-            <Text style={styles.emptyText}>Create your first cashbook to start recording cash-in and out entries.</Text>
+            <Text style={[styles.emptyTitle, isDark && { color: '#F8FAFC' }]}>No cashbooks yet</Text>
+            <Text style={[styles.emptyText, isDark && { color: '#94A3B8' }]}>Create your first cashbook to start recording cash-in and out entries.</Text>
             <TouchableOpacity
               style={[styles.createBtn, { paddingHorizontal: 32, alignSelf: 'center' }]}
               onPress={() => {
@@ -779,12 +796,12 @@ export default function BooksScreen() {
       </ScrollView>
 
       {/* Bottom Insight Row with Create Cashbook button */}
-      <View style={styles.bottomInsightRow}>
+      <View style={[styles.bottomInsightRow, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
         <View style={styles.insightLeftSection}>
           <SproutCoin sym={currentInsightSym} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.insightTitle} numberOfLines={1}>{insight.title}</Text>
-            <Text style={styles.insightSubtitle} numberOfLines={2}>{insight.subtitle}</Text>
+            <Text style={[styles.insightTitle, isDark && { color: '#F8FAFC' }]} numberOfLines={1}>{insight.title}</Text>
+            <Text style={[styles.insightSubtitle, isDark && { color: '#94A3B8' }]} numberOfLines={2}>{insight.subtitle}</Text>
           </View>
         </View>
 
@@ -813,14 +830,14 @@ export default function BooksScreen() {
         keyboardBehavior="fillParent"
         keyboardBlurBehavior="restore"
         backdropComponent={(props) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />}
-        handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40, height: 4 }}
-        backgroundStyle={{ borderRadius: 24, backgroundColor: '#fff' }}
+        handleIndicatorStyle={{ backgroundColor: isDark ? '#475569' : '#D1D5DB', width: 40, height: 4 }}
+        backgroundStyle={{ borderRadius: 24, backgroundColor: isDark ? '#1E293B' : '#fff' }}
       >
         <BottomSheetView style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <View>
-              <Text style={styles.modalTitle}>👥 Members</Text>
-              <Text style={{ fontSize: 12, color: '#747487', marginTop: 2 }}>{selectedBook?.name}</Text>
+              <Text style={[styles.modalTitle, isDark && { color: '#F8FAFC' }]}>👥 Members</Text>
+              <Text style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#747487', marginTop: 2 }}>{selectedBook?.name}</Text>
             </View>
           </View>
 
@@ -830,10 +847,10 @@ export default function BooksScreen() {
             <BottomSheetScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
               {members?.owner && (
                 <View style={s2.memberRow}>
-                  <View style={[s2.roleChip, { backgroundColor: '#FEF3C7' }]}><Text style={{ fontSize: 11, fontWeight: '700', color: '#B45309' }}>OWNER</Text></View>
+                  <View style={[s2.roleChip, { backgroundColor: isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7' }]}><Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#FBBF24' : '#B45309' }}>OWNER</Text></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s2.memberName}>{members.owner.fullName}</Text>
-                    <Text style={s2.memberEmail}>{members.owner.email}</Text>
+                    <Text style={[s2.memberName, isDark && { color: '#F8FAFC' }]}>{members.owner.fullName}</Text>
+                    <Text style={[s2.memberEmail, isDark && { color: '#94A3B8' }]}>{members.owner.email}</Text>
                   </View>
                 </View>
               )}
@@ -843,15 +860,15 @@ export default function BooksScreen() {
                     onPress={() => handleToggleRole(m)}
                     disabled={selectedBook?.memberRole !== 'OWNER' || m.status !== 'accepted'}
                   >
-                    <View style={[s2.roleChip, { backgroundColor: m.status === 'accepted' ? '#EFF6FF' : '#F3F4F6' }]}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: m.status === 'accepted' ? '#2D8CFF' : '#9CA3AF' }}>
+                    <View style={[s2.roleChip, { backgroundColor: m.status === 'accepted' ? (isDark ? 'rgba(45,140,255,0.2)' : '#EFF6FF') : (isDark ? '#334155' : '#F3F4F6') }]}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: m.status === 'accepted' ? '#2D8CFF' : (isDark ? '#94A3B8' : '#9CA3AF') }}>
                         {m.status === 'accepted' ? m.role : 'PENDING'}
                       </Text>
                     </View>
                   </TouchableOpacity>
                   <View style={{ flex: 1 }}>
-                    <Text style={s2.memberName}>{m.user?.fullName || m.email}</Text>
-                    <Text style={s2.memberEmail}>{m.email}</Text>
+                    <Text style={[s2.memberName, isDark && { color: '#F8FAFC' }]}>{m.user?.fullName || m.email}</Text>
+                    <Text style={[s2.memberEmail, isDark && { color: '#94A3B8' }]}>{m.email}</Text>
                   </View>
                   {selectedBook?.memberRole === 'OWNER' && (
                     <TouchableOpacity onPress={() => handleRemoveMember(m.id)} style={{ padding: 4 }}>
@@ -959,24 +976,24 @@ export default function BooksScreen() {
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
         backdropComponent={(props) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />}
-        handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40, height: 4 }}
-        backgroundStyle={{ borderRadius: 24, backgroundColor: '#fff' }}
+        handleIndicatorStyle={{ backgroundColor: isDark ? '#475569' : '#D1D5DB', width: 40, height: 4 }}
+        backgroundStyle={{ borderRadius: 24, backgroundColor: isDark ? '#1E293B' : '#fff' }}
       >
         <BottomSheetView style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <Text style={[styles.modalTitle, { marginBottom: 0 }]}>{editBook ? 'Edit Cashbook' : 'New Cashbook'}</Text>
+            <Text style={[styles.modalTitle, { marginBottom: 0 }, isDark && { color: '#F8FAFC' }]}>{editBook ? 'Edit Cashbook' : 'New Cashbook'}</Text>
           </View>
 
-          <Text style={styles.inputLabel}>Name</Text>
+          <Text style={[styles.inputLabel, isDark && { color: '#94A3B8' }]}>Name</Text>
           <BottomSheetTextInput
-            style={styles.input}
+            style={[styles.input, isDark && { backgroundColor: '#334155', borderColor: 'rgba(255,255,255,0.1)', color: '#F8FAFC' }]}
             value={bookName}
             onChangeText={setBookName}
             placeholder="e.g. Goa Trip, Home Expenses"
             placeholderTextColor="#9CA3AF"
           />
 
-          <Text style={styles.inputLabel}>Color</Text>
+          <Text style={[styles.inputLabel, isDark && { color: '#94A3B8' }]}>Color</Text>
           <View style={styles.colorRow}>
             {BOOK_COLORS.map((c) => (
               <TouchableOpacity
@@ -1041,10 +1058,11 @@ const styles = StyleSheet.create({
 
   bookCard: {
     width: '100%',
-    borderRadius: 24,
-    padding: 22,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12, shadowRadius: 16, elevation: 6,
+    flex: 1,
+    borderRadius: 32,
+    padding: 24,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.15, shadowRadius: 32, elevation: 8,
   },
   bookCardActive: {
     borderWidth: 0,

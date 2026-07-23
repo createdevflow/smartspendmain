@@ -15,6 +15,9 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsBoolean()
   emailReports?: boolean;
+
+  @IsOptional()
+  preferences?: Record<string, any>;
 }
 
 export class ChangePasswordDto {

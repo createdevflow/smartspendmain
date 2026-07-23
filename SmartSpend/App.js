@@ -8,8 +8,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Feather } from "@expo/vector-icons";
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import Toast from 'react-native-toast-message';
 import { api } from './utils/api';
+import { ThemeProvider, useAppTheme } from './context/ThemeContext';
 
 // ── Global Error Interceptor ────────────────────────────────────────────────
 const originalConsoleError = console.error;
@@ -46,6 +48,8 @@ import { WealthProvider } from "./context/WealthContext";
 import { InvoiceProvider } from "./context/InvoiceContext";
 import { useFeatureAccess } from "./hooks/useFeatureAccess";
 import { OnboardingProvider } from "./context/OnboardingContext";
+import { BiometricProvider, useBiometric } from "./context/BiometricContext";
+import AppLockScreen from "./screens/AppLockScreen";
 
 // Components
 import ShakeDetector from "./components/ShakeDetector";
@@ -72,6 +76,7 @@ import StarredMessagesScreen from "./screens/StarredMessagesScreen";
 import ChatMediaGalleryScreen from "./screens/ChatMediaGalleryScreen";
 import PaymentReminderScreen from "./screens/PaymentReminderScreen";
 import AIInsightsScreen from "./screens/AIInsightsScreen";
+import LegalWebViewScreen from "./screens/LegalWebViewScreen";
 
 // Onboarding
 import WelcomeFlow from './screens/onboarding/WelcomeFlow';
@@ -99,6 +104,15 @@ Notifications.setNotificationHandler({
 
 async function registerForPushNotificationsAsync() {
   try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#2D8CFF',
+      });
+    }
+
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     if (existingStatus !== 'granted') {
@@ -106,25 +120,15 @@ async function registerForPushNotificationsAsync() {
       finalStatus = status;
     }
     if (finalStatus !== 'granted') return null;
-    const tokenData = await Notifications.getExpoPushTokenAsync();
+
+    const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+    const tokenData = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
     return tokenData?.data ?? null;
   } catch (e) {
     console.warn('[Push] Token registration failed:', e.message);
     return null;
   }
 }
-
-const LightTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: "#F5F7FB",
-    card: "#FFFFFF",
-    text: "#232333",
-    border: "rgba(15, 23, 42, 0.06)",
-    primary: "#2D8CFF",
-  },
-};
 
 // ── Maintenance Mode Screen ─────────────────────────────────────────────────
 function MaintenanceScreen({ onRetry }) {
@@ -212,6 +216,7 @@ class ErrorBoundary extends React.Component {
 function MainTabs() {
   const { hasAccess, getFeatureTease } = useFeatureAccess();
   const { totalUnread } = useChat();
+  const { isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   
   return (
@@ -235,10 +240,10 @@ function MainTabs() {
             </Text>
           );
         },
-        tabBarActiveTintColor: "#2D8CFF",
-        tabBarInactiveTintColor: "#9CA3AF",
+        tabBarActiveTintColor: isDark ? "#38BDF8" : "#2D8CFF",
+        tabBarInactiveTintColor: isDark ? "#64748B" : "#9CA3AF",
         tabBarIndicatorStyle: {
-          backgroundColor: "#2D8CFF",
+          backgroundColor: isDark ? "#38BDF8" : "#2D8CFF",
           height: 3,
           borderRadius: 999,
           top: 0,
@@ -248,14 +253,14 @@ function MainTabs() {
           bottom: undefined,
         },
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
           height: Platform.OS === 'android' ? 60 + insets.bottom : 56 + insets.bottom,
           paddingBottom: insets.bottom,
           borderTopWidth: 0.5,
-          borderTopColor: "rgba(148,163,184,0.4)",
+          borderTopColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(148,163,184,0.4)",
           elevation: 16,
           shadowColor: "#000",
-          shadowOpacity: 0.08,
+          shadowOpacity: isDark ? 0.25 : 0.08,
           shadowOffset: { width: 0, height: -2 },
           shadowRadius: 8,
         },
@@ -309,11 +314,12 @@ const MainTabsWithTour = () => (
   <MainTabs />
 );
 
-// ── Root Navigator with Maintenance + Auth ─────────────────────────────────
+// ── Root Navigator with Maintenance + Auth + App Lock ─────────────────────
 function RootNavigator() {
   const { user, isLoading } = useContext(AuthContext);
   const { isMaintenanceMode, refreshConfig, isLoading: configLoading } = useAppConfig();
   const { hasSeenWelcome, loading: onboardingLoading } = useOnboarding();
+  const { isLocked, setIsLocked, prefs, capability } = useBiometric();
 
   // Register push notification token when user logs in
   React.useEffect(() => {
@@ -330,8 +336,12 @@ function RootNavigator() {
     });
     const responseSub = Notifications.addNotificationResponseReceivedListener(response => {
       console.log('[Push] User tapped notification:', response);
-      // Navigation could be handled here based on response.notification.request.content.data
     });
+
+    // Lock app when user logs in fresh if biometrics enabled and requireOnLaunch
+    if (prefs.enabled && prefs.requireOnLaunch && capability?.isAvailable) {
+      setIsLocked(true);
+    }
 
     return () => { 
       cancelled = true; 
@@ -355,6 +365,19 @@ function RootNavigator() {
   // Show maintenance screen for all users (including logged-in)
   if (isMaintenanceMode) {
     return <MaintenanceScreen onRetry={refreshConfig} />;
+  }
+
+  // App Lock overlay — shown when locked, for authenticated users only
+  if (user && isLocked && prefs.enabled) {
+    return (
+      <AppLockScreen
+        onUnlocked={() => setIsLocked(false)}
+        onFallbackToPassword={async () => {
+          // Disable biometric lock and let user re-authenticate via password
+          setIsLocked(false);
+        }}
+      />
+    );
   }
 
   return (
@@ -382,6 +405,7 @@ function RootNavigator() {
             <Stack.Screen name="ChatMediaGallery" component={ChatMediaGalleryScreen} />
             <Stack.Screen name="PaymentReminder" component={PaymentReminderScreen} />
             <Stack.Screen name="AIInsights" component={AIInsightsScreen} />
+            <Stack.Screen name="LegalWebView" component={LegalWebViewScreen} />
           </>
         )
       ) : (
@@ -391,9 +415,21 @@ function RootNavigator() {
           <Stack.Screen name="Otp" component={OtpScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+          <Stack.Screen name="LegalWebView" component={LegalWebViewScreen} />
         </>
       )}
     </Stack.Navigator>
+  );
+}
+
+// ── App Container with Dynamic Theme ────────────────────────────────────────
+function AppContainer() {
+  const { theme, isDark } = useAppTheme();
+  return (
+    <NavigationContainer theme={theme}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
+      <RootNavigator />
+    </NavigationContainer>
   );
 }
 
@@ -403,32 +439,33 @@ export default function App() {
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          <AppConfigProvider>
-            <AuthProvider>
-              <OnboardingProvider>
-                <TourGuideProvider>
-                  <BooksProvider>
-                  <TransactionsProvider>
-                    <WealthProvider>
-                      <InvoiceProvider>
-                        <ChatProvider>
-                          <BottomSheetModalProvider>
-                            <ShakeDetector />
-                            <NavigationContainer theme={LightTheme}>
-                              <StatusBar barStyle="dark-content" backgroundColor="#F5F7FB" />
-                              <RootNavigator />
-                            </NavigationContainer>
-                            <Toast />
-                          </BottomSheetModalProvider>
-                        </ChatProvider>
-                      </InvoiceProvider>
-                    </WealthProvider>
-                  </TransactionsProvider>
-                  </BooksProvider>
-                </TourGuideProvider>
-              </OnboardingProvider>
-            </AuthProvider>
-          </AppConfigProvider>
+          <ThemeProvider>
+            <AppConfigProvider>
+              <AuthProvider>
+                <BiometricProvider>
+                  <OnboardingProvider>
+                    <TourGuideProvider>
+                      <BooksProvider>
+                      <TransactionsProvider>
+                        <WealthProvider>
+                          <InvoiceProvider>
+                            <ChatProvider>
+                              <BottomSheetModalProvider>
+                                <ShakeDetector />
+                                <AppContainer />
+                                <Toast />
+                              </BottomSheetModalProvider>
+                            </ChatProvider>
+                          </InvoiceProvider>
+                        </WealthProvider>
+                      </TransactionsProvider>
+                      </BooksProvider>
+                    </TourGuideProvider>
+                  </OnboardingProvider>
+                </BiometricProvider>
+              </AuthProvider>
+            </AppConfigProvider>
+          </ThemeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>

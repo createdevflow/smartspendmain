@@ -6,9 +6,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { useTransactions } from '../context/TransactionsContext';
 
-const SHAKE_THRESHOLD = 2.2; // G-force threshold
-const SHAKE_INTERVAL = 400;  // ms between valid shakes
-const SHAKE_COUNT_REQUIRED = 3; // number of shakes to trigger
+const SHAKE_THRESHOLD = 1.78; // G-force threshold optimized for cross-device reliability
+const SHAKE_INTERVAL = 250;  // ms between valid shakes
+const SHAKE_COUNT_REQUIRED = 2; // number of shakes to trigger
 
 export default function ShakeDetector() {
   const { hasAccess: isFeatureEnabled } = useFeatureAccess();
@@ -27,7 +27,7 @@ export default function ShakeDetector() {
 
       if (!enabled) return;
 
-      Accelerometer.setUpdateInterval(100);
+      Accelerometer.setUpdateInterval(60);
       const subscription = Accelerometer.addListener(({ x, y, z }) => {
         const magnitude = Math.sqrt(x * x + y * y + z * z);
         const now = Date.now();

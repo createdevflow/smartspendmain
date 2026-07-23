@@ -23,6 +23,7 @@ import { AuthContext } from "../context/AuthContext";
 import { api } from "../utils/api";
 import { useFeatureAccess } from "../hooks/useFeatureAccess";
 import OptimizedImage from "../components/OptimizedImage";
+import { useAppTheme } from "../context/ThemeContext";
 
 const CURRENCIES = [
   { code: "INR", name: "Indian Rupee", symbol: "₹" },
@@ -43,6 +44,9 @@ const CURRENCIES = [
 ];
 
 export default function ProfileScreen({ navigation }) {
+  const { theme, isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+
   const { user, updateProfileInContext } = useContext(AuthContext);
   const { hasAccess: isFeatureEnabled } = useFeatureAccess();
 
@@ -201,7 +205,7 @@ export default function ProfileScreen({ navigation }) {
                     Free trial enjoy all pro features
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => Linking.openURL('https://cashtro.in/terms')}>
+                <TouchableOpacity onPress={() => Linking.openURL('https://cashtro.in/documents/terms')}>
                   <Text style={{ fontSize: 10, color: '#2D8CFF', marginLeft: 24, textDecorationLine: 'underline' }}>*T&C apply (View Terms of Service)</Text>
                 </TouchableOpacity>
               </View>
@@ -489,7 +493,7 @@ export default function ProfileScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme, isDark) { return StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F5F7FB" },
   container: { flex: 1 },
   headerBar: {
@@ -497,11 +501,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#F5F7FB",
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: "#FFFFFF",
+    width: 40, height: 40, borderRadius: 20, backgroundColor: isDark ? theme.colors.card : "#FFFFFF",
     alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: "rgba(148,163,184,0.2)",
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: isDark ? "#F8FAFC" : "#111827" },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
 
@@ -514,18 +518,18 @@ const styles = StyleSheet.create({
     shadowColor: "#2D8CFF", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 5,
   },
   avatarImage: { width: 92, height: 92 },
-  avatarText: { fontSize: 36, fontWeight: "700", color: "#FFFFFF" },
+  avatarText: { fontSize: 36, fontWeight: "700", color: isDark ? theme.colors.card : "#FFFFFF" },
   avatarOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" },
   editAvatarBadge: {
-    position: "absolute", bottom: -2, right: -2, backgroundColor: "#111827",
+    position: "absolute", bottom: -2, right: -2, backgroundColor: isDark ? "#F8FAFC" : "#111827",
     width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center",
     borderWidth: 2, borderColor: "#F5F7FB", zIndex: 10,
   },
   avatarHint: { marginTop: 10, fontSize: 12, color: "#6B7280" },
 
   // Section
-  section: { backgroundColor: "#FFFFFF", borderRadius: 20, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: "rgba(148,163,184,0.15)" },
-  sectionLabel: { fontSize: 14, fontWeight: "700", color: "#111827", marginBottom: 16 },
+  section: { backgroundColor: isDark ? theme.colors.card : "#FFFFFF", borderRadius: 20, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: "rgba(148,163,184,0.15)" },
+  sectionLabel: { fontSize: 14, fontWeight: "700", color: isDark ? "#F8FAFC" : "#111827", marginBottom: 16 },
   inputGroup: { marginBottom: 14 },
   label: { fontSize: 12, fontWeight: "600", color: "#4B5563", marginBottom: 6, marginLeft: 2 },
   inputHint: { fontSize: 11, color: "#9CA3AF", marginTop: 4, marginLeft: 2 },
@@ -535,10 +539,10 @@ const styles = StyleSheet.create({
   },
   inputDisabled: { backgroundColor: "#F1F5F9" },
   inputIcon: { paddingHorizontal: 13 },
-  input: { flex: 1, height: "100%", color: "#111827", fontSize: 14 },
+  input: { flex: 1, height: "100%", color: isDark ? "#F8FAFC" : "#111827", fontSize: 14 },
 
   saveBtn: { backgroundColor: "#2D8CFF", borderRadius: 12, height: 50, alignItems: "center", justifyContent: "center", marginTop: 6 },
-  saveBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  saveBtnText: { color: isDark ? theme.colors.card : "#FFFFFF", fontSize: 15, fontWeight: "700" },
   saveBtnAlt: {
     backgroundColor: "#EFF6FF", borderRadius: 12, height: 50, alignItems: "center", justifyContent: "center",
     marginTop: 6, borderWidth: 1, borderColor: "#BFDBFE",
@@ -548,14 +552,14 @@ const styles = StyleSheet.create({
   // Account Info Rows
   infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderColor: "rgba(148,163,184,0.12)" },
   infoLabel: { fontSize: 13, color: "#6B7280" },
-  infoValue: { fontSize: 13, color: "#111827", fontWeight: "500", maxWidth: "60%", textAlign: "right" },
+  infoValue: { fontSize: 13, color: isDark ? "#F8FAFC" : "#111827", fontWeight: "500", maxWidth: "60%", textAlign: "right" },
   tooltipBox: {
-    position: "absolute", right: 28, top: -14, backgroundColor: "#111827",
+    position: "absolute", right: 28, top: -14, backgroundColor: isDark ? "#F8FAFC" : "#111827",
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
     flexDirection: "row", alignItems: "center", zIndex: 20,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
   },
-  tooltipText: { color: "#FFF", fontSize: 10, fontWeight: "600" },
+  tooltipText: { color: isDark ? theme.colors.card : "#FFFFFF", fontSize: 10, fontWeight: "600" },
 
   // Currency Modal
   modalOverlay: {
@@ -563,17 +567,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? theme.colors.card : '#FFFFFF',
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     height: '60%',
     padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: isDark ? '#F8FAFC' : '#111827' },
   currencyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#F3F4F6' },
   currencyRowSelected: { backgroundColor: '#EFF6FF', borderRadius: 12, paddingHorizontal: 12, borderBottomWidth: 0 },
   currencySymbolBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   currencySymbol: { fontSize: 18, fontWeight: '700', color: '#4B5563' },
-  currencyCode: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  currencyCode: { fontSize: 15, fontWeight: '700', color: isDark ? '#F8FAFC' : '#111827' },
   currencyName: { fontSize: 13, color: '#6B7280', marginTop: 2 },
 });
+}

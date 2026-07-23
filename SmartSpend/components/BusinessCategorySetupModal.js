@@ -10,6 +10,7 @@ import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView, BottomShe
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
 import { useTransactions } from '../context/TransactionsContext';
+import { useAppTheme } from '../context/ThemeContext';
 
 const EMOJI_OPTIONS = ['📁', '🏷️', '💡', '🎯', '🔧', '📦', '🏢', '💼', '🧾', '🎪', '🌿', '⚙️'];
 const COLOR_OPTIONS = ['#2563EB', '#059669', '#DC2626', '#D97706', '#F26D21', '#DB2777', '#0891B2', '#374151'];
@@ -20,6 +21,7 @@ const BusinessCategorySetupModal = forwardRef(({ onClose, autoShow = true }, ref
   const bottomSheetRef = ref || internalRef;
   const snapPoints = useMemo(() => ['60%', '92%'], []);
   const { useCustomCategories, setUseCustomCategories, refreshCategories } = useTransactions();
+  const { isDark } = useAppTheme();
 
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -53,68 +55,69 @@ const BusinessCategorySetupModal = forwardRef(({ onClose, autoShow = true }, ref
   }, [onClose]);
 
   const loadCategories = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const res = await api.get('/categories');
-      const all = res.data?.data || res.data || [];
-      // Only show user-created custom categories
-      const custom = all.filter(c => c.isCustom || c.userId || c.isSystem === false);
-      setCategories(custom);
+      if (res.data?.success) {
+        setCategories(res.data.data);
+      }
     } catch (e) {
-      console.error('[Categories] Load failed:', e?.message);
+      console.warn('Load categories error:', e.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleAdd = async () => {
-    if (!newName.trim()) return;
-    setSaving(true);
+    if (!newName.trim() || saving) return;
     try {
+      setSaving(true);
       const res = await api.post('/categories', {
         name: newName.trim(),
         emoji: newEmoji,
         color: newColor,
         type: newType,
       });
-      const created = res.data?.data || res.data;
-      setCategories(prev => [...prev, created]);
-      setNewName('');
-      setNewEmoji('📁');
-      setNewColor('#2563EB');
-      setShowEmojiPicker(false);
-      refreshCategories();
+      if (res.data?.success) {
+        setNewName('');
+        setShowEmojiPicker(false);
+        await loadCategories();
+        if (refreshCategories) refreshCategories();
+      }
     } catch (e) {
-      Alert.alert('Error', e?.response?.data?.message || 'Failed to add category');
+      const msg = e.response?.data?.error || 'Could not add category';
+      Alert.alert('Error', msg);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRemove = (cat) => {
-    Alert.alert('Delete Category', `Delete "${cat.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.delete(`/categories/${cat.id}`);
-            setCategories(prev => prev.filter(c => c.id !== cat.id));
-            refreshCategories();
-          } catch (e) {
-            Alert.alert('Error', e?.response?.data?.message || 'Failed to delete category');
-          }
+  const handleRemove = async (cat) => {
+    Alert.alert(
+      'Delete Category',
+      `Delete "${cat.name}"? Transactions using this category won't be deleted.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await api.delete(`/categories/${cat.id}`);
+              if (res.data?.success) {
+                setCategories(prev => prev.filter(c => c.id !== cat.id));
+                if (refreshCategories) refreshCategories();
+              }
+            } catch (e) {
+              Alert.alert('Error', e.response?.data?.error || 'Could not delete category');
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
-  const handleDone = async () => {
-    if (autoShow) {
-      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-      await AsyncStorage.setItem('hasSeenBusinessSetup', 'true');
-    }
-    onClose?.();
+  const handleDone = () => {
     bottomSheetRef.current?.dismiss();
   };
 
@@ -123,25 +126,22 @@ const BusinessCategorySetupModal = forwardRef(({ onClose, autoShow = true }, ref
       ref={bottomSheetRef}
       index={0}
       snapPoints={snapPoints}
-      enableDynamicSizing={false}
       onChange={handleSheetChanges}
-      keyboardBehavior="extend"
-      keyboardBlurBehavior="restore"
       backdropComponent={(props) => (
         <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
       )}
-      handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40, height: 4 }}
-      backgroundStyle={{ borderRadius: 24, backgroundColor: '#fff' }}
+      handleIndicatorStyle={{ backgroundColor: isDark ? '#475569' : '#D1D5DB', width: 40, height: 4 }}
+      backgroundStyle={{ borderRadius: 24, backgroundColor: isDark ? '#1E293B' : '#fff' }}
     >
       <BottomSheetView style={[s.container, { paddingBottom: Math.max(insets.bottom, 24) }]}>
         {/* Header */}
         <View style={s.header}>
-          <View style={s.iconBox}>
-            <Feather name="grid" size={22} color="#1D4ED8" />
+          <View style={[s.iconBox, isDark && { backgroundColor: 'rgba(29, 78, 216, 0.25)' }]}>
+            <Feather name="grid" size={22} color={isDark ? '#60A5FA' : '#1D4ED8'} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>Custom Categories</Text>
-            <Text style={s.subtitle}>Add your own expense & income tags</Text>
+            <Text style={[s.title, isDark && { color: '#F8FAFC' }]}>Custom Categories</Text>
+            <Text style={[s.subtitle, isDark && { color: '#94A3B8' }]}>Add your own expense & income tags</Text>
           </View>
           <TouchableOpacity onPress={handleDone} style={s.doneBtn}>
             <Text style={s.doneBtnText}>Done</Text>
@@ -149,10 +149,10 @@ const BusinessCategorySetupModal = forwardRef(({ onClose, autoShow = true }, ref
         </View>
 
         {/* Global Toggle */}
-        <View style={s.toggleCard}>
+        <View style={[s.toggleCard, isDark && { backgroundColor: 'rgba(37, 99, 235, 0.15)', borderColor: 'rgba(37, 99, 235, 0.3)' }]}>
           <View style={{ flex: 1 }}>
-            <Text style={s.toggleTitle}>Use Custom Categories</Text>
-            <Text style={s.toggleSubtitle}>Override defaults with your own lists</Text>
+            <Text style={[s.toggleTitle, isDark && { color: '#60A5FA' }]}>Use Custom Categories</Text>
+            <Text style={[s.toggleSubtitle, isDark && { color: '#93C5FD' }]}>Override defaults with your own lists</Text>
           </View>
           <TouchableOpacity
             style={[s.switchBase, useCustomCategories && s.switchActive]}
@@ -163,131 +163,131 @@ const BusinessCategorySetupModal = forwardRef(({ onClose, autoShow = true }, ref
         </View>
 
         {!useCustomCategories ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
-            <Feather name="layers" size={48} color="#94A3B8" style={{ marginBottom: 16 }} />
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#475569' }}>Predefined Categories Active</Text>
-            <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 8, paddingHorizontal: 40 }}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.8 }}>
+            <Feather name="layers" size={48} color={isDark ? '#64748B' : '#94A3B8'} style={{ marginBottom: 16 }} />
+            <Text style={{ fontSize: 16, fontWeight: '600', color: isDark ? '#E2E8F0' : '#475569' }}>Predefined Categories Active</Text>
+            <Text style={{ fontSize: 13, color: isDark ? '#94A3B8' : '#64748B', textAlign: 'center', marginTop: 8, paddingHorizontal: 40 }}>
               Turn on custom categories above to build your own personal income and expense categories.
             </Text>
           </View>
         ) : (
           <>
             {/* Add Category Form */}
-            <View style={s.formCard}>
-              <Text style={s.formLabel}>Add New Category</Text>
+            <View style={[s.formCard, isDark && { backgroundColor: '#0F172A', borderColor: 'rgba(255,255,255,0.08)' }]}>
+              <Text style={[s.formLabel, isDark && { color: '#94A3B8' }]}>Add New Category</Text>
 
-          {/* Type toggle */}
-          <View style={s.typeRow}>
-            {['expense', 'income', 'both'].map(t => (
-              <TouchableOpacity
-                key={t}
-                style={[s.typeBtn, newType === t && s.typeBtnActive]}
-                onPress={() => setNewType(t)}
-              >
-                <Text style={[s.typeBtnText, newType === t && s.typeBtnTextActive]}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+              {/* Type toggle */}
+              <View style={s.typeRow}>
+                {['expense', 'income', 'both'].map(t => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[s.typeBtn, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' }, newType === t && s.typeBtnActive]}
+                    onPress={() => setNewType(t)}
+                  >
+                    <Text style={[s.typeBtnText, isDark && { color: '#CBD5E1' }, newType === t && s.typeBtnTextActive]}>
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-          {/* Name input row */}
-          <View style={s.inputRow}>
-            {/* Emoji picker trigger */}
-            <TouchableOpacity
-              style={[s.emojiBtn, { backgroundColor: newColor + '20', borderColor: newColor }]}
-              onPress={() => setShowEmojiPicker(!showEmojiPicker)}
-            >
-              <Text style={{ fontSize: 22 }}>{newEmoji}</Text>
-            </TouchableOpacity>
-
-            {/* Name input — BottomSheetTextInput for keyboard avoidance */}
-            <BottomSheetTextInput
-              style={s.nameInput}
-              placeholder="Category name..."
-              placeholderTextColor="#9CA3AF"
-              value={newName}
-              onChangeText={setNewName}
-              onSubmitEditing={handleAdd}
-              returnKeyType="done"
-              maxLength={50}
-            />
-
-            <TouchableOpacity
-              style={[s.addBtn, { backgroundColor: newColor }, (!newName.trim() || saving) && s.addBtnDisabled]}
-              onPress={handleAdd}
-              disabled={!newName.trim() || saving}
-            >
-              {saving ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="plus" size={20} color="#fff" />}
-            </TouchableOpacity>
-          </View>
-
-          {/* Emoji picker */}
-          {showEmojiPicker && (
-            <View style={s.emojiGrid}>
-              {EMOJI_OPTIONS.map(e => (
+              {/* Name input row */}
+              <View style={s.inputRow}>
+                {/* Emoji picker trigger */}
                 <TouchableOpacity
-                  key={e}
-                  style={[s.emojiOption, newEmoji === e && s.emojiOptionSelected]}
-                  onPress={() => { setNewEmoji(e); setShowEmojiPicker(false); }}
+                  style={[s.emojiBtn, { backgroundColor: newColor + '20', borderColor: newColor }]}
+                  onPress={() => setShowEmojiPicker(!showEmojiPicker)}
                 >
-                  <Text style={{ fontSize: 22 }}>{e}</Text>
+                  <Text style={{ fontSize: 22 }}>{newEmoji}</Text>
                 </TouchableOpacity>
-              ))}
+
+                {/* Name input — BottomSheetTextInput for keyboard avoidance */}
+                <BottomSheetTextInput
+                  style={[s.nameInput, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.15)', color: '#F8FAFC' }]}
+                  placeholder="Category name..."
+                  placeholderTextColor="#9CA3AF"
+                  value={newName}
+                  onChangeText={setNewName}
+                  onSubmitEditing={handleAdd}
+                  returnKeyType="done"
+                  maxLength={50}
+                />
+
+                <TouchableOpacity
+                  style={[s.addBtn, { backgroundColor: newColor }, (!newName.trim() || saving) && s.addBtnDisabled]}
+                  onPress={handleAdd}
+                  disabled={!newName.trim() || saving}
+                >
+                  {saving ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="plus" size={20} color="#fff" />}
+                </TouchableOpacity>
+              </View>
+
+              {/* Emoji picker */}
+              {showEmojiPicker && (
+                <View style={s.emojiGrid}>
+                  {EMOJI_OPTIONS.map(e => (
+                    <TouchableOpacity
+                      key={e}
+                      style={[s.emojiOption, isDark && { backgroundColor: '#1E293B' }, newEmoji === e && s.emojiOptionSelected]}
+                      onPress={() => { setNewEmoji(e); setShowEmojiPicker(false); }}
+                    >
+                      <Text style={{ fontSize: 22 }}>{e}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Color picker */}
+              <View style={s.colorRow}>
+                <Text style={[s.colorLabel, isDark && { color: '#CBD5E1' }]}>Color:</Text>
+                {COLOR_OPTIONS.map(c => (
+                  <TouchableOpacity
+                    key={c}
+                    style={[s.colorDot, { backgroundColor: c }, newColor === c && [s.colorDotSelected, isDark && { borderColor: '#F8FAFC' }]]}
+                    onPress={() => setNewColor(c)}
+                  />
+                ))}
+              </View>
             </View>
-          )}
 
-          {/* Color picker */}
-          <View style={s.colorRow}>
-            <Text style={s.colorLabel}>Color:</Text>
-            {COLOR_OPTIONS.map(c => (
-              <TouchableOpacity
-                key={c}
-                style={[s.colorDot, { backgroundColor: c }, newColor === c && s.colorDotSelected]}
-                onPress={() => setNewColor(c)}
-              />
-            ))}
-          </View>
-        </View>
-
-        {/* Category list */}
-        {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator color="#2D8CFF" />
-            <Text style={s.loadingText}>Loading your categories...</Text>
-          </View>
-        ) : (
-          <BottomSheetScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-            {categories.length === 0 ? (
+            {/* Category list */}
+            {loading ? (
               <View style={s.center}>
-                <Feather name="tag" size={40} color="#E5E7EB" style={{ marginBottom: 12 }} />
-                <Text style={s.emptyText}>No custom categories yet</Text>
-                <Text style={s.emptySubText}>Add your first one above</Text>
+                <ActivityIndicator color="#2D8CFF" />
+                <Text style={[s.loadingText, isDark && { color: '#94A3B8' }]}>Loading your categories...</Text>
               </View>
             ) : (
-              <>
-                <Text style={s.listLabel}>Your Categories ({categories.length})</Text>
-                {categories.map(cat => (
-                  <View key={cat.id} style={s.catRow}>
-                    <View style={[s.catEmoji, { backgroundColor: (cat.color || '#2D8CFF') + '20' }]}>
-                      <Text style={{ fontSize: 18 }}>{cat.emoji || '📁'}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.catName}>{cat.name}</Text>
-                      <Text style={s.catType}>{cat.type}</Text>
-                    </View>
-                    <View style={[s.catColorDot, { backgroundColor: cat.color || '#2D8CFF' }]} />
-                    <TouchableOpacity onPress={() => handleRemove(cat)} style={s.removeBtn}>
-                      <Feather name="trash-2" size={15} color="#EF4444" />
-                    </TouchableOpacity>
+              <BottomSheetScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                {categories.length === 0 ? (
+                  <View style={s.center}>
+                    <Feather name="tag" size={40} color={isDark ? '#334155' : '#E5E7EB'} style={{ marginBottom: 12 }} />
+                    <Text style={[s.emptyText, isDark && { color: '#CBD5E1' }]}>No custom categories yet</Text>
+                    <Text style={[s.emptySubText, isDark && { color: '#64748B' }]}>Add your first one above</Text>
                   </View>
-                ))}
-              </>
+                ) : (
+                  <>
+                    <Text style={[s.listLabel, isDark && { color: '#94A3B8' }]}>Your Categories ({categories.length})</Text>
+                    {categories.map(cat => (
+                      <View key={cat.id} style={[s.catRow, isDark && { borderBottomColor: 'rgba(255,255,255,0.08)' }]}>
+                        <View style={[s.catEmoji, { backgroundColor: (cat.color || '#2D8CFF') + '20' }]}>
+                          <Text style={{ fontSize: 18 }}>{cat.emoji || '📁'}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[s.catName, isDark && { color: '#F8FAFC' }]}>{cat.name}</Text>
+                          <Text style={[s.catType, isDark && { color: '#94A3B8' }]}>{cat.type}</Text>
+                        </View>
+                        <View style={[s.catColorDot, { backgroundColor: cat.color || '#2D8CFF' }]} />
+                        <TouchableOpacity onPress={() => handleRemove(cat)} style={s.removeBtn}>
+                          <Feather name="trash-2" size={15} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </>
+                )}
+                <View style={{ height: 32 }} />
+              </BottomSheetScrollView>
             )}
-            <View style={{ height: 32 }} />
-          </BottomSheetScrollView>
-        )}
-        </>
+          </>
         )}
       </BottomSheetView>
     </BottomSheetModal>

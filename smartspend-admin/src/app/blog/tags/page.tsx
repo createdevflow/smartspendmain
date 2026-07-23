@@ -17,7 +17,7 @@ export default function BlogTagsPage() {
   const [editName, setEditName] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken') || localStorage.getItem('admin_token');
+    const token = (localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'));
     if (!token) { router.push('/login'); return; }
     setAuthChecked(true);
   }, [router]);

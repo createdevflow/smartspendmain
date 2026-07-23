@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Sidebar } from "@/components/Sidebar";
+import { StatCard } from '@/components/ui/StatCard';
 import {
   Database, Image as ImageIcon, FileText, HardDrive, Trash2,
   RefreshCw, Search, Filter, Grid, List, ShieldCheck, Download,
@@ -170,164 +171,106 @@ export default function MediaLibraryPage() {
       <Sidebar />
       <main className="main-content">
         <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <Database style={{ color: '#2563EB', width: 28, height: 28 }} />
-              Global Media & Storage Management
-            </h1>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem', fontSize: '0.9375rem' }}>
-              Centralized asset monitoring, automated WebP compression savings, responsive variants, and storage cleanup.
+        <div className="page-header animate-fade-in">
+          <div className="page-header-left">
+            <h1 className="page-title">Global Media &amp; Storage</h1>
+            <p className="body-text" style={{ marginTop: 'var(--sp-1)' }}>
+              Centralized asset monitoring, WebP compression savings, responsive variants, and storage cleanup.
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div className="page-header-right">
             <button
               onClick={handleRunCleanup}
               disabled={actionLoading}
-              className="btn"
-              style={{
-                background: 'linear-gradient(135deg, #10B981, #059669)',
-                color: 'white',
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                padding: '0.625rem 1.25rem', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: 'pointer',
-              }}
+              className="btn btn-primary btn-sm"
+              aria-label="Run media maintenance"
             >
-              <Zap style={{ width: 18, height: 18 }} />
-              {actionLoading ? 'Running Job...' : 'Run Maintenance & Cleanup'}
+              <Zap size={14} aria-hidden="true" />
+              {actionLoading ? 'Running…' : 'Run Cleanup'}
             </button>
-            <button
-              onClick={fetchMediaData}
-              className="btn btn-outline"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1rem', borderRadius: '8px' }}
-            >
-              <RefreshCw style={{ width: 16, height: 16 }} />
-              Refresh
+            <button onClick={fetchMediaData} className="btn btn-secondary btn-sm" aria-label="Refresh media library">
+              <RefreshCw size={14} aria-hidden="true" /> Refresh
             </button>
           </div>
         </div>
 
         {/* Notice */}
         {notice && (
-          <div style={{
-            padding: '1rem 1.25rem', borderRadius: '10px', marginBottom: '1.5rem',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            background: notice.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-            border: `1px solid ${notice.type === 'success' ? '#10B981' : '#EF4444'}`,
-            color: notice.type === 'success' ? '#065F46' : '#991B1B',
-            fontWeight: 500, fontSize: '0.9375rem',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              {notice.type === 'success' ? <CheckCircle style={{ width: 20, height: 20, color: '#10B981' }} /> : <AlertCircle style={{ width: 20, height: 20, color: '#EF4444' }} />}
+          <div
+            role="alert"
+            style={{
+              padding: 'var(--sp-3) var(--sp-4)',
+              borderRadius: 'var(--radius-btn)',
+              marginBottom: 'var(--sp-4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: notice.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
+              border: `1px solid ${notice.type === 'success' ? 'var(--success)' : 'var(--danger)'}`,
+              color: notice.type === 'success' ? 'var(--success)' : 'var(--danger)',
+              fontWeight: 500,
+              fontSize: 'var(--type-body)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+              {notice.type === 'success' ? <CheckCircle size={16} aria-hidden="true" /> : <AlertCircle size={16} aria-hidden="true" />}
               {notice.text}
             </div>
-            <button onClick={() => setNotice(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, color: 'inherit' }}>✕</button>
+            <button onClick={() => setNotice(null)} className="btn btn-ghost btn-sm" style={{ padding: '0 var(--sp-1)' }} aria-label="Dismiss">✕</button>
           </div>
         )}
 
         {/* KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
-          <div className="card" style={{ padding: '1.5rem', borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>Total Files Stored</span>
-              <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6' }}>
-                <ImageIcon style={{ width: 20, height: 20 }} />
-              </div>
-            </div>
-            <div style={{ fontSize: '1.875rem', fontWeight: 800, color: 'var(--text-primary)' }}>{(stats?.totalFiles || 0).toLocaleString()}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', display: 'flex', gap: '0.75rem' }}>
-              <span>🟢 {stats?.byStatus?.ACTIVE || 0} Active</span>
-              <span>📦 {stats?.byStatus?.ARCHIVED || 0} Archived</span>
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: '1.5rem', borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>Storage Space Used</span>
-              <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.1)', color: '#8B5CF6' }}>
-                <HardDrive style={{ width: 20, height: 20 }} />
-              </div>
-            </div>
-            <div style={{ fontSize: '1.875rem', fontWeight: 800, color: 'var(--text-primary)' }}>{formatBytes(stats?.totalBytesStored || 0)}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-              Original Size: {formatBytes(stats?.totalOriginalBytes || 0)}
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: '1.5rem', borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>Compression Savings</span>
-              <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', color: '#10B981' }}>
-                <Zap style={{ width: 20, height: 20 }} />
-              </div>
-            </div>
-            <div style={{ fontSize: '1.875rem', fontWeight: 800, color: '#10B981', display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-              {stats?.compressionRatio || '0.0'}%
-              <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-secondary)' }}>saved</span>
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-              🎉 Reduced by {formatBytes(stats?.totalBytesSaved || 0)} via WebP & EXIF strip
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: '1.5rem', borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>Total Served & Usage</span>
-              <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B' }}>
-                <Layers style={{ width: 20, height: 20 }} />
-              </div>
-            </div>
-            <div style={{ fontSize: '1.875rem', fontWeight: 800, color: 'var(--text-primary)' }}>{(stats?.totalDownloads || 0).toLocaleString()}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-              Refs across database: {stats?.totalUsage || 0} links
-            </div>
-          </div>
+        <div className="stats-grid" style={{ marginBottom: 'var(--sp-6)' }}>
+          <StatCard title="Total Files" value={(stats?.totalFiles || 0).toLocaleString()} icon={ImageIcon} variant="primary" accentBorder loading={loading} />
+          <StatCard title="Storage Used" value={formatBytes(stats?.totalBytesStored || 0)} icon={HardDrive} variant="warning" accentBorder loading={loading} />
+          <StatCard title="Compression Saved" value={`${stats?.compressionRatio || '0.0'}%`} icon={Zap} variant="success" accentBorder loading={loading} />
+          <StatCard title="Total Downloads" value={(stats?.totalDownloads || 0).toLocaleString()} icon={Layers} variant="primary" accentBorder loading={loading} />
         </div>
 
-        {/* Filters & Action Bar */}
-        <div className="card" style={{ padding: '1.25rem', borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center' }}>
-          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem', flex: '1 1 300px' }}>
+        {/* Filters */}
+        <div className="filter-bar" style={{ marginBottom: 'var(--sp-3)' }}>
+          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: 'var(--sp-2)', flex: '1 1 280px' }}>
             <div style={{ position: 'relative', flex: 1 }}>
-              <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: 'var(--text-tertiary)' }} />
+              <Search style={{ position: 'absolute', left: 'var(--sp-3)', top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--text-muted)' }} aria-hidden="true" />
               <input
                 type="text"
-                placeholder="Search by filename, hash, or storage path..."
+                placeholder="Search filename, hash, or path…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{
-                  width: '100%', padding: '0.5rem 0.75rem 0.5rem 2.25rem',
-                  borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)',
-                  color: 'var(--text-primary)', fontSize: '0.875rem',
-                }}
+                className="input-field"
+                style={{ paddingLeft: 'calc(var(--sp-3) + 18px)', marginBottom: 0 }}
+                aria-label="Search assets"
               />
             </div>
-            <button type="submit" className="btn btn-outline" style={{ padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.875rem' }}>Search</button>
+            <button type="submit" className="btn btn-secondary btn-sm">Search</button>
           </form>
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              <Filter style={{ width: 16, height: 16, color: 'var(--text-tertiary)' }} />
-              <select
-                value={moduleFilter}
-                onChange={e => { setModuleFilter(e.target.value); setPage(1); }}
-                style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
-              >
-                <option value="ALL">All Modules</option>
-                <option value="users">Users (Avatars)</option>
-                <option value="receipts">Receipts</option>
-                <option value="invoices">Invoices</option>
-                <option value="chat">Chat Attachments</option>
-                <option value="blog">Blog Images</option>
-                <option value="exports">Exports / Reports</option>
-                <option value="system">System / Branding</option>
-              </select>
-            </div>
+          <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={moduleFilter}
+              onChange={e => { setModuleFilter(e.target.value); setPage(1); }}
+              className="input-field"
+              style={{ marginBottom: 0, width: 'auto', height: '32px' }}
+              aria-label="Filter by module"
+            >
+              <option value="ALL">All Modules</option>
+              <option value="users">Users (Avatars)</option>
+              <option value="receipts">Receipts</option>
+              <option value="invoices">Invoices</option>
+              <option value="chat">Chat Attachments</option>
+              <option value="blog">Blog Images</option>
+              <option value="exports">Exports / Reports</option>
+              <option value="system">System / Branding</option>
+            </select>
 
             <select
               value={statusFilter}
               onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-              style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
+              className="input-field"
+              style={{ marginBottom: 0, width: 'auto', height: '32px' }}
+              aria-label="Filter by status"
             >
               <option value="ALL">All Statuses</option>
               <option value="ACTIVE">Active</option>
@@ -336,54 +279,34 @@ export default function MediaLibraryPage() {
               <option value="DELETED">Deleted</option>
             </select>
 
-            <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-btn)', overflow: 'hidden' }}>
               <button
                 onClick={() => setViewMode('grid')}
-                style={{
-                  padding: '0.5rem 0.75rem', border: 'none', background: viewMode === 'grid' ? '#2563EB' : 'var(--bg-main)',
-                  color: viewMode === 'grid' ? 'white' : 'var(--text-secondary)', cursor: 'pointer',
-                }}
-                title="Grid View"
-              >
-                <Grid style={{ width: 16, height: 16 }} />
-              </button>
+                style={{ padding: '6px 10px', border: 'none', background: viewMode === 'grid' ? 'var(--brand-blue)' : 'var(--surface)', color: viewMode === 'grid' ? 'white' : 'var(--text-secondary)', cursor: 'pointer' }}
+                title="Grid View" aria-label="Grid view" aria-pressed={viewMode === 'grid'}
+              ><Grid style={{ width: 14, height: 14 }} /></button>
               <button
                 onClick={() => setViewMode('table')}
-                style={{
-                  padding: '0.5rem 0.75rem', border: 'none', background: viewMode === 'table' ? '#2563EB' : 'var(--bg-main)',
-                  color: viewMode === 'table' ? 'white' : 'var(--text-secondary)', cursor: 'pointer',
-                }}
-                title="Table View"
-              >
-                <List style={{ width: 16, height: 16 }} />
-              </button>
+                style={{ padding: '6px 10px', border: 'none', background: viewMode === 'table' ? 'var(--brand-blue)' : 'var(--surface)', color: viewMode === 'table' ? 'white' : 'var(--text-secondary)', cursor: 'pointer' }}
+                title="Table View" aria-label="Table view" aria-pressed={viewMode === 'table'}
+              ><List style={{ width: 14, height: 14 }} /></button>
             </div>
           </div>
         </div>
 
         {/* Bulk Action Bar */}
         {selectedIds.length > 0 && (
-          <div style={{
-            padding: '0.75rem 1.25rem', borderRadius: '10px', background: '#1E293B', color: 'white',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          }}>
-            <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>
-              ✓ {selectedIds.length} asset{selectedIds.length > 1 ? 's' : ''} selected
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
-                onClick={() => setSelectedIds([])}
-                style={{ padding: '0.375rem 0.75rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: 'white', cursor: 'pointer', fontSize: '0.8125rem' }}
-              >
-                Deselect All
-              </button>
+          <div className="bulk-action-bar" style={{ marginBottom: 'var(--sp-3)', borderRadius: 'var(--radius-btn)', border: '1px solid var(--border)' }}>
+            <span className="bulk-action-bar-count">{selectedIds.length} asset{selectedIds.length > 1 ? 's' : ''} selected</span>
+            <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
+              <button onClick={() => setSelectedIds([])} className="btn btn-ghost btn-sm">Deselect All</button>
               <button
                 onClick={handleBulkDelete}
                 disabled={actionLoading}
-                style={{ padding: '0.375rem 0.875rem', borderRadius: '6px', border: 'none', background: '#EF4444', color: 'white', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem' }}
+                className="btn btn-destructive btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-1)' }}
               >
-                <Trash2 style={{ width: 14, height: 14 }} /> Delete Selected
+                <Trash2 size={13} aria-hidden="true" /> Delete Selected
               </button>
             </div>
           </div>
@@ -391,17 +314,20 @@ export default function MediaLibraryPage() {
 
         {/* Content */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--text-tertiary)' }}>
-            <RefreshCw className="animate-spin" style={{ width: 32, height: 32, margin: '0 auto 1rem', color: '#3B82F6' }} />
-            <p>Loading media assets & analytics...</p>
+          <div className="table-shell">
+            <div className="state-empty">
+              <div className="skeleton" style={{ width: '40px', height: '40px', borderRadius: '50%', marginBottom: 'var(--sp-3)' }} />
+              <div className="skeleton" style={{ width: '160px', height: '14px', borderRadius: '3px', marginBottom: 'var(--sp-2)' }} />
+              <div className="skeleton" style={{ width: '240px', height: '11px', borderRadius: '3px' }} />
+            </div>
           </div>
         ) : assetList.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            <ImageIcon style={{ width: 48, height: 48, margin: '0 auto 1rem', color: 'var(--text-tertiary)' }} />
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>No Media Assets Found</h3>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', fontSize: '0.875rem' }}>
-              There are no uploaded assets matching your selected module or status filters.
-            </p>
+          <div className="table-shell">
+            <div className="state-empty">
+              <div className="state-empty-icon"><ImageIcon size={32} aria-hidden="true" /></div>
+              <p className="state-empty-title">No Media Assets Found</p>
+              <p className="state-empty-desc">There are no uploaded assets matching your selected filters.</p>
+            </div>
           </div>
         ) : viewMode === 'grid' ? (
           /* Grid View */
@@ -525,145 +451,134 @@ export default function MediaLibraryPage() {
           </div>
         ) : (
           /* Table View */
-          <div className="card" style={{ borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-tertiary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                  <th style={{ padding: '1rem', width: 40 }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length === assetList.length && assetList.length > 0}
-                      onChange={toggleSelectAll}
-                      style={{ cursor: 'pointer', accentColor: '#2563EB' }}
-                    />
-                  </th>
-                  <th style={{ padding: '1rem' }}>Preview</th>
-                  <th style={{ padding: '1rem' }}>File Details</th>
-                  <th style={{ padding: '1rem' }}>Module</th>
-                  <th style={{ padding: '1rem' }}>Owner</th>
-                  <th style={{ padding: '1rem' }}>Size & Savings</th>
-                  <th style={{ padding: '1rem' }}>Status</th>
-                  <th style={{ padding: '1rem' }}>Uploaded</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {assetList.map(asset => {
-                  const isImage = (asset.mimeType || asset.type)?.startsWith('image/');
-                  const isSelected = selectedIds.includes(asset.id);
-                  const savedBytes = Math.max(0, (asset.originalSize || asset.size) - asset.size);
-                  return (
-                    <tr key={asset.id} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'rgba(59, 130, 246, 0.05)' : 'transparent', transition: 'background 0.2s' }}>
-                      <td style={{ padding: '1rem' }}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelect(asset.id)}
-                          style={{ cursor: 'pointer', accentColor: '#2563EB' }}
-                        />
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <div style={{ width: 48, height: 48, borderRadius: '6px', background: '#0F172A', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <div style={{ color: '#94A3B8' }}>
-                            {isImage ? <ImageIcon style={{ width: 20, height: 20 }} /> : <FileText style={{ width: 20, height: 20 }} />}
+          <div className="table-shell">
+            <div className="table-wrapper">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th scope="col" className="col-check">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.length === assetList.length && assetList.length > 0}
+                        onChange={toggleSelectAll}
+                        style={{ cursor: 'pointer', accentColor: 'var(--brand-blue)' }}
+                        aria-label="Select all assets"
+                      />
+                    </th>
+                    <th scope="col">Preview</th>
+                    <th scope="col">File Details</th>
+                    <th scope="col">Module</th>
+                    <th scope="col">Owner</th>
+                    <th scope="col">Size &amp; Savings</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Uploaded</th>
+                    <th scope="col" style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assetList.map(asset => {
+                    const isImage = (asset.mimeType || asset.type)?.startsWith('image/');
+                    const isSelected = selectedIds.includes(asset.id);
+                    const savedBytes = Math.max(0, (asset.originalSize || asset.size) - asset.size);
+                    return (
+                      <tr key={asset.id} style={{ background: isSelected ? 'rgba(59, 130, 246, 0.05)' : 'transparent', transition: 'background 0.2s' }}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(asset.id)}
+                            style={{ cursor: 'pointer', accentColor: '#2563EB' }}
+                          />
+                        </td>
+                        <td>
+                          <div style={{ width: 48, height: 48, borderRadius: '6px', background: '#0F172A', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ color: '#94A3B8' }}>
+                              {isImage ? <ImageIcon style={{ width: 20, height: 20 }} /> : <FileText style={{ width: 20, height: 20 }} />}
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
-                          {asset.filePath || asset.storageKey?.split('/').pop() || asset.id}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '2px', fontSize: '0.7rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
-                          <span>ID: {asset.id}</span>
-                          <button onClick={() => copyToClipboard(asset.id, asset.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: copiedId === asset.id ? '#10B981' : '#3B82F6', display: 'flex', alignItems: 'center' }} title="Copy full ID">
-                            {copiedId === asset.id ? <Check style={{ width: 12, height: 12 }} /> : <Copy style={{ width: 12, height: 12 }} />}
-                          </button>
-                        </div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontFamily: 'monospace', marginTop: '2px' }}>
-                          Hash: {asset.hash?.substring(0, 16)}...
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>
-                          {asset.module || 'system'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '1rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                        {asset.owner?.fullName || asset.owner?.email || 'System / Anonymous'}
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.875rem' }}>{formatBytes(asset.size)}</div>
-                        {savedBytes > 0 && (
-                          <div style={{ fontSize: '0.7rem', color: '#10B981', fontWeight: 600 }}>
-                            -{formatBytes(savedBytes)} WebP
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {asset.filePath || asset.storageKey?.split('/').pop() || asset.id}
                           </div>
-                        )}
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <span style={{
-                          padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
-                          background: asset.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : asset.status === 'ARCHIVED' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                          color: asset.status === 'ACTIVE' ? '#10B981' : asset.status === 'ARCHIVED' ? '#F59E0B' : '#EF4444',
-                        }}>
-                          {asset.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
-                        {formatDate(asset.uploadDate)}
-                      </td>
-                      <td style={{ padding: '1rem', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                          <button onClick={() => setSelectedAsset(asset)} className="btn btn-outline" style={{ padding: '0.375rem 0.625rem', borderRadius: '6px', color: '#3B82F6' }} title="View Details">
-                            <Eye style={{ width: 14, height: 14 }} />
-                          </button>
-                          <a href={asset.url} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ padding: '0.375rem 0.625rem', borderRadius: '6px' }} title="Download">
-                            <Download style={{ width: 14, height: 14 }} />
-                          </a>
-                          {asset.status === 'ACTIVE' ? (
-                            <button onClick={() => handleStatusChange(asset.id, 'ARCHIVED')} className="btn btn-outline" style={{ padding: '0.375rem 0.625rem', borderRadius: '6px', color: '#F59E0B' }} title="Archive">
-                              <Archive style={{ width: 14, height: 14 }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '2px', fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
+                            <span>ID: {asset.id}</span>
+                            <button onClick={() => copyToClipboard(asset.id, asset.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: copiedId === asset.id ? 'var(--success)' : 'var(--accent-primary)', display: 'flex', alignItems: 'center' }} title="Copy full ID">
+                              {copiedId === asset.id ? <Check style={{ width: 12, height: 12 }} /> : <Copy style={{ width: 12, height: 12 }} />}
                             </button>
-                          ) : (
-                            <button onClick={() => handleStatusChange(asset.id, 'ACTIVE')} className="btn btn-outline" style={{ padding: '0.375rem 0.625rem', borderRadius: '6px', color: '#10B981' }} title="Restore">
-                              <CheckCircle style={{ width: 14, height: 14 }} />
-                            </button>
+                          </div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', fontFamily: 'monospace', marginTop: '2px' }}>
+                            Hash: {asset.hash?.substring(0, 16)}...
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary)', fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase' }}>
+                            {asset.module || 'system'}
+                          </span>
+                        </td>
+                        <td className="caption-text">
+                          {asset.owner?.fullName || asset.owner?.email || 'System / Anonymous'}
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatBytes(asset.size)}</div>
+                          {savedBytes > 0 && (
+                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--success)', fontWeight: 600 }}>
+                              -{formatBytes(savedBytes)} WebP
+                            </div>
                           )}
-                          <button onClick={() => { setSelectedIds([asset.id]); handleBulkDelete(); }} className="btn btn-outline" style={{ padding: '0.375rem 0.625rem', borderRadius: '6px', color: '#EF4444' }} title="Delete">
-                            <Trash2 style={{ width: 14, height: 14 }} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td>
+                          <span style={{
+                            padding: '4px 10px', borderRadius: '20px', fontSize: 'var(--text-xs)', fontWeight: 600,
+                            background: asset.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : asset.status === 'ARCHIVED' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            color: asset.status === 'ACTIVE' ? 'var(--success)' : asset.status === 'ARCHIVED' ? 'var(--warning)' : 'var(--danger)',
+                          }}>
+                            {asset.status}
+                          </span>
+                        </td>
+                        <td className="caption-text">
+                          {formatDate(asset.uploadDate)}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <button onClick={() => setSelectedAsset(asset)} className="btn btn-outline" style={{ padding: '0.375rem 0.625rem', borderRadius: '6px', color: 'var(--accent-primary)' }} title="View Details">
+                              <Eye style={{ width: 14, height: 14 }} />
+                            </button>
+                            <a href={asset.url} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ padding: '0.375rem 0.625rem', borderRadius: '6px' }} title="Download">
+                              <Download style={{ width: 14, height: 14 }} />
+                            </a>
+                            {asset.status === 'ACTIVE' ? (
+                              <button onClick={() => handleStatusChange(asset.id, 'ARCHIVED')} className="btn btn-outline" style={{ padding: '0.375rem 0.625rem', borderRadius: '6px', color: 'var(--warning)' }} title="Archive">
+                                <Archive style={{ width: 14, height: 14 }} />
+                              </button>
+                            ) : (
+                              <button onClick={() => handleStatusChange(asset.id, 'ACTIVE')} className="btn btn-outline" style={{ padding: '0.375rem 0.625rem', borderRadius: '6px', color: 'var(--success)' }} title="Restore">
+                                <CheckCircle style={{ width: 14, height: 14 }} />
+                              </button>
+                            )}
+                            <button onClick={() => { setSelectedIds([asset.id]); handleBulkDelete(); }} className="btn btn-outline" style={{ padding: '0.375rem 0.625rem', borderRadius: '6px', color: 'var(--danger)' }} title="Delete">
+                              <Trash2 style={{ width: 14, height: 14 }} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem', padding: '1rem', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-              Showing page <strong style={{ color: 'var(--text-primary)' }}>{page}</strong> of <strong style={{ color: 'var(--text-primary)' }}>{totalPages}</strong> ({totalItems} total assets)
+          <div className="pagination" style={{ marginTop: 'var(--sp-4)', borderRadius: 'var(--radius-btn)', border: '1px solid var(--border)' }}>
+            <span className="pagination-info">
+              Page {page} of {totalPages} ({totalItems} total)
             </span>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="btn btn-outline"
-                style={{ padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.875rem' }}
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="btn btn-outline"
-                style={{ padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.875rem' }}
-              >
-                Next
-              </button>
+            <div className="pagination-controls">
+              <button className="page-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} aria-label="Previous page">‹</button>
+              <button className="page-btn" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} aria-label="Next page">›</button>
             </div>
           </div>
         )}

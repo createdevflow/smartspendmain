@@ -49,80 +49,100 @@ export default function SharedCashbooksPage() {
     <>
       <Sidebar />
       <main className="main-content">
-        <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h1 className="animate-fade-in">Shared Cashbooks</h1>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              All cashbooks that have been shared with other users. Total: {meta?.total ?? '—'}
+        <div className="page-header animate-fade-in">
+          <div className="page-header-left">
+            <h1 className="page-title">Shared Cashbooks</h1>
+            <p className="body-text" style={{ marginTop: 'var(--sp-1)' }}>
+              All cashbooks shared with other users. Total: {meta?.total ?? '—'}
             </p>
           </div>
-          <button className="btn btn-secondary" onClick={() => fetchBooks(page)} style={{ gap: '0.5rem' }}>
-            <RefreshCw size={16} /> Refresh
-          </button>
-        </header>
+          <div className="page-header-right">
+            <button className="btn btn-secondary btn-sm" onClick={() => fetchBooks(page)} aria-label="Refresh cashbooks">
+              <RefreshCw size={14} aria-hidden="true" /> Refresh
+            </button>
+          </div>
+        </div>
 
         {/* Search */}
-        <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+        <div className="filter-bar" style={{ marginBottom: 'var(--sp-3)' }}>
+          <div style={{ position: 'relative', flex: '1 1 280px' }}>
+            <Search size={14} style={{ position: 'absolute', left: 'var(--sp-3)', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} aria-hidden="true" />
             <input
               className="input-field"
-              placeholder="Search by owner email or cashbook name..."
+              placeholder="Search by owner email or cashbook name…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ paddingLeft: '2.25rem', marginBottom: 0 }}
+              style={{ paddingLeft: 'calc(var(--sp-3) + 20px)', marginBottom: 0 }}
+              aria-label="Search cashbooks"
             />
           </div>
         </div>
 
         {/* Table */}
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          {loading ? (
-            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading shared cashbooks...</div>
-          ) : filtered.length === 0 ? (
-            <div style={{ padding: '3rem', textAlign: 'center' }}>
-              <BookOpen size={40} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
-              <p style={{ color: 'var(--text-secondary)' }}>No shared cashbooks found.</p>
-            </div>
-          ) : (
+        <div className="table-shell">
+          <div className="table-wrapper">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Cashbook</th>
-                  <th>Owner</th>
-                  <th>Members</th>
-                  <th>Created</th>
-                  <th>Actions</th>
+                  <th scope="col">Cashbook</th>
+                  <th scope="col">Owner</th>
+                  <th scope="col">Members</th>
+                  <th scope="col">Created</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(book => (
+                {loading ? (
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <tr key={i}>
+                      {[160, 120, 70, 80, 80].map((w, j) => (
+                        <td key={j}>
+                          <div className="skeleton" style={{ height: '13px', width: `${w}px`, borderRadius: '3px' }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: 0 }}>
+                      <div className="state-empty">
+                        <div className="state-empty-icon"><BookOpen size={32} aria-hidden="true" /></div>
+                        <p className="state-empty-title">No shared cashbooks found</p>
+                        <p className="state-empty-desc">No cashbooks match your search criteria.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filtered.map(book => (
                   <React.Fragment key={book.id}>
                     <tr
                       onClick={() => setExpandedBook(expandedBook === book.id ? null : book.id)}
                       style={{ cursor: 'pointer' }}
                     >
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: book.color || '#2563EB' }} />
-                          <strong>{book.name || '(Encrypted)'}</strong>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: book.color || 'var(--brand-blue)', flexShrink: 0 }} aria-hidden="true" />
+                          <strong style={{ fontSize: 'var(--type-body)', color: 'var(--text-primary)' }}>{book.name || '(Encrypted)'}</strong>
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.125rem' }}>ID: {book.id.slice(0, 8)}...</div>
+                        <div className="mono-text caption-text" style={{ marginTop: '2px', color: 'var(--text-muted)' }}>
+                          ID: {book.id.slice(0, 8)}…
+                        </div>
                       </td>
                       <td>
-                        <div>{book.user?.fullName || '—'}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{book.user?.email}</div>
+                        <div style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: 'var(--type-body)' }}>{book.user?.fullName || '—'}</div>
+                        <div className="caption-text">{book.user?.email}</div>
                       </td>
                       <td>
-                        <span className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Users size={12} /> {book._count?.members || 0} member{(book._count?.members || 0) !== 1 ? 's' : ''}
+                        <span className="pill pill-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Users size={11} aria-hidden="true" />
+                          {book._count?.members || 0} member{(book._count?.members || 0) !== 1 ? 's' : ''}
                         </span>
                       </td>
-                      <td>{new Date(book.createdAt).toLocaleDateString('en-IN')}</td>
+                      <td className="mono-text" style={{ color: 'var(--text-secondary)' }}>
+                        {new Date(book.createdAt).toLocaleDateString('en-IN')}
+                      </td>
                       <td>
                         <button
-                          className="btn btn-secondary"
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+                          className="btn btn-secondary btn-sm"
                           onClick={e => { e.stopPropagation(); setExpandedBook(expandedBook === book.id ? null : book.id); }}
                         >
                           {expandedBook === book.id ? 'Collapse' : 'View Members'}
@@ -130,38 +150,35 @@ export default function SharedCashbooksPage() {
                       </td>
                     </tr>
 
-                    {/* Expanded member list */}
                     {expandedBook === book.id && book.members?.length > 0 && (
                       <tr key={`${book.id}-expanded`}>
-                        <td colSpan={5} style={{ background: 'var(--bg-elevated)', padding: '0' }}>
+                        <td colSpan={5} style={{ background: 'var(--surface-raised)', padding: 0 }}>
                           <table style={{ width: '100%' }}>
                             <thead>
-                              <tr style={{ background: 'var(--bg-elevated)' }}>
-                                <th style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Member Email</th>
-                                <th style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Name</th>
-                                <th style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Role</th>
-                                <th style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Status</th>
-                                <th style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Action</th>
+                              <tr>
+                                {['Member Email', 'Name', 'Role', 'Status', 'Action'].map(h => (
+                                  <th key={h} scope="col" style={{ background: 'var(--surface-raised)' }}>{h}</th>
+                                ))}
                               </tr>
                             </thead>
                             <tbody>
                               {book.members.map((m: any) => (
                                 <tr key={m.id}>
-                                  <td style={{ padding: '0.5rem 1.5rem', fontSize: '0.875rem' }}>{m.email}</td>
-                                  <td style={{ padding: '0.5rem 1.5rem', fontSize: '0.875rem' }}>{m.user?.fullName || '(Not registered)'}</td>
-                                  <td style={{ padding: '0.5rem 1.5rem' }}>
-                                    <span className={`badge ${m.role === 'EDITOR' ? 'badge-warning' : 'badge-info'}`}>{m.role}</span>
+                                  <td>{m.email}</td>
+                                  <td>{m.user?.fullName || '(Not registered)'}</td>
+                                  <td>
+                                    <span className={`pill ${m.role === 'EDITOR' ? 'pill-warning' : 'pill-info'}`}>{m.role}</span>
                                   </td>
-                                  <td style={{ padding: '0.5rem 1.5rem' }}>
-                                    <span className={`badge ${m.status === 'accepted' ? 'badge-success' : 'badge-default'}`}>{m.status}</span>
+                                  <td>
+                                    <span className={`pill ${m.status === 'accepted' ? 'pill-success' : 'pill-gray'}`}>{m.status}</span>
                                   </td>
-                                  <td style={{ padding: '0.5rem 1.5rem' }}>
+                                  <td>
                                     <button
-                                      className="btn btn-danger"
-                                      style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                                      className="btn btn-destructive btn-sm"
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                       onClick={() => handleRemoveMember(m.id, book.id)}
                                     >
-                                      <UserMinus size={12} /> Remove
+                                      <UserMinus size={12} aria-hidden="true" /> Remove
                                     </button>
                                   </td>
                                 </tr>
@@ -175,19 +192,18 @@ export default function SharedCashbooksPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {meta && meta.totalPages > 1 && (
+            <div className="pagination">
+              <span className="pagination-info">Page {page} of {meta.totalPages}</span>
+              <div className="pagination-controls">
+                <button className="page-btn" onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1} aria-label="Previous page">‹</button>
+                <button className="page-btn" onClick={() => setPage(p => Math.min(p + 1, meta.totalPages))} disabled={page === meta.totalPages} aria-label="Next page">›</button>
+              </div>
+            </div>
           )}
         </div>
-
-        {/* Pagination */}
-        {meta && meta.totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1.5rem' }}>
-            <button className="btn btn-secondary" onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1}>Prev</button>
-            <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-              Page {page} of {meta.totalPages}
-            </span>
-            <button className="btn btn-secondary" onClick={() => setPage(p => Math.min(p + 1, meta.totalPages))} disabled={page === meta.totalPages}>Next</button>
-          </div>
-        )}
       </main>
     </>
   );

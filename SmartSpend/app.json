@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Cashtro uses Face ID to securely unlock your account. Your biometric data never leaves this device and is never shared with Cashtro.",
+        "NSBiometricUsageDescription": "Cashtro uses biometric authentication to securely unlock your account. Your biometric data never leaves this device."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -36,6 +40,7 @@
         }
       ],
       "expo-secure-store",
+      "expo-local-authentication",
       [
         "expo-build-properties",
         {

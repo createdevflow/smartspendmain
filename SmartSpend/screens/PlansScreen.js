@@ -15,6 +15,9 @@ import { AuthContext } from "../context/AuthContext";
 import RazorpayCheckout from "../components/RazorpayCheckout";
 
 export default function PlansScreen({ navigation }) {
+  const { theme, isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+
   const { user, updateProfileInContext } = useContext(AuthContext);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -261,7 +264,7 @@ export default function PlansScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme, isDark) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F5F7FB" },
   headerBar: {
     flexDirection: "row",
@@ -269,7 +272,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "#FFF",
+    backgroundColor: isDark ? theme.colors.card : "#FFFFFF",
     borderBottomWidth: 1,
     borderColor: "rgba(148, 163, 184, 0.1)",
   },
@@ -277,17 +280,17 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: isDark ? theme.colors.background : "#F8FAFC",
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: isDark ? "#F8FAFC" : "#1E293B" },
   scroll: { flex: 1 },
   content: { padding: 16 },
 
   cycleToggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: isDark ? theme.colors.border : '#E2E8F0',
     borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 16,
@@ -300,7 +303,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cycleBtnActive: {
-    backgroundColor: '#FFF',
+    backgroundColor: isDark ? theme.colors.card : '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -310,14 +313,14 @@ const styles = StyleSheet.create({
   cycleBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748B',
+    color: isDark ? '#94A3B8' : '#64748B',
   },
   cycleBtnTextActive: {
     color: '#0F172A',
   },
 
   planCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: isDark ? theme.colors.card : "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -346,7 +349,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12,
   },
   currentBadgeText: {
-    color: "#FFFFFF",
+    color: isDark ? theme.colors.card : "#FFFFFF",
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.5,
@@ -361,7 +364,7 @@ const styles = StyleSheet.create({
   planName: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#1E293B",
+    color: isDark ? "#F8FAFC" : "#1E293B",
   },
   planTagline: {
     fontSize: 13,
@@ -416,7 +419,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F1F5F9",
   },
   subscribeBtnText: {
-    color: "#FFFFFF",
+    color: isDark ? theme.colors.card : "#FFFFFF",
     fontSize: 15,
     fontWeight: "700",
   },

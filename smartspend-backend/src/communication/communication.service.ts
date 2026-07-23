@@ -428,16 +428,24 @@ export class CommunicationService {
     }
 
     if (adminNotif.channelInApp) {
-      await this.notifs.createBulkNotifications(userIds, {
-        title: adminNotif.title,
-        body: adminNotif.body,
-        category: NotificationCategory.ADMIN,
-        type: 'IN_APP',
-        data: { adminNotificationId: id },
-        actionUrl: adminNotif.actionUrl ?? undefined,
-        imageUrl: adminNotif.bannerImage ?? undefined,
-        actionButton: adminNotif.buttonText ?? undefined,
-      });
+      await this.notifs.createBulkNotifications(
+        userIds,
+        {
+          title: adminNotif.title,
+          body: adminNotif.body,
+          category: NotificationCategory.ADMIN,
+          type: 'IN_APP',
+          data: { adminNotificationId: id },
+          actionUrl: adminNotif.actionUrl ?? undefined,
+          imageUrl: adminNotif.bannerImage ?? undefined,
+          actionButton: adminNotif.buttonText ?? undefined,
+        },
+        { sendPush: false },
+      );
+    }
+
+    if (adminNotif.channelPush) {
+      await this.notifs.sendBulkExpoPushPublic(userIds, adminNotif.title, adminNotif.body, adminNotif.actionUrl ?? undefined);
     }
 
     // Create recipient tracking records
@@ -486,7 +494,10 @@ export class CommunicationService {
   }
 
   async cancelAdminNotification(id: string) {
-    return this.prisma.adminNotification.update({ where: { id }, data: { status: 'CANCELLED' } });
+    const notif = await this.prisma.adminNotification.findUnique({ where: { id } });
+    if (!notif) throw new NotFoundException('Notification not found');
+    await this.prisma.adminNotification.delete({ where: { id } });
+    return { message: 'Campaign deleted successfully' };
   }
 
   async dispatchScheduledAdminNotifications() {
@@ -544,7 +555,10 @@ export class CommunicationService {
         return (await this.prisma.user.findMany({ where: { deletedAt: null }, select: { id: true } })).map((u) => u.id);
       case 'FREE_USERS':
         return (await this.prisma.user.findMany({
-          where: { deletedAt: null, plan: { slug: 'free' } },
+          where: {
+            deletedAt: null,
+            OR: [{ planId: null }, { plan: { slug: 'free' } }],
+          },
           select: { id: true },
         })).map((u) => u.id);
       case 'PREMIUM_USERS':
@@ -556,13 +570,13 @@ export class CommunicationService {
         return selectedUserIds;
       case 'ANDROID':
         return (await this.prisma.device.findMany({
-          where: { platform: 'android' },
+          where: { platform: { equals: 'android', mode: 'insensitive' } },
           select: { userId: true },
           distinct: ['userId'],
         })).map((d) => d.userId);
       case 'IOS':
         return (await this.prisma.device.findMany({
-          where: { platform: 'ios' },
+          where: { platform: { equals: 'ios', mode: 'insensitive' } },
           select: { userId: true },
           distinct: ['userId'],
         })).map((d) => d.userId);

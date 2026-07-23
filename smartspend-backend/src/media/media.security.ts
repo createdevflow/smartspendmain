@@ -6,17 +6,17 @@ import { MediaModule } from './media.interface';
 export class MediaSecurityService {
   private readonly logger = new Logger(MediaSecurityService.name);
 
-  // Default size limits in MB
+  // Default size limits in MB — overridable via DB config
   private readonly defaultLimits: Record<MediaModule, number> = {
     users: 5,       // Profile images 5MB
     business: 5,    // Logos 5MB
     blog: 10,       // Blog images 10MB
-    chat: 50,       // Chat attachments up to 50MB
-    invoices: 20,   // Invoices 20MB
-    receipts: 20,   // Receipts 20MB
-    reports: 100,   // Reports 100MB
-    exports: 100,   // Exports 100MB
-    system: 50,
+    chat: 25,       // Chat attachments up to 25MB
+    invoices: 10,   // Invoices 10MB
+    receipts: 10,   // Receipts 10MB
+    reports: 20,    // Reports 20MB
+    exports: 20,    // Exports 20MB
+    system: 20,
   };
 
   constructor(private prisma: PrismaService) {}
@@ -130,6 +130,7 @@ export class MediaSecurityService {
   }
 
   private scanSvgForXss(buffer: Buffer): void {
+    // Use toLowerCase() for case-insensitive scan — covers <Script>, JAVASCRIPT:, etc.
     const content = buffer.toString('utf8').toLowerCase();
     const dangerousPatterns = [
       '<script',
@@ -138,10 +139,19 @@ export class MediaSecurityService {
       'onerror=',
       'onclick=',
       'onmouseover=',
+      'onfocus=',
+      'onblur=',
+      'onkeydown=',
+      'formaction=',
+      'xlink:href',
+      'data:text/html',
+      'data:application/x-javascript',
       '<iframe',
       '<object',
       '<embed',
       'eval(',
+      'expression(',
+      'vbscript:',
     ];
 
     for (const pattern of dangerousPatterns) {

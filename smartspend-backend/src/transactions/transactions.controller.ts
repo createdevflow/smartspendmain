@@ -1,5 +1,6 @@
 import {
-  Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards,
+  Controller, Get, Post, Put, Patch, Delete, Body, Param, Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
@@ -7,6 +8,7 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { TransactionQueryDto } from './dto/transaction-query.dto';
 import { BulkImportDto } from './dto/bulk-import.dto';
+import { CreateRecurringTransactionDto, UpdateRecurringTransactionDto } from './dto/recurring-transaction.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('transactions')
@@ -42,6 +44,9 @@ export class TransactionsController {
   @Post('bulk-delete')
   @ApiOperation({ summary: 'Delete multiple transactions' })
   bulkDelete(@CurrentUser() user: any, @Body() body: { ids: string[] }) {
+    if (!Array.isArray(body.ids) || body.ids.length === 0 || body.ids.length > 100) {
+      throw new BadRequestException('ids must be an array of 1–100 strings');
+    }
     return this.transactionsService.bulkDelete(user.sub, body.ids);
   }
 
@@ -53,7 +58,7 @@ export class TransactionsController {
 
   @Post('recurring/:cashbookId')
   @ApiOperation({ summary: 'Create manual recurring subscription' })
-  createRecurringTransaction(@CurrentUser() user: any, @Param('cashbookId') cashbookId: string, @Body() dto: any) {
+  createRecurringTransaction(@CurrentUser() user: any, @Param('cashbookId') cashbookId: string, @Body() dto: CreateRecurringTransactionDto) {
     return this.transactionsService.createRecurringTransaction(user.sub, cashbookId, dto);
   }
 
@@ -62,7 +67,7 @@ export class TransactionsController {
   updateRecurringTransaction(
     @CurrentUser() user: any,
     @Param('id') id: string,
-    @Body() dto: any
+    @Body() dto: UpdateRecurringTransactionDto,
   ) {
     return this.transactionsService.updateRecurringTransaction(user.sub, id, dto);
   }

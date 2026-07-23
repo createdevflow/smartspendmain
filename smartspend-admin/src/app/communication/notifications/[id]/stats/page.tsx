@@ -12,7 +12,7 @@ export default function NotificationStats() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
+    const token = (localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'));
     if (!token) { router.push('/login'); return; }
     if (params.id) {
       loadStats(params.id as string);

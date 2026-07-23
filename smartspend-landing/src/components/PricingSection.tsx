@@ -86,7 +86,10 @@ export default function PricingSection() {
 
   useEffect(() => {
     const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
-    fetch(`${API_BASE}/plans`)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+    fetch(`${API_BASE}/plans`, { signal: controller.signal })
       .then(async r => {
         if (!r.ok) return null;
         const contentType = r.headers.get('content-type');
@@ -117,8 +120,18 @@ export default function PricingSection() {
         }
       })
       .catch(err => {
-        console.error('Error fetching plans:', err);
-      });
+        // Silently fall back to default plans when backend is unavailable
+        // Only log in development so production console stays clean
+        if (process.env.NODE_ENV === 'development' && err?.name !== 'AbortError') {
+          console.warn('[PricingSection] Backend unavailable, using default plans.');
+        }
+      })
+      .finally(() => clearTimeout(timeoutId));
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   return <PricingClient plans={plans} />;

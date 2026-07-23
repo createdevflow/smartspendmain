@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from './AuthContext';
+import { api } from '../utils/api';
 
 const InvoiceContext = createContext(null);
 
@@ -504,6 +505,9 @@ export function InvoiceProvider({ children }) {
     const updated = { ...bizProfile, ...data };
     setBizProfile(updated);
     await saveBizProf(updated);
+    try {
+      await api.patch('/users/profile', { preferences: { invoice: { ...updated, businessName: updated.businessName || '', address: updated.address || '', taxNumber: updated.gstin || updated.taxNumber || '' } } });
+    } catch (e) {}
   }, [bizProfile, saveBizProf]);
 
   // ── Settings ────────────────────────────────────────────────────────────────
@@ -511,6 +515,10 @@ export function InvoiceProvider({ children }) {
     const updated = { ...settings, ...data };
     setSettings(updated);
     await saveSettings_(updated);
+    try {
+      // Also patch to backend so any theme color choices sync up
+      await api.patch('/users/profile', { preferences: { invoice: { themeColor: updated.themeColor || '#2D8CFF' } } });
+    } catch (e) {}
   }, [settings, saveSettings_]);
 
   // ── Derived analytics ───────────────────────────────────────────────────────

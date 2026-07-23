@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useContext, useCallback, useMemo, f
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Modal, ScrollView, FlatList, Animated, Dimensions,
-  KeyboardAvoidingView, Platform, Pressable, Image, Alert
+  KeyboardAvoidingView, Platform, Pressable, Image, Alert, Keyboard
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useBooks } from '../context/BooksContext';
@@ -277,13 +277,13 @@ const QuickEntrySheet = forwardRef(({
             </View>
 
             {/* Amount */}
-            <View style={s.amountBox}>
+            <Pressable style={s.amountBox} onPress={() => amountRef.current?.focus()}>
               <Text style={[s.currencyGlyph, entryType === 'in' ? s.colorIn : s.colorOut]}>
                 {currencySymbol}
               </Text>
               <View style={s.amountInputWrapper}>
                 {amount === '' && (
-                  <Text style={[s.amountGhost, entryType === 'in' ? s.colorIn : s.colorOut]} pointerEvents="none">
+                  <Text style={[s.amountGhost, entryType === 'in' ? s.colorIn : s.colorOut]} pointerEvents="none" numberOfLines={1} adjustsFontSizeToFit>
                     0
                   </Text>
                 )}
@@ -295,11 +295,13 @@ const QuickEntrySheet = forwardRef(({
                     if (/^\d*\.?\d{0,2}$/.test(v)) setAmount(v);
                   }}
                   keyboardType="numeric"
-                  maxLength={12}
+                  maxLength={10}
                   caretHidden={false}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
                 />
               </View>
-            </View>
+            </Pressable>
             <Text style={s.bookLabel}>
               {activeBook?.name || 'Personal'}
             </Text>
@@ -598,10 +600,12 @@ const s = StyleSheet.create({
     fontSize: 64, fontWeight: '800', letterSpacing: -2,
     opacity: 0.22,
     left: 0,
+    width: '100%',
   },
   amountInput: {
     fontSize: 64, fontWeight: '800', letterSpacing: -2,
     minWidth: 80, textAlign: 'left', color: '#111827',
+    maxWidth: '100%',
   },
   amountInputEmpty: {
     minWidth: 10,

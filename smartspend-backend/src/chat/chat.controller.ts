@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Request, BadRequestException } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
 import { SendMessageDto, CreateConversationDto, SendContactRequestDto } from './dto/chat.dto';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('chat')
 @ApiBearerAuth('JWT')
@@ -30,6 +31,7 @@ export class ChatController {
     return this.chatService.searchUsers(req.user.sub, q || '');
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 contact requests per minute
   @Post('contacts/request')
   sendContactRequest(@Request() req, @Body() dto: SendContactRequestDto) {
     return this.chatService.sendContactRequest(req.user.sub, dto.toUserId);
@@ -63,7 +65,7 @@ export class ChatController {
       return this.chatService.getOrCreateDirectConversation(req.user.sub, dto.participantIds[0]);
     }
     // Group chat — not yet supported via REST but architecture ready
-    throw new Error('Group chat creation via REST not yet implemented');
+    throw new BadRequestException('Group chat creation via REST not yet implemented');
   }
 
   @Get('conversations/:id/messages')
@@ -76,6 +78,7 @@ export class ChatController {
     return this.chatService.getMessages(id, req.user.sub, cursor, limit ? parseInt(limit) : 30);
   }
 
+  @Throttle({ default: { limit: 30, ttl: 60000 } }) // 30 messages per minute per user
   @Post('messages')
   async sendMessage(@Request() req, @Body() dto: SendMessageDto) {
     const msg = await this.chatService.createMessage(req.user.sub, dto);

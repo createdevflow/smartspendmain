@@ -8,6 +8,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useAppTheme } from '../context/ThemeContext';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { useInvoice, computeInvoiceGst } from '../context/InvoiceContext';
 import ClientSearchSheet from '../components/invoice/ClientSearchSheet';
@@ -30,6 +31,8 @@ const DUE_DEFAULT = (() => {
 })();
 
 export default function InvoiceCreateScreen() {
+  const { isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(isDark), [isDark]);
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
@@ -608,9 +611,9 @@ function ItemRow({ item, index, onUpdate, onRemove, sym, gstResult }) {
       </View>
 
       {/* GST Type Toggle */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, backgroundColor: '#F9FAFB', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, backgroundColor: isDark ? '#0F172A' : '#F9FAFB', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' }}>
         <View>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: '#374151' }}>GST Calculation:</Text>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#F8FAFC' : '#374151' }}>GST Calculation:</Text>
           {item.gstIncluded && (
             <Text style={{ fontSize: 10, color: '#2D8CFF', fontWeight: '600', marginTop: 1 }}>
               Base: {sym}{parseFloat(processed.baseRate || item.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} + {item.gstRate}% GST
@@ -621,22 +624,22 @@ function ItemRow({ item, index, onUpdate, onRemove, sym, gstResult }) {
           <TouchableOpacity
             style={[
               { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: '#D1D5DB' },
-              !item.gstIncluded ? { backgroundColor: '#2D8CFF', borderColor: '#2D8CFF' } : { backgroundColor: '#FFFFFF' }
+              !item.gstIncluded ? { backgroundColor: '#2D8CFF', borderColor: '#2D8CFF' } : { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }
             ]}
             onPress={() => onUpdate(item.id, 'gstIncluded', false)}
           >
-            <Text style={[{ fontSize: 11, fontWeight: '700' }, !item.gstIncluded ? { color: '#FFFFFF' } : { color: '#4B5563' }]}>
+            <Text style={[{ fontSize: 11, fontWeight: '700' }, !item.gstIncluded ? { color: '#FFFFFF' } : { color: isDark ? '#94A3B8' : '#4B5563' }]}>
               Excl. GST
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: '#D1D5DB' },
-              item.gstIncluded ? { backgroundColor: '#2D8CFF', borderColor: '#2D8CFF' } : { backgroundColor: '#FFFFFF' }
+              item.gstIncluded ? { backgroundColor: '#2D8CFF', borderColor: '#2D8CFF' } : { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }
             ]}
             onPress={() => onUpdate(item.id, 'gstIncluded', true)}
           >
-            <Text style={[{ fontSize: 11, fontWeight: '700' }, item.gstIncluded ? { color: '#FFFFFF' } : { color: '#4B5563' }]}>
+            <Text style={[{ fontSize: 11, fontWeight: '700' }, item.gstIncluded ? { color: '#FFFFFF' } : { color: isDark ? '#94A3B8' : '#4B5563' }]}>
               Incl. GST
             </Text>
           </TouchableOpacity>
@@ -654,8 +657,8 @@ function ItemRow({ item, index, onUpdate, onRemove, sym, gstResult }) {
 function TotalLine({ label, value, muted }) {
   return (
     <View style={styles.totalLine}>
-      <Text style={[styles.totalLineLabel, muted && { color: '#9CA3AF' }]}>{label}</Text>
-      <Text style={[styles.totalLineValue, muted && { color: '#9CA3AF' }]}>{value}</Text>
+      <Text style={[styles.totalLineLabel, muted && { color: isDark ? '#64748B' : '#9CA3AF' }]}>{label}</Text>
+      <Text style={[styles.totalLineValue, muted && { color: isDark ? '#64748B' : '#9CA3AF' }]}>{value}</Text>
     </View>
   );
 }
@@ -676,123 +679,123 @@ function Field({ label, value, onChange, placeholder, multiline }) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F1F1F6' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F1F6' },
+const getStyles = (isDark) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: isDark ? '#0F172A' : '#F1F1F6' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F1F6' },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: '#12131A' },
-  headerSub: { fontSize: 12, color: '#8A8D99', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: isDark ? '#F8FAFC' : '#12131A' },
+  headerSub: { fontSize: 12, color: isDark ? '#94A3B8' : '#8A8D99', marginTop: 1 },
   saveDraftBtn: { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  saveDraftText: { fontSize: 13, fontWeight: '700', color: '#374151' },
+  saveDraftText: { fontSize: 13, fontWeight: '700', color: isDark ? '#F8FAFC' : '#374151' },
 
   // Step indicator
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F1F6' },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 20, backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F1F6' },
   stepItem: { alignItems: 'center', width: 50 },
   stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   stepDotActive: { backgroundColor: '#16A34A' },
-  stepNum: { fontSize: 13, fontWeight: '700', color: '#9CA3AF' },
+  stepNum: { fontSize: 13, fontWeight: '700', color: isDark ? '#64748B' : '#9CA3AF' },
   stepNumActive: { color: '#FFFFFF' },
-  stepLabel: { fontSize: 10, fontWeight: '600', color: '#9CA3AF', textAlign: 'center' },
+  stepLabel: { fontSize: 10, fontWeight: '600', color: isDark ? '#64748B' : '#9CA3AF', textAlign: 'center' },
   stepLabelActive: { color: '#16A34A' },
   stepLine: { flex: 1, height: 2, backgroundColor: '#E5E7EB', marginTop: 14, marginHorizontal: -5 },
   stepLineDone: { backgroundColor: '#16A34A' },
 
   body: { flex: 1 },
   stepContent: { padding: 20 },
-  stepTitle: { fontSize: 22, fontWeight: '800', color: '#12131A', marginBottom: 6 },
-  stepDesc: { fontSize: 14, color: '#8A8D99', marginBottom: 20 },
+  stepTitle: { fontSize: 22, fontWeight: '800', color: isDark ? '#F8FAFC' : '#12131A', marginBottom: 6 },
+  stepDesc: { fontSize: 14, color: isDark ? '#94A3B8' : '#8A8D99', marginBottom: 20 },
 
   // Client step
-  selectedClient: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, gap: 12, borderWidth: 1.5, borderColor: '#2D8CFF' },
+  selectedClient: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderRadius: 16, padding: 16, gap: 12, borderWidth: 1.5, borderColor: '#2D8CFF' },
   clientAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' },
   clientAvatarText: { fontSize: 20, fontWeight: '800', color: '#2D8CFF' },
-  clientName: { fontSize: 15, fontWeight: '700', color: '#12131A' },
-  clientBiz: { fontSize: 13, color: '#747487', marginTop: 2 },
-  clientDetail: { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  clientName: { fontSize: 15, fontWeight: '700', color: isDark ? '#F8FAFC' : '#12131A' },
+  clientBiz: { fontSize: 13, color: isDark ? '#94A3B8' : '#747487', marginTop: 2 },
+  clientDetail: { fontSize: 12, color: isDark ? '#64748B' : '#9CA3AF', marginTop: 1 },
   changeBtn: { backgroundColor: '#EFF6FF', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
   changeBtnText: { fontSize: 13, fontWeight: '700', color: '#2D8CFF' },
-  selectClientBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18, borderWidth: 1.5, borderColor: '#BFDBFE', borderStyle: 'dashed' },
+  selectClientBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderRadius: 16, padding: 18, borderWidth: 1.5, borderColor: '#BFDBFE', borderStyle: 'dashed' },
   selectClientText: { flex: 1, fontSize: 16, fontWeight: '700', color: '#2D8CFF' },
   recentSection: { marginTop: 24, gap: 10 },
-  recentTitle: { fontSize: 14, fontWeight: '800', color: '#12131A' },
-  recentSub: { fontSize: 12, color: '#747487', marginBottom: 4 },
-  recentCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, gap: 12, borderWidth: 1, borderColor: '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1 },
+  recentTitle: { fontSize: 14, fontWeight: '800', color: isDark ? '#F8FAFC' : '#12131A' },
+  recentSub: { fontSize: 12, color: isDark ? '#94A3B8' : '#747487', marginBottom: 4 },
+  recentCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderRadius: 14, padding: 14, gap: 12, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1 },
   recentAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  recentAvatarText: { fontSize: 17, fontWeight: '800', color: '#374151' },
-  recentName: { fontSize: 14, fontWeight: '700', color: '#12131A' },
-  recentBiz: { fontSize: 12, color: '#4B5563', marginTop: 1 },
-  recentDetail: { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
+  recentAvatarText: { fontSize: 17, fontWeight: '800', color: isDark ? '#F8FAFC' : '#374151' },
+  recentName: { fontSize: 14, fontWeight: '700', color: isDark ? '#F8FAFC' : '#12131A' },
+  recentBiz: { fontSize: 12, color: isDark ? '#94A3B8' : '#4B5563', marginTop: 1 },
+  recentDetail: { fontSize: 11, color: isDark ? '#64748B' : '#9CA3AF', marginTop: 1 },
   autofillBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
   autofillText: { fontSize: 12, fontWeight: '700', color: '#166534' },
   gstInfoCard: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, marginTop: 16, borderWidth: 1 },
   gstIntra: { backgroundColor: '#DCFCE7', borderColor: '#BBF7D0' },
-  gstInter: { backgroundColor: '#DBEAFE', borderColor: '#BFDBFE' },
+  gstInter: { backgroundColor: isDark ? 'rgba(45,140,255,0.15)' : '#DBEAFE', borderColor: '#BFDBFE' },
   gstInfoText: { flex: 1, fontSize: 13, fontWeight: '600' },
 
   // Item card
-  itemCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  itemCard: { backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' },
   itemHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  itemName: { flex: 1, fontSize: 15, fontWeight: '700', color: '#12131A' },
-  itemDesc: { fontSize: 13, color: '#747487', marginBottom: 10 },
+  itemName: { flex: 1, fontSize: 15, fontWeight: '700', color: isDark ? '#F8FAFC' : '#12131A' },
+  itemDesc: { fontSize: 13, color: isDark ? '#94A3B8' : '#747487', marginBottom: 10 },
   itemFields: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   itemField: { flex: 1 },
-  itemFieldLabel: { fontSize: 10, fontWeight: '600', color: '#9CA3AF', marginBottom: 4, textTransform: 'uppercase' },
-  itemFieldInput: { backgroundColor: '#F9FAFB', borderRadius: 8, padding: 8, fontSize: 14, fontWeight: '700', color: '#12131A', borderWidth: 1, borderColor: '#E5E7EB' },
+  itemFieldLabel: { fontSize: 10, fontWeight: '600', color: isDark ? '#64748B' : '#9CA3AF', marginBottom: 4, textTransform: 'uppercase' },
+  itemFieldInput: { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderRadius: 8, padding: 8, fontSize: 14, fontWeight: '700', color: isDark ? '#F8FAFC' : '#12131A', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' },
   itemTotals: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  itemTaxable: { fontSize: 12, color: '#747487' },
-  itemTotal: { fontSize: 13, fontWeight: '700', color: '#12131A' },
+  itemTaxable: { fontSize: 12, color: isDark ? '#94A3B8' : '#747487' },
+  itemTotal: { fontSize: 13, fontWeight: '700', color: isDark ? '#F8FAFC' : '#12131A' },
   addItemRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   addFromLibBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#EFF6FF', borderRadius: 12, paddingVertical: 14, borderWidth: 1, borderColor: '#BFDBFE' },
   addFromLibText: { fontSize: 14, fontWeight: '700', color: '#2D8CFF' },
-  addManualBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F9FAFB', borderRadius: 12, paddingVertical: 14, borderWidth: 1, borderColor: '#E5E7EB' },
-  addManualText: { fontSize: 14, fontWeight: '700', color: '#374151' },
-  totalsSummary: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', gap: 8 },
+  addManualBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderRadius: 12, paddingVertical: 14, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' },
+  addManualText: { fontSize: 14, fontWeight: '700', color: isDark ? '#F8FAFC' : '#374151' },
+  totalsSummary: { backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB', gap: 8 },
   totalLine: { flexDirection: 'row', justifyContent: 'space-between' },
-  totalLineLabel: { fontSize: 13, color: '#374151' },
-  totalLineValue: { fontSize: 13, fontWeight: '600', color: '#12131A' },
+  totalLineLabel: { fontSize: 13, color: isDark ? '#F8FAFC' : '#374151' },
+  totalLineValue: { fontSize: 13, fontWeight: '600', color: isDark ? '#F8FAFC' : '#12131A' },
   grandLine: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E5E7EB', marginTop: 4 },
-  grandLabel: { fontSize: 15, fontWeight: '800', color: '#12131A' },
+  grandLabel: { fontSize: 15, fontWeight: '800', color: isDark ? '#F8FAFC' : '#12131A' },
   grandValue: { fontSize: 18, fontWeight: '900', color: '#2D8CFF' },
 
   gstChip: {
     flex: 1, paddingVertical: 7, borderRadius: 8, alignItems: 'center',
-    borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#F9FAFB',
+    borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB', backgroundColor: isDark ? '#0F172A' : '#F9FAFB',
   },
   gstChipActive: {
     backgroundColor: '#EFF6FF', borderColor: '#2D8CFF',
   },
-  gstChipText: { fontSize: 12, fontWeight: '700', color: '#747487' },
+  gstChipText: { fontSize: 12, fontWeight: '700', color: isDark ? '#94A3B8' : '#747487' },
   gstChipTextActive: { color: '#2D8CFF' },
 
   // Details step
   fieldWrap: { marginBottom: 16 },
-  fieldLabel: { fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 },
-  fieldInput: { backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#12131A', borderWidth: 1.5, borderColor: '#E5E7EB' },
+  fieldLabel: { fontSize: 12, fontWeight: '700', color: isDark ? '#F8FAFC' : '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 },
+  fieldInput: { backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: isDark ? '#F8FAFC' : '#12131A', borderWidth: 1.5, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' },
   dateRow: { flexDirection: 'row' },
-  themeChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#F9FAFB', borderRadius: 12, marginRight: 8, borderWidth: 1.5, borderColor: '#E5E7EB' },
+  themeChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderRadius: 12, marginRight: 8, borderWidth: 1.5, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' },
   themeChipActive: { backgroundColor: '#FAFBFF', borderWidth: 2 },
   themeColor: { width: 14, height: 14, borderRadius: 7 },
-  themeLabel: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  themeLabel: { fontSize: 13, fontWeight: '600', color: isDark ? '#F8FAFC' : '#374151' },
 
   // Review step
-  reviewCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 20, gap: 12 },
+  reviewCard: { backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB', marginBottom: 20, gap: 12 },
   reviewRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  reviewLabel: { fontSize: 13, color: '#747487' },
-  reviewValue: { fontSize: 13, fontWeight: '700', color: '#12131A' },
+  reviewLabel: { fontSize: 13, color: isDark ? '#94A3B8' : '#747487' },
+  reviewValue: { fontSize: 13, fontWeight: '700', color: isDark ? '#F8FAFC' : '#12131A' },
   reviewTotal: { paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E5E7EB', marginTop: 4 },
-  reviewTotalLabel: { fontSize: 15, fontWeight: '800', color: '#12131A' },
+  reviewTotalLabel: { fontSize: 15, fontWeight: '800', color: isDark ? '#F8FAFC' : '#12131A' },
   reviewTotalValue: { fontSize: 20, fontWeight: '900', color: '#2D8CFF' },
   sendBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#2D8CFF', borderRadius: 14, paddingVertical: 16, marginBottom: 12 },
   sendBtnText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
   pendingBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#EFF6FF', borderRadius: 14, paddingVertical: 14, marginBottom: 12, borderWidth: 1, borderColor: '#BFDBFE' },
   pendingBtnText: { fontSize: 15, fontWeight: '700', color: '#2D8CFF' },
   draftBtn: { alignItems: 'center', paddingVertical: 12 },
-  draftBtnText: { fontSize: 14, fontWeight: '600', color: '#9CA3AF' },
+  draftBtnText: { fontSize: 14, fontWeight: '600', color: isDark ? '#64748B' : '#9CA3AF' },
 
   // Bottom nav
-  bottomNav: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', gap: 12, paddingHorizontal: 20, paddingTop: 12, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F1F1F6' },
+  bottomNav: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', gap: 12, paddingHorizontal: 20, paddingTop: 12, backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F1F1F6' },
   prevBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F3F4F6', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 18 },
-  prevBtnText: { fontSize: 15, fontWeight: '700', color: '#374151' },
+  prevBtnText: { fontSize: 15, fontWeight: '700', color: isDark ? '#F8FAFC' : '#374151' },
   nextBtn: { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2D8CFF', borderRadius: 12, paddingVertical: 14 },
   nextBtnText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
 });

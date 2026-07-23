@@ -19,7 +19,8 @@ import { WsThrottlerGuard } from './ws-throttler.guard';
 
 @UseGuards(WsThrottlerGuard)
 @WebSocketGateway({
-  cors: { origin: '*' },
+  // TODO: set to specific domain(s) via APP_CORS_ORIGINS env var in production
+  cors: { origin: process.env.APP_CORS_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:19000'] },
   namespace: '/chat',
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -45,9 +46,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       if (!token) { client.disconnect(); return; }
 
-      const payload = this.jwtService.verify(token, {
-        secret: this.configService.get<string>('jwt.accessSecret') || process.env.JWT_ACCESS_SECRET || this.configService.get<string>('JWT_SECRET'),
-      });
+      const jwtSecret = this.configService.get<string>('jwt.accessSecret');
+      if (!jwtSecret) {
+        // If secret is not configured, reject ALL connections to avoid silent auth bypass
+        this.logger.error('JWT_ACCESS_SECRET is not configured — rejecting WebSocket connection');
+        client.disconnect();
+        return;
+      }
+
+      const payload = this.jwtService.verify(token, { secret: jwtSecret });
+
+      // Reject impersonation tokens from persistent WS connections — they are REST-only
+      if (payload.impersonated) {
+        this.logger.warn(`Rejected impersonated token for WS connection from user ${payload.sub}`);
+        client.disconnect();
+        return;
+      }
 
       const userId = payload.sub;
       client.data.userId = userId;

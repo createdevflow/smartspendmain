@@ -6,6 +6,7 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import * as Progress from 'react-native-progress';
 import { useNavigation } from '@react-navigation/native';
 import { TourStep } from './TourGuide';
+import { useAppTheme } from '../../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -19,6 +20,7 @@ const CHECKLIST_ITEMS = [
 export default function GettingStartedChecklist() {
   const { checklist, isChecklistComplete, updateChecklist } = useOnboarding();
   const navigation = useNavigation();
+  const { isDark } = useAppTheme();
 
   const completedCount = CHECKLIST_ITEMS.filter(item => checklist[item.id]).length;
   const isAllComplete = completedCount === CHECKLIST_ITEMS.length;
@@ -29,11 +31,11 @@ export default function GettingStartedChecklist() {
 
   return (
     <TourStep id="checklist">
-      <Animated.View entering={FadeInUp.delay(500)} layout={Layout.springify()} style={styles.container}>
+      <Animated.View entering={FadeInUp.delay(500)} layout={Layout.springify()} style={[styles.container, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={styles.title}>Getting Started</Text>
-            <Text style={styles.subtitle}>{completedCount} of {CHECKLIST_ITEMS.length} completed</Text>
+            <Text style={[styles.title, isDark && { color: '#F8FAFC' }]}>Getting Started</Text>
+            <Text style={[styles.subtitle, isDark && { color: '#94A3B8' }]}>{completedCount} of {CHECKLIST_ITEMS.length} completed</Text>
           </View>
           <Progress.Circle 
             size={48} 
@@ -42,35 +44,34 @@ export default function GettingStartedChecklist() {
             formatText={() => `${Math.round(progress * 100)}%`}
             textStyle={{ fontSize: 12, fontWeight: '700', color: '#2D8CFF' }}
             color="#2D8CFF" 
-            unfilledColor="#EFF6FF"
+            unfilledColor={isDark ? 'rgba(45, 140, 255, 0.15)' : '#EFF6FF'}
             borderWidth={0}
             thickness={4}
           />
         </View>
 
-        <View style={styles.list}>
+        <View style={[styles.list, isDark && { backgroundColor: '#0F172A' }]}>
           {CHECKLIST_ITEMS.map((item, index) => {
             const isDone = checklist[item.id];
             return (
               <TouchableOpacity 
                 key={item.id} 
-                style={[styles.item, index === CHECKLIST_ITEMS.length - 1 && { borderBottomWidth: 0 }]}
+                style={[styles.item, index === CHECKLIST_ITEMS.length - 1 && { borderBottomWidth: 0 }, isDark && { borderBottomColor: 'rgba(255,255,255,0.08)' }]}
                 onPress={() => {
                   if (!isDone) {
                     if (item.action) navigation.navigate(item.action);
-                    // the transaction and budget logic are handled from the respective FABs or Modals
                   }
                 }}
                 activeOpacity={isDone ? 1 : 0.7}
               >
-                <View style={[styles.iconWrapper, isDone && styles.iconDone]}>
-                  <Feather name={isDone ? "check" : item.icon} size={16} color={isDone ? "#16A34A" : "#9CA3AF"} />
+                <View style={[styles.iconWrapper, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.15)' }, isDone && (isDark ? { backgroundColor: 'rgba(22, 163, 74, 0.2)', borderColor: '#16A34A' } : styles.iconDone)]}>
+                  <Feather name={isDone ? "check" : item.icon} size={16} color={isDone ? (isDark ? "#4ADE80" : "#16A34A") : (isDark ? "#94A3B8" : "#9CA3AF")} />
                 </View>
                 <View style={styles.itemText}>
-                  <Text style={[styles.itemTitle, isDone && { color: '#9CA3AF', textDecorationLine: 'line-through' }]}>{item.title}</Text>
-                  {!isDone && <Text style={styles.itemDesc}>{item.desc}</Text>}
+                  <Text style={[styles.itemTitle, isDark && { color: '#F8FAFC' }, isDone && { color: '#9CA3AF', textDecorationLine: 'line-through' }]}>{item.title}</Text>
+                  {!isDone && <Text style={[styles.itemDesc, isDark && { color: '#94A3B8' }]}>{item.desc}</Text>}
                 </View>
-                {!isDone && <Feather name="chevron-right" size={16} color="#D1D5DB" />}
+                {!isDone && <Feather name="chevron-right" size={16} color={isDark ? "#64748B" : "#D1D5DB"} />}
               </TouchableOpacity>
             );
           })}
@@ -82,6 +83,8 @@ export default function GettingStartedChecklist() {
 
 const styles = StyleSheet.create({
   container: {
+    marginHorizontal: 20,
+    marginBottom: 20,
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 20,

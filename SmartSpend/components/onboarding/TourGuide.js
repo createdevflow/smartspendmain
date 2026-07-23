@@ -251,10 +251,29 @@ export function TourGuideProvider({ children }) {
 
   const startTour = useCallback((tourId) => {
     if (!TOURS[tourId]) return;
-    setActiveTour(tourId);
-    setStepIndex(0);
-    setSpotlight(null);
-    setVisible(true);
+    const steps = TOURS[tourId];
+    const firstStep = steps[0];
+    if (!firstStep) return;
+
+    let attempts = 0;
+    const checkReady = setInterval(() => {
+      attempts++;
+      const ref = stepRegistry[firstStep.id];
+      if (ref?.current?.measureInWindow) {
+        ref.current.measureInWindow((x, y, w, h) => {
+          if (w > 0 && h > 0) {
+            clearInterval(checkReady);
+            setActiveTour(tourId);
+            setStepIndex(0);
+            setSpotlight({ x, y, w, h });
+            setVisible(true);
+          }
+        });
+      }
+      if (attempts >= 20) {
+        clearInterval(checkReady);
+      }
+    }, 150);
   }, []);
 
   const goNext = useCallback(() => {
@@ -335,7 +354,7 @@ function TourOverlay() {
     ]).start();
   }, [stepIndex]);
 
-  if (!currentStep) return null;
+  if (!currentStep || !spotlight || spotlight.w <= 0 || spotlight.h <= 0) return null;
 
   // ── Smart Tooltip Positioning Logic ──
   let tooltipTop;

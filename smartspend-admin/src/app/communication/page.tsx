@@ -15,7 +15,7 @@ export default function CommunicationCenter() {
   const [stats, setStats] = useState({ totalCampaigns: 0, sentCount: 0, scheduledCount: 0, draftCount: 0 });
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
+    const token = (localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'));
     if (!token) { router.push('/login'); return; }
     loadData();
   }, []);
@@ -23,7 +23,7 @@ export default function CommunicationCenter() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/communication/admin/notifications?limit=10');
+      const res = await api.get('/communication/admin/notifications?limit=10&t=' + Date.now());
       const items = res.data?.items || res.data?.data?.items || [];
       setCampaigns(items);
       setStats({
@@ -52,10 +52,12 @@ export default function CommunicationCenter() {
   const deleteNotif = async (id: string) => {
     if (!confirm('Cancel/delete this notification?')) return;
     try {
+      setCampaigns(prev => prev.filter(c => c.id !== id));
       await api.delete(`/communication/admin/notifications/${id}`);
       loadData();
     } catch (e) {
       alert('Failed to delete');
+      loadData();
     }
   };
 
@@ -81,123 +83,136 @@ export default function CommunicationCenter() {
     <>
       <Sidebar />
       <main className="main-content">
-        <div className="page-header">
-          <div>
+        <div className="page-header animate-fade-in">
+          <div className="page-header-left">
             <h1 className="page-title">Communication Center</h1>
-            <p className="page-subtitle">Manage notifications, scheduled emails, and broadcasts to your users</p>
+            <p className="body-text" style={{ marginTop: 'var(--sp-1)' }}>Manage notifications, scheduled emails, and broadcasts</p>
           </div>
-          <button className="btn btn-primary" onClick={() => router.push('/communication/notifications/new')}>
-            <Plus size={16} /> New Notification
+          <button className="btn btn-primary btn-sm" onClick={() => router.push('/communication/notifications/new')}>
+            <Plus size={14} aria-hidden="true" /> New Notification
           </button>
         </div>
 
         {/* Stat Cards */}
-        <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-          {statCards.map((s) => (
-            <div key={s.label} className="stat-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <p className="stat-label">{s.label}</p>
-                  <p className="stat-value">{s.value}</p>
+        <div className="stats-grid" style={{ marginBottom: 'var(--sp-6)' }}>
+          {[
+            { label: 'Total Campaigns', value: stats.totalCampaigns, icon: Bell, variant: 'primary' as const },
+            { label: 'Sent', value: stats.sentCount, icon: CheckCircle, variant: 'success' as const },
+            { label: 'Scheduled', value: stats.scheduledCount, icon: Clock, variant: 'warning' as const },
+            { label: 'Drafts', value: stats.draftCount, icon: AlertCircle, variant: 'info' as const },
+          ].map((s) => {
+            const Icon = s.icon;
+            return (
+              <div key={s.label} className="stat-card" style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--sp-3)' }}>
+                <div style={{ background: `var(--${s.variant === 'primary' ? 'info' : s.variant}-bg)`, color: `var(--${s.variant === 'primary' ? 'info' : s.variant})`, padding: 'var(--sp-2)', borderRadius: 'var(--radius-badge)', flexShrink: 0 }}>
+                  <Icon size={16} aria-hidden="true" />
                 </div>
-                <div style={{ background: s.color + '20', color: s.color, padding: '10px', borderRadius: '10px' }}>
-                  {s.icon}
+                <div>
+                  <p className="label-text" style={{ marginBottom: 'var(--sp-1)' }}>{s.label}</p>
+                  <p className="mono-text" style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)' }}>{s.value}</p>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Quick Access Tiles */}
-        <div className="responsive-grid-3" style={{ marginBottom: '1.5rem' }}>
+        <div className="stats-grid" style={{ marginBottom: 'var(--sp-6)' }}>
           {[
-            { label: 'Notification Campaigns', desc: 'Create & manage admin broadcasts', icon: <Bell size={24} />, href: '/communication/notifications', color: '#2563EB' },
-            { label: 'In-App Chat Hub', desc: 'Monitor platform metrics & broadcasts', icon: <MessageCircle size={24} />, href: '/communication/chat-hub', color: '#0284C7' },
-            { label: 'New Notification', desc: 'Send to users immediately or schedule', icon: <Send size={24} />, href: '/communication/notifications/new', color: '#059669' },
-            { label: 'Delivery Logs', desc: 'View all delivery history and analytics', icon: <BarChart3 size={24} />, href: '/communication/delivery-logs', color: '#7C3AED' },
-          ].map((tile) => (
-            <button key={tile.label} className="card" onClick={() => router.push(tile.href)}
-              style={{ textAlign: 'left', cursor: 'pointer', border: 'none', width: '100%', padding: '1.25rem', transition: 'all 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)')}
-              onMouseLeave={e => (e.currentTarget.style.boxShadow = '')}>
-              <div style={{ background: tile.color + '15', color: tile.color, padding: '10px', borderRadius: '10px', width: 'fit-content', marginBottom: '0.75rem' }}>
-                {tile.icon}
-              </div>
-              <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{tile.label}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{tile.desc}</div>
-            </button>
-          ))}
+            { label: 'Notification Campaigns', desc: 'Create & manage admin broadcasts', icon: Bell, href: '/communication/notifications' },
+            { label: 'In-App Chat Hub', desc: 'Monitor platform metrics & broadcasts', icon: MessageCircle, href: '/communication/chat-hub' },
+            { label: 'New Notification', desc: 'Send to users immediately or schedule', icon: Send, href: '/communication/notifications/new' },
+            { label: 'Delivery Logs', desc: 'View all delivery history and analytics', icon: BarChart3, href: '/communication/delivery-logs' },
+          ].map((tile) => {
+            const Icon = tile.icon;
+            return (
+              <a
+                key={tile.label}
+                href={tile.href}
+                className="card"
+                style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', textDecoration: 'none', cursor: 'pointer', transition: 'border-color var(--motion-fast)' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--brand-blue)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}
+              >
+                <div style={{ background: 'var(--info-bg)', color: 'var(--brand-blue)', padding: 'var(--sp-2)', borderRadius: 'var(--radius-btn)', width: 'fit-content' }}>
+                  <Icon size={18} aria-hidden="true" />
+                </div>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: 'var(--type-card-title)', color: 'var(--text-primary)', marginBottom: 'var(--sp-1)' }}>{tile.label}</p>
+                  <p className="caption-text">{tile.desc}</p>
+                </div>
+              </a>
+            );
+          })}
         </div>
 
         {/* Recent Campaigns */}
-        <div className="card">
-          <div className="card-header">
+        <div className="table-shell">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--sp-3) var(--sp-4)', borderBottom: '1px solid var(--border)' }}>
             <h2 className="card-title">Recent Campaigns</h2>
-            <button className="btn btn-ghost" onClick={() => router.push('/communication/notifications')}>
-              View All
-            </button>
+            <a href="/communication/notifications" className="btn btn-ghost btn-sm">View All</a>
           </div>
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-              <div className="spinner" style={{ margin: '0 auto 1rem' }} />
-              Loading campaigns...
-            </div>
-          ) : campaigns.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-              <Bell size={48} style={{ marginBottom: '1rem', opacity: 0.3 }} />
-              <p>No notification campaigns yet.</p>
-              <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => router.push('/communication/notifications/new')}>
-                <Plus size={16} /> Create First Campaign
-              </button>
-            </div>
-          ) : (
-            <div className="table-wrapper">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Type</th>
-                    <th>Audience</th>
-                    <th>Status</th>
-                    <th>Sent</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {campaigns.map((c) => (
-                    <tr key={c.id}>
-                      <td>
-                        <div style={{ fontWeight: 600 }}>{TYPE_ICONS[c.notifType] || '📨'} {c.title}</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>{c.body?.slice(0, 60)}{c.body?.length > 60 ? '…' : ''}</div>
-                      </td>
-                      <td><span className="badge">{c.notifType}</span></td>
-                      <td><span className="badge" style={{ background: '#EFF6FF', color: '#2563EB' }}><Users size={11} style={{ marginRight: '3px' }} />{AUDIENCE_LABELS[c.audience] || c.audience}</span></td>
-                      <td><span className="badge" style={{ background: STATUS_COLORS[c.status] + '20', color: STATUS_COLORS[c.status] }}>{c.status}</span></td>
-                      <td>{c.sentCount > 0 ? <span style={{ color: '#059669', fontWeight: 600 }}>{c.sentCount}</span> : '—'}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          {c.status !== 'SENT' && c.status !== 'CANCELLED' && (
-                            <button className="btn btn-sm btn-success" onClick={() => sendNow(c.id)} title="Send Now">
-                              <Send size={14} />
-                            </button>
-                          )}
-                          {c.status === 'SENT' && (
-                            <button className="btn btn-sm btn-ghost" onClick={() => router.push(`/communication/notifications/${c.id}/stats`)} title="View Stats">
-                              <BarChart3 size={14} />
-                            </button>
-                          )}
-                          <button className="btn btn-sm btn-danger" onClick={() => deleteNotif(c.id)} title="Delete">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
+          <div className="table-wrapper">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th scope="col">Title</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Audience</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Sent</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      {[180, 80, 80, 70, 50, 80].map((w, j) => (
+                        <td key={j}><div className="skeleton" style={{ height: '13px', width: `${w}px`, borderRadius: '3px' }} /></td>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  ))
+                ) : campaigns.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: 0 }}>
+                      <div className="state-empty">
+                        <div className="state-empty-icon"><Bell size={32} aria-hidden="true" /></div>
+                        <p className="state-empty-title">No campaigns yet</p>
+                        <p className="state-empty-desc">Create your first notification campaign.</p>
+                        <a href="/communication/notifications/new" className="btn btn-primary btn-sm">
+                          <Plus size={14} aria-hidden="true" /> Create Campaign
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                ) : campaigns.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{TYPE_ICONS[c.notifType] || '📨'} {c.title}</div>
+                      <div className="caption-text" style={{ marginTop: '2px' }}>{c.body?.slice(0, 60)}{c.body?.length > 60 ? '…' : ''}</div>
+                    </td>
+                    <td><span className="pill pill-gray">{c.notifType}</span></td>
+                    <td><span className="pill pill-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Users size={11} aria-hidden="true" />{AUDIENCE_LABELS[c.audience] || c.audience}</span></td>
+                    <td><span className={`pill ${c.status === 'SENT' ? 'pill-success' : c.status === 'SCHEDULED' ? 'pill-warning' : c.status === 'CANCELLED' ? 'pill-danger' : 'pill-gray'}`}>{c.status}</span></td>
+                    <td className="tabular">{c.sentCount > 0 ? <span style={{ color: 'var(--success)', fontWeight: 600 }}>{c.sentCount}</span> : '—'}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>
+                        {c.status !== 'SENT' && c.status !== 'CANCELLED' && (
+                          <button className="btn btn-secondary btn-sm" onClick={() => sendNow(c.id)} aria-label="Send now"><Send size={13} aria-hidden="true" /></button>
+                        )}
+                        {c.status === 'SENT' && (
+                          <a href={`/communication/notifications/${c.id}/stats`} className="btn btn-ghost btn-sm" aria-label="View stats"><BarChart3 size={13} aria-hidden="true" /></a>
+                        )}
+                        <button className="btn btn-destructive btn-sm" onClick={() => deleteNotif(c.id)} aria-label="Delete campaign"><Trash2 size={13} aria-hidden="true" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
     </>

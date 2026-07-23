@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { 
-  MoreVertical, Shield, ShieldAlert, Key, LogOut, RefreshCcw,
+  Shield, ShieldAlert, Key, LogOut, RefreshCcw,
   Trash2, Smartphone, CheckSquare, Square, Users, UserCheck, Eye
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { RowActionMenu } from '@/components/ui/RowActionMenu';
 
 interface Props {
   users: any[];
@@ -22,19 +23,6 @@ export function EnterpriseTable({
   users, loading, selectedIds, setSelectedIds, 
   onRowClick, onRefresh, filters, setFilters 
 }: Props) {
-  const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close menu on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setActiveMenu(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const toggleSelectAll = () => {
     if (selectedIds.length === users.length) setSelectedIds([]);
@@ -56,7 +44,6 @@ export function EnterpriseTable({
 
   const executeAction = async (e: React.MouseEvent, action: string, user: any) => {
     e.stopPropagation();
-    setActiveMenu(null);
     try {
       switch (action) {
         case 'suspend':
@@ -223,122 +210,101 @@ export function EnterpriseTable({
                   {new Date(user.createdAt).toLocaleDateString()}
                 </td>
                 <td style={{ textAlign: 'right', position: 'relative' }} onClick={e => e.stopPropagation()}>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveMenu(activeMenu === user.id ? null : user.id);
-                    }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '0.5rem', borderRadius: 6 }}
-                    title="Actions"
-                  >
-                    <MoreVertical size={16} />
-                  </button>
-
-                  {activeMenu === user.id && (
-                    <div 
-                      ref={menuRef}
-                      className="card"
-                      style={{ 
-                        position: 'absolute', right: '2.5rem', top: '0.25rem', width: '220px', 
-                        padding: '0.375rem', zIndex: 50, boxShadow: 'var(--shadow-lg)',
-                        border: '1px solid var(--border)'
-                      }}
+                  <RowActionMenu ariaLabel={`Actions for ${user.fullName}`}>
+                    {/* View Profile */}
+                    <button 
+                      onClick={e => { e.stopPropagation(); onRowClick(user.id); }}
+                      className="btn btn-ghost" 
+                      style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem' }}
                     >
-                      {/* View Profile */}
-                      <button 
-                        onClick={e => { e.stopPropagation(); setActiveMenu(null); onRowClick(user.id); }}
-                        className="btn btn-ghost" 
-                        style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem' }}
-                      >
-                        <Eye size={14} /> View Profile
-                      </button>
+                      <Eye size={14} /> View Profile
+                    </button>
 
-                      <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }} />
+                    <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }} />
 
-                      {/* Status Actions */}
-                      {user.status !== 'ACTIVE' ? (
-                        <button 
-                          onClick={e => executeAction(e, 'activate', user)}
-                          className="btn btn-ghost" 
-                          style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem', color: 'var(--success)' }}
-                        >
-                          <UserCheck size={14} /> Restore Access
-                        </button>
-                      ) : (
-                        <button 
-                          onClick={e => executeAction(e, 'suspend', user)}
-                          className="btn btn-ghost" 
-                          style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem', color: 'var(--warning)' }}
-                        >
-                          <ShieldAlert size={14} /> Suspend
-                        </button>
-                      )}
+                    {/* Status Actions */}
+                    {user.status !== 'ACTIVE' ? (
                       <button 
-                        onClick={e => executeAction(e, 'ban', user)}
+                        onClick={e => executeAction(e, 'activate', user)}
                         className="btn btn-ghost" 
-                        style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem', color: 'var(--danger)' }}
+                        style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem', color: 'var(--success)' }}
                       >
-                        <Shield size={14} /> Ban User
+                        <UserCheck size={14} /> Restore Access
                       </button>
-
-                      <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }} />
-
-                      {/* Session & Security */}
+                    ) : (
                       <button 
-                        onClick={e => executeAction(e, 'impersonate', user)}
-                        className="btn btn-ghost" 
-                        style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem' }}
-                      >
-                        <Eye size={14} /> Impersonate
-                      </button>
-                      <button 
-                        onClick={e => executeAction(e, 'logout_all', user)}
-                        className="btn btn-ghost" 
-                        style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem' }}
-                      >
-                        <LogOut size={14} /> Force Logout All
-                      </button>
-                      <button 
-                        onClick={e => executeAction(e, 'reset_password', user)}
-                        className="btn btn-ghost" 
-                        style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem' }}
-                      >
-                        <Key size={14} /> Reset Password
-                      </button>
-                      <button 
-                        onClick={e => executeAction(e, 'change_role', user)}
-                        className="btn btn-ghost" 
-                        style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem' }}
-                      >
-                        <Smartphone size={14} /> Change Role
-                      </button>
-
-                      <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }} />
-
-                      {/* Destructive */}
-                      <button 
-                        onClick={e => executeAction(e, 'wipe_data', user)}
+                        onClick={e => executeAction(e, 'suspend', user)}
                         className="btn btn-ghost" 
                         style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem', color: 'var(--warning)' }}
                       >
-                        <RefreshCcw size={14} /> Wipe Account Data
+                        <ShieldAlert size={14} /> Suspend
                       </button>
-                      <button 
-                        onClick={e => executeAction(e, 'soft_delete', user)}
-                        className="btn btn-ghost" 
-                        style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem', color: 'var(--danger)' }}
-                      >
-                        <Trash2 size={14} /> Soft Delete
-                      </button>
-                      <button 
-                        onClick={e => executeAction(e, 'hard_delete', user)}
-                        className="btn btn-ghost" 
-                        style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem', color: 'var(--danger)', fontWeight: 600 }}
-                      >
-                        <Trash2 size={14} /> Hard Delete ⚠️
-                      </button>
-                    </div>
-                  )}
+                    )}
+                    <button 
+                      onClick={e => executeAction(e, 'ban', user)}
+                      className="btn btn-ghost" 
+                      style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem', color: 'var(--danger)' }}
+                    >
+                      <Shield size={14} /> Ban User
+                    </button>
+
+                    <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }} />
+
+                    {/* Session & Security */}
+                    <button 
+                      onClick={e => executeAction(e, 'impersonate', user)}
+                      className="btn btn-ghost" 
+                      style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem' }}
+                    >
+                      <Eye size={14} /> Impersonate
+                    </button>
+                    <button 
+                      onClick={e => executeAction(e, 'logout_all', user)}
+                      className="btn btn-ghost" 
+                      style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem' }}
+                    >
+                      <LogOut size={14} /> Force Logout All
+                    </button>
+                    <button 
+                      onClick={e => executeAction(e, 'reset_password', user)}
+                      className="btn btn-ghost" 
+                      style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem' }}
+                    >
+                      <Key size={14} /> Reset Password
+                    </button>
+                    <button 
+                      onClick={e => executeAction(e, 'change_role', user)}
+                      className="btn btn-ghost" 
+                      style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem' }}
+                    >
+                      <Smartphone size={14} /> Change Role
+                    </button>
+
+                    <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }} />
+
+                    {/* Data & Destruction */}
+                    <button 
+                      onClick={e => executeAction(e, 'wipe_data', user)}
+                      className="btn btn-ghost" 
+                      style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem', color: 'var(--warning)' }}
+                    >
+                      <RefreshCcw size={14} /> Wipe User Data
+                    </button>
+                    <button 
+                      onClick={e => executeAction(e, 'soft_delete', user)}
+                      className="btn btn-ghost" 
+                      style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem', color: 'var(--danger)' }}
+                    >
+                      <Trash2 size={14} /> Delete Account
+                    </button>
+                    <button 
+                      onClick={e => executeAction(e, 'hard_delete', user)}
+                      className="btn btn-ghost" 
+                      style={{ width: '100%', justifyContent: 'flex-start', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', gap: '0.5rem', color: 'var(--danger)' }}
+                    >
+                      <Trash2 size={14} /> Hard Delete (GDPR)
+                    </button>
+                  </RowActionMenu>
                 </td>
               </tr>
             ))}

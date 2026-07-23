@@ -6,6 +6,7 @@ import {
   BookOpen, BarChart3, Target, MessageCircle, TrendingUp, Camera,
   Users, Shield, Zap, Bell, Award, Globe, FileText
 } from 'lucide-react';
+import FeatureFlightSection from './FeatureFlightSection';
 
 const FEATURES = [
   {
@@ -281,8 +282,8 @@ function FeatureRow({ feature, index }: { feature: typeof FEATURES[0]; index: nu
     >
       {/* Text side */}
       <div className={isLeft ? 'lg:order-2' : ''}>
-        <div className={`inline-flex items-center gap-2 ${feature.bg} ${feature.iconColor} text-sm font-semibold px-3 py-1.5 rounded-full mb-4`}>
-          <Icon size={14} />
+        <div className={`flex items-center gap-2 text-xl font-black mb-3 bg-gradient-to-b ${feature.color} bg-clip-text text-transparent`}>
+          <Icon size={20} className={feature.iconColor} />
           {feature.sub}
         </div>
         <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight">{feature.title}</h3>
@@ -303,23 +304,11 @@ function FeatureRow({ feature, index }: { feature: typeof FEATURES[0]; index: nu
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="py-24 md:py-32 bg-white">
-      <div className="max-w-6xl mx-auto px-5 md:px-10">
-        {/* Header */}
-        <div className="text-center mb-20">
-          <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-700 text-sm font-semibold px-4 py-2 rounded-full mb-5">
-            <Zap size={14} />
-            Every Feature You Need
-          </div>
-          <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight mb-4">
-            Built for real life,<br />
-            <span style={{ background: 'linear-gradient(135deg, #2D8CFF, #F26D21)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>not just a demo.</span>
-          </h2>
-          <p className="text-gray-500 text-xl max-w-2xl mx-auto">
-            Everything you need working seamlessly together in one beautiful financial workspace.
-          </p>
-        </div>
+    <section id="features" className="bg-white">
+      {/* Flight Banner Header */}
+      <FeatureFlightSection />
 
+      <div className="max-w-6xl mx-auto px-5 md:px-10 pb-24 md:pb-32">
         {/* Feature rows */}
         <div className="space-y-24 md:space-y-32">
           {FEATURES.map((f, i) => (

@@ -11,8 +11,8 @@ export class AnalyticsController {
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Dashboard summary (income, expense, savings, recent transactions)' })
-  dashboard(@CurrentUser() user: any) {
-    return this.analyticsService.getDashboard(user.sub);
+  dashboard(@CurrentUser() user: any, @Query('cashbookId') cashbookId?: string) {
+    return this.analyticsService.getDashboard(user.sub, cashbookId);
   }
 
   @Get('cashflow')
@@ -32,26 +32,27 @@ export class AnalyticsController {
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('type') type?: string,
+    @Query('cashbookId') cashbookId?: string,
   ) {
-    return this.analyticsService.getCategoryBreakdown(user.sub, from, to, type || 'EXPENSE');
+    return this.analyticsService.getCategoryBreakdown(user.sub, from, to, type || 'EXPENSE', cashbookId);
   }
 
   @Get('insights')
   @ApiOperation({ summary: 'Auto-generated personalized insights' })
-  insights(@CurrentUser() user: any) {
-    return this.analyticsService.getInsights(user.sub);
+  insights(@CurrentUser() user: any, @Query('cashbookId') cashbookId?: string) {
+    return this.analyticsService.getInsights(user.sub, cashbookId);
   }
 
   @Get('networth')
-  @ApiOperation({ summary: 'Net worth across all cashbooks' })
-  netWorth(@CurrentUser() user: any) {
-    return this.analyticsService.getNetWorth(user.sub);
+  @ApiOperation({ summary: 'Net worth across cashbooks' })
+  netWorth(@CurrentUser() user: any, @Query('cashbookId') cashbookId?: string) {
+    return this.analyticsService.getNetWorth(user.sub, cashbookId);
   }
 
   @Get('heatmap')
   @ApiOperation({ summary: 'Spending heatmap calendar' })
-  heatmap(@CurrentUser() user: any, @Query('year') year?: number) {
-    return this.analyticsService.getHeatmap(user.sub, year || new Date().getFullYear());
+  heatmap(@CurrentUser() user: any, @Query('year') year?: number, @Query('cashbookId') cashbookId?: string) {
+    return this.analyticsService.getHeatmap(user.sub, year || new Date().getFullYear(), cashbookId);
   }
 
   @Get('burn-rate')

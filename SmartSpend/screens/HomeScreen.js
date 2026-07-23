@@ -8,6 +8,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-chart-kit';
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useFeatureAccess } from '../hooks/useFeatureAccess';
@@ -30,22 +31,41 @@ import { useOnboarding } from '../context/OnboardingContext';
 import GettingStartedChecklist from '../components/onboarding/GettingStartedChecklist';
 import CelebrationOverlay from '../components/onboarding/CelebrationOverlay';
 import WhatsNewModal from '../components/onboarding/WhatsNewModal';
+import { useAppTheme } from '../context/ThemeContext';
 
-// ─── Insight mini-card ─────────────────────────────────────────────────────────
+// ─── Insight mini-card (styled like TxCard with full area LinearGradient) ─────────────────
 function InsightCard({ icon, label, value, color, onPress }) {
+  const { isDark } = useAppTheme();
   return (
-    <TouchableOpacity style={[styles.insightCard, { borderLeftColor: color }]} onPress={onPress}>
-      <View style={[styles.insightIconWrap, { backgroundColor: color + '15' }]}>
-        <Feather name={icon} size={16} color={color} />
+    <TouchableOpacity
+      style={[
+        styles.insightCard,
+        {
+          borderRadius: 20,
+          borderWidth: 1,
+          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+          overflow: 'hidden',
+          backgroundColor: isDark ? '#1E293B' : '#F9FAFB',
+        }
+      ]}
+      onPress={onPress}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={[styles.insightIconWrap, { backgroundColor: color + '22', width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }]}>
+          <Feather name={icon} size={16} color={color} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.insightLabel, { fontSize: 11, fontWeight: '600', color: isDark ? '#94A3B8' : '#64748B', marginBottom: 0, lineHeight: 12 }]} numberOfLines={1}>{label}</Text>
+          <Text style={[styles.insightVal, { fontSize: 15, fontWeight: '800', color: isDark ? '#F8FAFC' : '#1E293B', letterSpacing: -0.3, lineHeight: 18 }]} numberOfLines={1}>{value}</Text>
+        </View>
       </View>
-      <Text style={styles.insightLabel}>{label}</Text>
-      <Text style={styles.insightVal}>{value}</Text>
     </TouchableOpacity>
   );
 }
 
 // ─── Budget set modal ──────────────────────────────────────────────────────────
 function SetValueModal({ visible, title, currentValue, onSave, onClose }) {
+  const { isDark } = useAppTheme();
   const [val, setVal] = useState(currentValue ? String(currentValue) : '');
 
   useEffect(() => {
@@ -55,13 +75,13 @@ function SetValueModal({ visible, title, currentValue, onSave, onClose }) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Pressable style={styles.modalBackdrop} onPress={onClose} />
-        <View style={styles.centerModal}>
-          <Text style={styles.centerModalTitle}>{title}</Text>
-          <Text style={{ fontSize: 13, color: '#747487', marginBottom: 16, lineHeight: 20 }}>
+        <View style={[styles.centerModal, isDark && { backgroundColor: '#1E293B', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }]}>
+          <Text style={[styles.centerModalTitle, isDark && { color: '#F8FAFC' }]}>{title}</Text>
+          <Text style={{ fontSize: 13, color: isDark ? '#94A3B8' : '#747487', marginBottom: 16, lineHeight: 20 }}>
             Enter the amount to set for your {title.toLowerCase().replace('set ', '')}.
           </Text>
           <TextInput
-            style={[styles.centerModalInput, { textAlign: 'center', fontSize: 24, fontWeight: '700', paddingVertical: 16 }]}
+            style={[styles.centerModalInput, { textAlign: 'center', fontSize: 24, fontWeight: '700', paddingVertical: 16 }, isDark && { backgroundColor: '#334155', borderColor: 'rgba(255,255,255,0.1)', color: '#F8FAFC' }]}
             value={val}
             onChangeText={setVal}
             keyboardType="numeric"
@@ -70,8 +90,8 @@ function SetValueModal({ visible, title, currentValue, onSave, onClose }) {
             autoFocus
           />
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-            <TouchableOpacity style={styles.centerModalCancel} onPress={onClose}>
-              <Text style={{ color: '#747487', fontWeight: '600', fontSize: 15 }}>Cancel</Text>
+            <TouchableOpacity style={[styles.centerModalCancel, isDark && { backgroundColor: '#334155' }]} onPress={onClose}>
+              <Text style={{ color: isDark ? '#CBD5E1' : '#747487', fontWeight: '600', fontSize: 15 }}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.centerModalSave}
@@ -88,10 +108,11 @@ function SetValueModal({ visible, title, currentValue, onSave, onClose }) {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function HomeScreen() {
+  const { isDark } = useAppTheme();
   const navigation = useNavigation();
   const { user } = useContext(AuthContext);
   const { books, activeBook, addBook, setActiveBook, refreshBooks, loading: booksLoading } = useBooks();
-  const { transactions, addTransaction, getBookBalance, privateMode, monthlyBudget, setMonthlyBudget, savingsGoal, setSavingsGoal, refreshTransactions, loading: txLoading } = useTransactions();
+  const { transactions, addTransaction, getBookBalance, privateMode, maskCurrency, monthlyBudget, setMonthlyBudget, savingsGoal, setSavingsGoal, refreshTransactions, loading: txLoading } = useTransactions();
   const { hasAccess: isFeatureEnabled, getFeatureTease } = useFeatureAccess();
   
   const { startTour, activeTour, endTour } = useTourGuide();
@@ -142,6 +163,7 @@ export default function HomeScreen() {
   const invoiceRef = useRef();
   const [lastSavedTx, setLastSavedTx] = useState(null);
   const [invoiceMenuTx, setInvoiceMenuTx] = useState(null);
+  const [editTxData, setEditTxData] = useState(null);
 
   // Scheduler
   const schedulerEnabled = isFeatureEnabled('scheduled_communications');
@@ -331,7 +353,7 @@ export default function HomeScreen() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <SwipeTabsWrapper>
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={[styles.safe, isDark && { backgroundColor: '#0F172A' }]} edges={['top']}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={{ paddingBottom: 120 }}
@@ -341,15 +363,15 @@ export default function HomeScreen() {
           {/* ── Greeting header ── */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.greeting}>{greeting}, {firstName} 👋</Text>
-              <Text style={styles.headerSub}>
+              <Text style={[styles.greeting, isDark && { color: '#F8FAFC' }]}>{greeting}, {firstName} 👋</Text>
+              <Text style={[styles.headerSub, isDark && { color: '#94A3B8' }]}>
                 {active ? active.name : 'Cashtro'}
               </Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
               {(isFeatureEnabled('feature_payment_reminders') || getFeatureTease('feature_payment_reminders')) && (
                 <TouchableOpacity
-                  style={styles.privateBadge}
+                  style={[styles.privateBadge, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }]}
                   onPress={() => {
                     if (!isFeatureEnabled('feature_payment_reminders')) {
                       Alert.alert('Premium Feature', 'Payment Reminders are available on Pro plans. Upgrade to track receivables and payables!', [{ text: 'Cancel', style: 'cancel' }, { text: 'Upgrade', onPress: () => navigation.navigate('Plans') }]);
@@ -362,12 +384,12 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                style={styles.privateBadge}
+                style={[styles.privateBadge, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }]}
                 onPress={() => navigation.navigate('Notifications')}
               >
                 <Feather name="bell" size={18} color="#2D8CFF" />
                 {unreadCount > 0 && (
-                  <View style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: '#DC2626', borderWidth: 2, borderColor: '#EFF6FF' }} />
+                  <View style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: '#DC2626', borderWidth: 2, borderColor: isDark ? '#1E293B' : '#EFF6FF' }} />
                 )}
               </TouchableOpacity>
             </View>
@@ -375,11 +397,11 @@ export default function HomeScreen() {
 
           {/* ── Free Trial Banner ── */}
           {showTrialBanner && isTrialActive && (
-            <View style={{ backgroundColor: '#EFF6FF', padding: 12, borderRadius: 12, marginHorizontal: 20, marginBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#BFDBFE' }}>
+            <View style={{ backgroundColor: isDark ? 'rgba(45,140,255,0.15)' : '#EFF6FF', padding: 12, borderRadius: 12, marginHorizontal: 20, marginBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: isDark ? 'rgba(45,140,255,0.3)' : '#BFDBFE' }}>
               <View style={{ flex: 1, flexDirection: 'column', gap: 4 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Feather name="zap" size={16} color="#2D8CFF" />
-                  <Text style={{ fontSize: 13, color: '#232333', fontWeight: '600' }}>
+                  <Text style={{ fontSize: 13, color: isDark ? '#F8FAFC' : '#232333', fontWeight: '600' }}>
                   Free trial enjoy all pro features
                   </Text>
                 </View>
@@ -388,7 +410,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
               <TouchableOpacity onPress={() => setShowTrialBanner(false)} style={{ padding: 4 }}>
-                <Feather name="x" size={16} color="#747487" />
+                <Feather name="x" size={16} color={isDark ? '#94A3B8' : '#747487'} />
               </TouchableOpacity>
             </View>
           )}
@@ -397,20 +419,20 @@ export default function HomeScreen() {
           {/* ── Loading Skeleton ── */}
           {booksLoading || txLoading ? (
             <View style={{ paddingHorizontal: 20 }}>
-              <View style={{ width: '100%', height: 160, backgroundColor: '#E2E8F0', borderRadius: 24, marginBottom: 16 }} />
+              <View style={{ width: '100%', height: 160, backgroundColor: isDark ? '#1E293B' : '#E2E8F0', borderRadius: 24, marginBottom: 16 }} />
               <View style={{ flexDirection: 'row', gap: 16, marginBottom: 24 }}>
-                <View style={{ flex: 1, height: 100, backgroundColor: '#E2E8F0', borderRadius: 20 }} />
-                <View style={{ flex: 1, height: 100, backgroundColor: '#E2E8F0', borderRadius: 20 }} />
+                <View style={{ flex: 1, height: 100, backgroundColor: isDark ? '#1E293B' : '#E2E8F0', borderRadius: 20 }} />
+                <View style={{ flex: 1, height: 100, backgroundColor: isDark ? '#1E293B' : '#E2E8F0', borderRadius: 20 }} />
               </View>
-              <View style={{ width: '100%', height: 200, backgroundColor: '#E2E8F0', borderRadius: 24 }} />
+              <View style={{ width: '100%', height: 200, backgroundColor: isDark ? '#1E293B' : '#E2E8F0', borderRadius: 24 }} />
             </View>
           ) : !active ? (
-            <View style={styles.emptyCard}>
+            <View style={[styles.emptyCard, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
               <Text style={{ fontSize: 48, marginBottom: 16 }}>📒</Text>
-              <Text style={styles.emptyTitle}>Create your first cashbook</Text>
-              <Text style={styles.emptyText}>A cashbook is where you track money in and out.</Text>
+              <Text style={[styles.emptyTitle, isDark && { color: '#F8FAFC' }]}>Create your first cashbook</Text>
+              <Text style={[styles.emptyText, isDark && { color: '#94A3B8' }]}>A cashbook is where you track money in and out.</Text>
               <TextInput
-                style={styles.emptyInput}
+                style={[styles.emptyInput, isDark && { backgroundColor: '#334155', borderColor: 'rgba(255,255,255,0.1)', color: '#F8FAFC' }]}
                 placeholder="Cashbook name (e.g. Personal)"
                 placeholderTextColor="#9CA3AF"
                 value={bookName}
@@ -428,25 +450,25 @@ export default function HomeScreen() {
             <>
               {isFeatureEnabled('feature_ai_insights_mini') || (transactions && transactions.length > 0) ? (
                 <TouchableOpacity
-                  style={{ backgroundColor: '#EFF6FF', borderRadius: 16, padding: 16, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#BFDBFE' }}
+                  style={{ marginHorizontal: 20, backgroundColor: isDark ? 'rgba(45,140,255,0.15)' : '#EFF6FF', borderRadius: 16, padding: 12, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: isDark ? 'rgba(45,140,255,0.3)' : '#BFDBFE' }}
                   onPress={() => navigation.navigate('AIInsights')}
                   activeOpacity={0.8}
                 >
-                  <View style={{ backgroundColor: '#BFDBFE', padding: 10, borderRadius: 12 }}>
-                    <Feather name="cpu" size={20} color="#2D8CFF" />
+                  <View style={{ backgroundColor: isDark ? 'rgba(45,140,255,0.3)' : '#BFDBFE', padding: 8, borderRadius: 10 }}>
+                    <Feather name="cpu" size={18} color="#2D8CFF" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <Text style={{ fontSize: 13, color: '#2D8CFF', fontWeight: '800' }}>Smart Insight & Analytics</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                      <Text style={{ fontSize: 14, color: '#2D8CFF', fontWeight: '800' }}>Smart Insight & Analytics</Text>
                       {user && typeof user.creditsLimit === 'number' && user.creditsLimit > 0 && user.creditsLimit !== Infinity && (
-                        <View style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
-                          <Text style={{ fontSize: 10, color: '#1E40AF', fontWeight: '700' }}>
+                        <View style={{ backgroundColor: isDark ? 'rgba(45,140,255,0.3)' : '#DBEAFE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                          <Text style={{ fontSize: 10, color: isDark ? '#60A5FA' : '#1E40AF', fontWeight: '700' }}>
                             ⚡ {Math.max(0, user.creditsLimit - (user.creditsUsed || 0))} left
                           </Text>
                         </View>
                       )}
                     </View>
-                    <Text style={{ fontSize: 13, color: '#232333', lineHeight: 18 }}>
+                    <Text style={{ fontSize: 13, color: isDark ? '#F8FAFC' : '#232333', lineHeight: 18 }}>
                       {miniInsight || (transactions?.length > 0 ? `You have ${transactions.length} recorded transactions across your cashbooks. Tap to view dedicated AI Smart Analytics & Predictions!` : `Welcome to AI Assistant! Tap here to analyze your finances in ${sym} instantly.`)}
                     </Text>
                   </View>
@@ -454,97 +476,99 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ) : getFeatureTease('feature_ai_insights_mini') ? (
                 <TouchableOpacity 
-                  style={{ backgroundColor: '#F3F4F6', borderRadius: 16, padding: 16, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#E5E7EB' }}
+                  style={{ marginHorizontal: 20, backgroundColor: isDark ? '#1E293B' : '#F3F4F6', borderRadius: 20, padding: 20, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' }}
                   onPress={() => Alert.alert('Premium Feature', 'AI Smart Insights are only available on Pro plans. Upgrade to get daily financial analysis!', [{ text: 'Cancel', style: 'cancel' }, { text: 'Upgrade to Pro', onPress: () => navigation.navigate('Plans') }])}
                 >
-                  <View style={{ backgroundColor: '#E5E7EB', padding: 10, borderRadius: 12 }}>
-                    <Feather name="lock" size={20} color="#9CA3AF" />
+                  <View style={{ backgroundColor: isDark ? '#334155' : '#E5E7EB', padding: 12, borderRadius: 14 }}>
+                    <Feather name="lock" size={22} color="#9CA3AF" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, color: '#747487', fontWeight: '800', marginBottom: 2 }}>AI Smart Insight Locked</Text>
+                    <Text style={{ fontSize: 14, color: isDark ? '#F8FAFC' : '#747487', fontWeight: '800', marginBottom: 4 }}>AI Smart Insight Locked</Text>
                     <Text style={{ fontSize: 13, color: '#9CA3AF', lineHeight: 18 }}>Upgrade to Pro to see personalized daily insights about your spending patterns.</Text>
                   </View>
                   <Feather name="chevron-right" size={16} color="#9CA3AF" />
                 </TouchableOpacity>
               ) : null}
 
-              {/* ── Gamification Widget ── */}
-              {isFeatureEnabled('feature_gamification_active') && gamification ? (
-                <View style={{ backgroundColor: '#F0FDF4', borderRadius: 20, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: '#BBF7D0' }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Feather name="award" size={20} color="#16A34A" />
-                      <Text style={{ fontSize: 16, fontWeight: '700', color: '#14532D' }}>No Spend Streak</Text>
-                    </View>
-                    <View style={{ backgroundColor: '#16A34A', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
-                      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>🔥 {gamification.streak || 0} Days</Text>
-                    </View>
-                  </View>
-                  
-                  <View style={{ height: 1, backgroundColor: '#BBF7D0', marginVertical: 12 }} />
-                  
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <View>
-                      <Text style={{ fontSize: 12, color: '#166534', fontWeight: '600' }}>Burn Rate (Avg/Day)</Text>
-                      <Text style={{ fontSize: 18, fontWeight: '800', color: '#14532D' }}>{sym}{Math.round(gamification.avgDailySpend || 0)}</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ fontSize: 12, color: '#166534', fontWeight: '600' }}>Runway Left</Text>
-                      <Text style={{ fontSize: 18, fontWeight: '800', color: '#14532D' }}>
-                        {gamification.burnRateDaysLeft === 999 || gamification.burnRateDaysLeft <= 0 ? '0 Days' : `${gamification.burnRateDaysLeft} Days`}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              ) : getFeatureTease('feature_gamification_active') ? (
-                <TouchableOpacity
-                  style={{ backgroundColor: '#F3F4F6', borderRadius: 20, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: '#E5E7EB', opacity: 0.85 }}
-                  onPress={() => Alert.alert('Pro Feature 🔥', 'Spend streaks and burn-rate analysis are available on Pro plans.\n\nUpgrade to track your no-spend days and see how long your money lasts!', [{ text: 'Maybe Later', style: 'cancel' }, { text: 'Upgrade to Pro', onPress: () => navigation.navigate('Plans') }])}
-                >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Feather name="lock" size={20} color="#9CA3AF" />
-                      <Text style={{ fontSize: 16, fontWeight: '700', color: '#9CA3AF' }}>Streak & Burn Rate</Text>
-                    </View>
-                    <View style={{ backgroundColor: '#D1D5DB', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
-                      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>PRO ONLY</Text>
-                    </View>
-                  </View>
-                  <View style={{ height: 1, backgroundColor: '#E5E7EB', marginVertical: 12 }} />
-                  <Text style={{ fontSize: 13, color: '#9CA3AF', lineHeight: 18 }}>Track your no-spend streaks and see your daily burn rate to stay on budget.</Text>
-                </TouchableOpacity>
-              ) : null}
-
-              {/* ─── 1. Hero Balance Card ─── */}
+              {/* ─── 1. Hero Balance Card (With Gamification) ─── */}
               <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
                 <TourStep id="balance">
-                  <View style={[styles.heroCard, { marginHorizontal: 0, marginBottom: 0 }]}>
+                  <LinearGradient
+                    colors={['#1E3A8A', '#2563EB', '#3B82F6']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.heroCard, { marginHorizontal: 0, marginBottom: 0 }]}
+                  >
                     <Text style={styles.heroLabel}>Available Balance</Text>
-                  <Text style={styles.heroBalance}>
-                    {privateMode ? '••••••' : `${sym}${Math.abs(balance.balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                  </Text>
-                  <View style={styles.heroDelta}>
-                    <View style={styles.heroDeltaItem}>
-                      <Feather name="arrow-down-left" size={13} color="#A7F3D0" />
-                      <Text style={[styles.heroDeltaText, { color: '#A7F3D0' }]}>
-                        {privateMode ? '••' : `+${sym}${thisMonth.income.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
-                      </Text>
-                      <Text style={styles.heroDeltaMeta}> this month</Text>
+                    <Text style={styles.heroBalance}>
+                      {privateMode ? maskCurrency(balance.balance, sym) : `${sym}${Math.abs(balance.balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    </Text>
+                    <View style={styles.heroDelta}>
+                      <View style={styles.heroDeltaItem}>
+                        <Feather name="arrow-down-left" size={13} color="#A7F3D0" />
+                        <Text style={[styles.heroDeltaText, { color: '#A7F3D0' }]}>
+                          {privateMode ? maskCurrency(thisMonth.income, sym, '+') : `+${sym}${thisMonth.income.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
+                        </Text>
+                        <Text style={styles.heroDeltaMeta}> this month</Text>
+                      </View>
+                      <View style={styles.heroDeltaItem}>
+                        <Feather name="arrow-up-right" size={13} color="#FECACA" />
+                        <Text style={[styles.heroDeltaText, { color: '#FECACA' }]}>
+                          {privateMode ? maskCurrency(thisMonth.expense, sym, '−') : `−${sym}${thisMonth.expense.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
+                        </Text>
+                        <Text style={styles.heroDeltaMeta}> this month</Text>
+                      </View>
                     </View>
-                    <View style={styles.heroDeltaItem}>
-                      <Feather name="arrow-up-right" size={13} color="#FECACA" />
-                      <Text style={[styles.heroDeltaText, { color: '#FECACA' }]}>
-                        {privateMode ? '••' : `−${sym}${thisMonth.expense.toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
-                      </Text>
-                      <Text style={styles.heroDeltaMeta}> this month</Text>
-                    </View>
-                  </View>
-                  </View>
+
+                    {/* Integrated Gamification */}
+                    {isFeatureEnabled('feature_gamification_active') && gamification && (
+                      <View style={{ marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)' }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                              <Feather name="award" size={12} color="#A7F3D0" />
+                              <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: '600' }}>Streak</Text>
+                            </View>
+                            <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>🔥 {gamification.streak || 0} Days</Text>
+                          </View>
+                          
+                          <View style={{ width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+
+                          <View>
+                            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: '600', marginBottom: 2 }}>Avg Burn</Text>
+                            <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>{sym}{Math.round(gamification.avgDailySpend || 0)}</Text>
+                          </View>
+                          
+                          <View style={{ width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+
+                          <View>
+                            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: '600', marginBottom: 2 }}>Runway</Text>
+                            <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>
+                              {gamification.burnRateDaysLeft === 999 || gamification.burnRateDaysLeft <= 0 ? '0 Days' : `${gamification.burnRateDaysLeft} Days`}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                    
+                    {getFeatureTease('feature_gamification_active') && !gamification && (
+                       <TouchableOpacity 
+                         style={{ marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                         onPress={() => Alert.alert('Pro Feature 🔥', 'Spend streaks and burn-rate analysis are available on Pro plans.\n\nUpgrade to track your no-spend days and see how long your money lasts!', [{ text: 'Maybe Later', style: 'cancel' }, { text: 'Upgrade to Pro', onPress: () => navigation.navigate('Plans') }])}
+                       >
+                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                           <Feather name="lock" size={14} color="rgba(255,255,255,0.6)" />
+                           <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '600' }}>Streak & Runway Pro</Text>
+                         </View>
+                         <Feather name="chevron-right" size={14} color="rgba(255,255,255,0.6)" />
+                       </TouchableOpacity>
+                    )}
+                  </LinearGradient>
                 </TourStep>
               </View>
 
               {/* ─── Getting Started Checklist ─── */}
-              <View style={{ marginHorizontal: 20, marginBottom: 24 }}>
+              <View style={{ marginBottom: 0 }}>
                 <GettingStartedChecklist />
               </View>
 
@@ -553,14 +577,16 @@ export default function HomeScreen() {
                 <TourStep id="quick_actions">
                   <View style={styles.quickActions}>
                     {[
-                      { label: 'View All', icon: 'list', color: '#2D8CFF', bg: '#EFF6FF', action: () => navigation.navigate('Transactions') },
-                      { label: 'Cashbooks', icon: 'book-open', color: '#2D8CFF', bg: '#DBEAFE', action: () => navigation.navigate('Books') },
+                      { label: 'Reminders', icon: 'bell', color: '#F26D21', bg: isDark ? 'rgba(242,109,33,0.2)' : '#FFF7ED', action: () => navigation.navigate('PaymentReminder') },
+                      { label: 'Invoices', icon: 'file-text', color: '#10B981', bg: isDark ? 'rgba(16,185,129,0.2)' : '#ECFDF5', action: () => navigation.navigate('InvoiceSettings') },
+                      { label: 'Wealth', icon: 'trending-up', color: '#8B5CF6', bg: isDark ? 'rgba(139,92,246,0.2)' : '#F5F3FF', action: () => navigation.navigate('Wealth') },
+                      { label: 'Schedule', icon: 'clock', color: '#0891B2', bg: isDark ? 'rgba(8,145,178,0.2)' : '#ECFEFF', action: () => navigation.navigate('Communication') },
                     ].map((q) => (
                       <TouchableOpacity key={q.label} style={styles.quickAction} onPress={q.action} activeOpacity={0.8}>
                         <View style={[styles.quickActionIcon, { backgroundColor: q.bg }]}>
                           <Feather name={q.icon} size={22} color={q.color} />
                         </View>
-                        <Text style={styles.quickActionLabel}>{q.label}</Text>
+                        <Text style={[styles.quickActionLabel, isDark && { color: '#E2E8F0' }]}>{q.label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -569,7 +595,7 @@ export default function HomeScreen() {
 
               {/* ─── 3. Insights Row ─── */}
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Insights</Text>
+                <Text style={[styles.sectionLabel, isDark && { color: '#94A3B8' }]}>Insights</Text>
                 <View style={styles.insightsRow}>
                   {isFeatureEnabled('feature_budget_management') && (
                     <InsightCard
@@ -595,17 +621,20 @@ export default function HomeScreen() {
               {/* ─── Top Spending Categories ─── */}
               {isFeatureEnabled('feature_top_categories') && topCategories.length > 0 ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>Top Spending Categories</Text>
-                  <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 16 }}>
+                  <Text style={[styles.sectionLabel, isDark && { color: '#94A3B8' }]}>Top Spending Categories</Text>
+                  <View style={{ backgroundColor: isDark ? '#1E293B' : '#fff', borderRadius: 20, padding: 20, borderWidth: isDark ? 1 : 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 }}>
                     {topCategories.map((c, i) => (
-                      <View key={i} style={{ marginBottom: i === topCategories.length - 1 ? 0 : 16 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <Text style={{ fontSize: 14, fontWeight: '600', color: '#1F2937' }}>{c.name}</Text>
-                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#1F2937' }}>{sym}{c.amount.toLocaleString('en-IN')}</Text>
+                      <View key={i} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: i === topCategories.length - 1 ? 0 : 16 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: i === 0 ? '#FEE2E2' : i === 1 ? '#FEF3C7' : '#D1FAE5', alignItems: 'center', justifyContent: 'center' }}>
+                            <Feather name={i === 0 ? "arrow-up-right" : i === 1 ? "activity" : "check"} size={16} color={i === 0 ? '#DC2626' : i === 1 ? '#D97706' : '#059669'} />
+                          </View>
+                          <View>
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F8FAFC' : '#1F2937' }}>{c.name}</Text>
+                            <Text style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#6B7280', marginTop: 2 }}>{c.pct}% of total</Text>
+                          </View>
                         </View>
-                        <View style={{ height: 8, backgroundColor: '#F3F4F6', borderRadius: 4, overflow: 'hidden' }}>
-                          <View style={{ height: '100%', width: `${c.pct}%`, backgroundColor: i === 0 ? '#DC2626' : i === 1 ? '#F59E0B' : '#10B981', borderRadius: 4 }} />
-                        </View>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDark ? '#F8FAFC' : '#1F2937' }}>{sym}{c.amount.toLocaleString('en-IN')}</Text>
                       </View>
                     ))}
                   </View>
@@ -615,15 +644,15 @@ export default function HomeScreen() {
                   style={[styles.section]}
                   onPress={() => Alert.alert('Pro Feature 📊', 'Top spending category analysis is available on Pro plans.\n\nSee exactly where your money goes each month!', [{ text: 'Maybe Later', style: 'cancel' }, { text: 'Upgrade to Pro', onPress: () => navigation.navigate('Plans') }])}
                 >
-                  <Text style={styles.sectionLabel}>Top Spending Categories</Text>
-                  <View style={{ backgroundColor: '#F9FAFB', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                  <Text style={[styles.sectionLabel, isDark && { color: '#94A3B8' }]}>Top Spending Categories</Text>
+                  <View style={{ backgroundColor: isDark ? '#1E293B' : '#F9FAFB', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' }}>
                     {['Food & Dining', 'Transport', 'Shopping'].map((cat, i) => (
                       <View key={i} style={{ marginBottom: i === 2 ? 0 : 14 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <Text style={{ fontSize: 14, fontWeight: '600', color: '#D1D5DB' }}>{cat}</Text>
-                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#D1D5DB' }}>••••</Text>
+                          <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#64748B' : '#D1D5DB' }}>{cat}</Text>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#64748B' : '#D1D5DB' }}>••••</Text>
                         </View>
-                        <View style={{ height: 8, backgroundColor: '#E5E7EB', borderRadius: 4 }} />
+                        <View style={{ height: 8, backgroundColor: isDark ? '#334155' : '#E5E7EB', borderRadius: 4 }} />
                       </View>
                     ))}
                     <View style={{ alignItems: 'center', marginTop: 12 }}>
@@ -640,25 +669,25 @@ export default function HomeScreen() {
               {isFeatureEnabled('feature_upcoming_bills') && upcomingBills.length > 0 ? (
                 <View style={styles.section}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <Text style={[styles.sectionLabel, { marginBottom: 0 }]}>Upcoming Bills</Text>
+                    <Text style={[styles.sectionLabel, { marginBottom: 0 }, isDark && { color: '#94A3B8' }]}>Upcoming Bills</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('Subscriptions')}>
                       <Text style={{ color: '#2D8CFF', fontSize: 13, fontWeight: '700' }}>Manage</Text>
                     </TouchableOpacity>
                   </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                     {upcomingBills.map((bill, i) => (
-                      <View key={i} style={{ backgroundColor: '#fff', borderRadius: 16, padding: 16, width: 220, borderWidth: 1, borderColor: '#F3F4F6' }}>
+                      <View key={i} style={{ backgroundColor: isDark ? '#1E293B' : '#fff', borderRadius: 16, padding: 16, width: 220, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6' }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                          <View style={{ backgroundColor: '#FEF2F2', padding: 8, borderRadius: 10 }}>
+                          <View style={{ backgroundColor: isDark ? 'rgba(220,38,38,0.2)' : '#FEF2F2', padding: 8, borderRadius: 10 }}>
                             <Feather name="calendar" size={18} color="#DC2626" />
                           </View>
-                          <Text style={{ fontSize: 12, color: '#747487', fontWeight: '600' }}>{bill.frequency === 'monthly' ? 'Monthly' : 'Weekly'}</Text>
+                          <Text style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#747487', fontWeight: '600' }}>{bill.frequency === 'monthly' ? 'Monthly' : 'Weekly'}</Text>
                         </View>
-                        <Text style={{ fontSize: 16, fontWeight: '700', color: '#232333', marginBottom: 4 }}>{bill.merchant || 'Subscription'}</Text>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#F8FAFC' : '#232333', marginBottom: 4 }}>{bill.merchant || 'Subscription'}</Text>
                         <Text style={{ fontSize: 14, color: '#DC2626', fontWeight: '800', marginBottom: 12 }}>{sym}{bill.amount.toLocaleString('en-IN')}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Feather name="clock" size={12} color="#9CA3AF" />
-                          <Text style={{ fontSize: 12, color: '#747487' }}>Due {new Date(bill.nextDueDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</Text>
+                          <Text style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#747487' }}>Due {new Date(bill.nextDueDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</Text>
                         </View>
                       </View>
                     ))}
@@ -670,18 +699,18 @@ export default function HomeScreen() {
                   onPress={() => Alert.alert('Pro Feature 📅', 'Upcoming Bills tracking is available on Pro plans.\n\nNever miss a payment again!', [{ text: 'Maybe Later', style: 'cancel' }, { text: 'Upgrade to Pro', onPress: () => navigation.navigate('Plans') }])}
                 >
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <Text style={[styles.sectionLabel, { marginBottom: 0 }]}>Upcoming Bills</Text>
+                    <Text style={[styles.sectionLabel, { marginBottom: 0 }, isDark && { color: '#94A3B8' }]}>Upcoming Bills</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Feather name="lock" size={12} color="#9CA3AF" />
                       <Text style={{ color: '#9CA3AF', fontSize: 12, fontWeight: '600' }}>Pro</Text>
                     </View>
                   </View>
-                  <View style={{ backgroundColor: '#F9FAFB', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{ backgroundColor: '#FEE2E2', padding: 10, borderRadius: 12 }}>
+                  <View style={{ backgroundColor: isDark ? '#1E293B' : '#F9FAFB', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ backgroundColor: isDark ? 'rgba(252,165,165,0.2)' : '#FEE2E2', padding: 10, borderRadius: 12 }}>
                       <Feather name="calendar" size={20} color="#FCA5A5" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#D1D5DB' }}>Bill Reminders</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#94A3B8' : '#D1D5DB' }}>Bill Reminders</Text>
                       <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>Track recurring bills and get reminders</Text>
                     </View>
                     <Feather name="lock" size={16} color="#D1D5DB" />
@@ -692,8 +721,8 @@ export default function HomeScreen() {
               {/* ─── 4. Cashflow Chart ─── */}
               {isFeatureEnabled('feature_analytics') && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>7-Day Cashflow ({sym})</Text>
-                  <View style={[styles.chartCard, { padding: 0, paddingBottom: 16 }]}>
+                  <Text style={[styles.sectionLabel, isDark && { color: '#94A3B8' }]}>7-Day Cashflow ({sym})</Text>
+                  <View style={[styles.chartCard, { padding: 0, paddingBottom: 16 }, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
                     {graphData && (graphData.incomeData.some(v => v > 0) || graphData.expenseData.some(v => v > 0)) ? (
                       <View style={{ overflow: 'hidden', borderRadius: 16, paddingTop: 16 }}>
                         <LineChart
@@ -724,17 +753,17 @@ export default function HomeScreen() {
                             return num.toString();
                           }}
                           chartConfig={{
-                            backgroundColor: "#ffffff",
-                            backgroundGradientFrom: "#ffffff",
-                            backgroundGradientTo: "#ffffff",
+                            backgroundColor: isDark ? "#1E293B" : "#ffffff",
+                            backgroundGradientFrom: isDark ? "#1E293B" : "#ffffff",
+                            backgroundGradientTo: isDark ? "#1E293B" : "#ffffff",
                             decimalPlaces: 0, 
-                            color: (opacity = 1) => `rgba(209, 213, 219, ${opacity})`,
-                            labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+                            color: (opacity = 1) => isDark ? `rgba(148, 163, 184, ${opacity})` : `rgba(209, 213, 219, ${opacity})`,
+                            labelColor: (opacity = 1) => isDark ? `rgba(226, 232, 240, ${opacity})` : `rgba(107, 114, 128, ${opacity})`,
                             style: { borderRadius: 16 },
-                            propsForDots: { r: "4", strokeWidth: "2", stroke: "#fff" },
+                            propsForDots: { r: "4", strokeWidth: "2", stroke: isDark ? "#1E293B" : "#fff" },
                             propsForBackgroundLines: {
                               strokeDasharray: '', // solid background lines
-                              stroke: '#F3F4F6'
+                              stroke: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6'
                             }
                           }}
                           bezier
@@ -761,14 +790,14 @@ export default function HomeScreen() {
               {/* ─── 6. Recent Transactions ─── */}
               <View style={styles.section}>
                 <View style={styles.sectionRow}>
-                  <Text style={styles.sectionLabel}>Recent Transactions</Text>
+                  <Text style={[styles.sectionLabel, isDark && { color: '#94A3B8' }]}>Recent Transactions</Text>
                   <TouchableOpacity onPress={() => navigation.navigate('Transactions')}>
                     <Text style={styles.viewAll}>View All →</Text>
                   </TouchableOpacity>
                 </View>
 
                 {recentTx.length === 0 ? (
-                  <View style={styles.recentEmpty}>
+                  <View style={[styles.recentEmpty, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' }]}>
                     <Text style={{ color: '#9CA3AF', fontSize: 14, textAlign: 'center' }}>
                       No transactions yet. Tap Add Income or Add Expense above.
                     </Text>
@@ -826,8 +855,8 @@ export default function HomeScreen() {
         {/* Invoice Menu Tooltip */}
         <Modal visible={!!invoiceMenuTx} transparent animationType="fade" onRequestClose={() => setInvoiceMenuTx(null)}>
           <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => setInvoiceMenuTx(null)} />
-          <View style={styles.tooltipMenu}>
-            <Text style={styles.tooltipTitle}>Transaction Options</Text>
+          <View style={[styles.tooltipMenu, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }]}>
+            <Text style={[styles.tooltipTitle, isDark && { color: '#94A3B8', borderBottomColor: 'rgba(255,255,255,0.1)' }]}>Transaction Options</Text>
             <TouchableOpacity style={styles.menuItem} onPress={async () => {
               const tx = invoiceMenuTx;
               setInvoiceMenuTx(null);
@@ -845,8 +874,8 @@ export default function HomeScreen() {
                 }
               }, 500);
             }}>
-              <Feather name="share-2" size={18} color="#111827" />
-              <Text style={styles.menuText}>Share Receipt Image</Text>
+              <Feather name="share-2" size={18} color={isDark ? '#F8FAFC' : '#111827'} />
+              <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>Share Receipt Image</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.menuItem} onPress={async () => {
@@ -854,8 +883,8 @@ export default function HomeScreen() {
               setInvoiceMenuTx(null);
               await generateInvoicePdf(activeBook, [tx]);
             }}>
-              <Feather name="download" size={18} color="#111827" />
-              <Text style={styles.menuText}>Download PDF</Text>
+              <Feather name="download" size={18} color={isDark ? '#F8FAFC' : '#111827'} />
+              <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>Download PDF</Text>
             </TouchableOpacity>
           </View>
         </Modal>
@@ -863,9 +892,16 @@ export default function HomeScreen() {
         {/* Quick Entry Sheet */}
         <QuickEntrySheet
           ref={quickEntryRef}
-          onClose={() => quickEntryRef.current?.dismiss()}
-          onSave={handleQuickSave}
+          onClose={() => {
+            quickEntryRef.current?.dismiss();
+            setEditTxData(null);
+          }}
+          onSave={(tx) => {
+            handleQuickSave(tx);
+            setEditTxData(null);
+          }}
           defaultType={sheetType}
+          editData={editTxData}
         />
 
         {/* Budget modal */}
@@ -943,10 +979,10 @@ const styles = StyleSheet.create({
   // Hero Balance Card
   heroCard: {
     marginHorizontal: 20, marginBottom: 20, borderRadius: 20,
-    backgroundColor: '#2D8CFF', padding: 24,
+    padding: 20,
   },
-  heroLabel: { fontSize: 12, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
-  heroBalance: { fontSize: 40, fontWeight: '800', color: '#fff', letterSpacing: -1.5, marginBottom: 16 },
+  heroLabel: { fontSize: 12, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
+  heroBalance: { fontSize: 32, fontWeight: '800', color: '#fff', letterSpacing: -1.0, marginBottom: 12 },
   heroDelta: { flexDirection: 'row', gap: 20 },
   heroDeltaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   heroDeltaText: { fontSize: 13, fontWeight: '700', color: '#fff' },
@@ -962,32 +998,35 @@ const styles = StyleSheet.create({
   quickActions: { flexDirection: 'row', justifyContent: 'space-between' },
   quickAction: { alignItems: 'center', flex: 1 },
   quickActionIcon: {
-    width: 56, height: 56, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+    width: 60, height: 60, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
   },
   quickActionLabel: { fontSize: 11, fontWeight: '600', color: '#374151', textAlign: 'center' },
 
   // Insights row
-  insightsRow: { flexDirection: 'row', gap: 10 },
+  insightsRow: { flexDirection: 'row', gap: 12 },
   insightCard: {
-    flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center',
+    flex: 1, backgroundColor: '#fff', borderRadius: 16, padding: 12,
+    borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'flex-start',
   },
-  insightIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  insightLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500', textAlign: 'center', marginBottom: 4 },
-  insightValue: { fontSize: 14, fontWeight: '800', textAlign: 'center', letterSpacing: -0.3 },
+  insightIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  insightLabel: { fontSize: 11, color: '#64748B', fontWeight: '600', marginBottom: 2 },
+  insightValue: { fontSize: 14, fontWeight: '800', letterSpacing: -0.3 },
 
   // Chart
   chartCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 20,
-    borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden',
+    backgroundColor: '#fff', borderRadius: 20, padding: 20,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.03)', overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 3,
   },
 
   // AI Insights
   aiCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#EFF6FF', borderRadius: 16, padding: 16,
+    backgroundColor: '#EFF6FF', borderRadius: 20, padding: 20,
     borderWidth: 1, borderColor: '#BFDBFE',
+    shadowColor: '#2D8CFF', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 3,
   },
   aiCardLocked: { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' },
   aiCardLeft: { flex: 1 },

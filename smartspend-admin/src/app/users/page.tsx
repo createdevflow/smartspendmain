@@ -76,7 +76,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      if (!localStorage.getItem('adminToken')) {
+      if (!(localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'))) {
         window.location.href = '/admin/login';
         return;
       }

@@ -353,7 +353,11 @@ export class AuthService {
     });
 
     await this.prisma.otpToken.create({ data: { userId, tokenHash, purpose, expiresAt } });
-    await this.mail.sendOtp(email, name, otpPlain, purpose);
+    
+    // Fire and forget so we don't block the API response
+    this.mail.sendOtp(email, name, otpPlain, purpose).catch(err => {
+      console.error('Failed to send OTP email asynchronously:', err);
+    });
   }
 
   private async generateTokenPair(user: any, ip: string, ua: string, deviceName?: string, platform?: string) {

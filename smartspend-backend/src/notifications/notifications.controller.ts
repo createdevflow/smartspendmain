@@ -34,6 +34,11 @@ export class NotificationsController {
     return this.notificationsService.updatePreferences(user.sub, body);
   }
 
+  @Post('test')
+  testPush(@CurrentUser() user: any) {
+    return this.notificationsService.testPushNotification(user.sub);
+  }
+
   @Patch('read-all')
   markAllAsRead(@CurrentUser() user: any) {
     return this.notificationsService.markAllAsRead(user.sub);

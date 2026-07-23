@@ -1,10 +1,15 @@
 import axios from 'axios';
 
-// Get backend URL from env, or default to localhost
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+const getApiUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.hostname}:3010/api/v1`;
+  }
+  return 'http://localhost:3010/api/v1';
+};
 
 export const api = axios.create({
-  baseURL: API_URL,
+  baseURL: getApiUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -14,7 +19,7 @@ export const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('adminToken');
+      const token = (localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'));
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -31,8 +36,8 @@ api.interceptors.response.use(
     const isLoginRequest = error.config?.url?.includes('/auth/login');
     if (!isLoginRequest && error.response?.status === 401 && typeof window !== 'undefined') {
       // If unauthorized, clear token and redirect to login
-      localStorage.removeItem('adminToken');
-      window.location.href = '/admin/login';
+      localStorage.removeItem('adminToken'); sessionStorage.removeItem('adminToken');
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

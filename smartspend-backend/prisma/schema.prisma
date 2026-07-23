@@ -67,6 +67,12 @@ enum AuditAction {
   PLAN_CHANGED
   GOAL_CREATED
   BUDGET_CREATED
+  // Admin-specific audit events
+  IMPERSONATE_USER
+  ADMIN_SETTINGS_CHANGED
+  ROLE_CHANGED
+  PERMISSION_CHANGED
+  HARD_DELETE_USER
 }
 
 enum NotificationType {
@@ -181,6 +187,7 @@ model User {
   lastLoginAt       DateTime?
   deletedAt         DateTime?
   trialExpiresAt    DateTime?
+  preferences       Json?      @default("{}")
 
   cashbooks        Cashbook[]
   transactions     Transaction[]

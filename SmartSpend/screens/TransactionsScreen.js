@@ -25,6 +25,7 @@ import { useFeatureAccess } from '../hooks/useFeatureAccess';
 import { TourStep, useTourGuide } from '../components/onboarding/TourGuide';
 import { useOnboarding } from '../context/OnboardingContext';
 import { useEffect } from 'react';
+import { useAppTheme } from '../context/ThemeContext';
 
 if (
   Platform.OS === 'android' &&
@@ -52,6 +53,7 @@ function formatTime(iso) {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function TransactionsScreen() {
+  const { isDark } = useAppTheme();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const { activeBook, loading: booksLoading, refreshBooks } = useBooks();
@@ -61,6 +63,7 @@ export default function TransactionsScreen() {
     updateTransaction,
     deleteTransaction,
     privateMode,
+    maskCurrency,
     gstEnabled,
     refreshTransactions,
     loading: txLoading,
@@ -251,62 +254,62 @@ export default function TransactionsScreen() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.container}>
+    <SafeAreaView style={[styles.safe, isDark && { backgroundColor: '#0F172A' }]} edges={['top']}>
+      <View style={[styles.container, isDark && { backgroundColor: '#0F172A' }]}>
         {!activeBook ? (
-          <View style={styles.emptyState}>
+          <View style={[styles.emptyState, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
             <Text style={styles.emptyIcon}>📒</Text>
-            <Text style={styles.emptyTitle}>No active cashbook</Text>
-            <Text style={styles.emptyText}>Create a cashbook from the Home tab to start recording entries.</Text>
+            <Text style={[styles.emptyTitle, isDark && { color: '#F8FAFC' }]}>No active cashbook</Text>
+            <Text style={[styles.emptyText, isDark && { color: '#94A3B8' }]}>Create a cashbook from the Home tab to start recording entries.</Text>
           </View>
         ) : (
           <>
             {/* ── Header ── */}
             <View style={styles.header}>
               <View>
-                <Text style={styles.title}>Transactions</Text>
-                <Text style={styles.subtitle}>{activeBook.name}</Text>
+                <Text style={[styles.title, isDark && { color: '#F8FAFC' }]}>Transactions</Text>
+                <Text style={[styles.subtitle, isDark && { color: '#94A3B8' }]}>{activeBook.name}</Text>
               </View>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TourStep id="tx_export">
-                  <TouchableOpacity style={styles.filterToggleBtn} onPress={() => exportModalRef.current?.present?.()}
+                  <TouchableOpacity style={[styles.filterToggleBtn, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' }]} onPress={() => exportModalRef.current?.present?.()}
                   >
-                    <Feather name="download" size={18} color="#747487" />
+                    <Feather name="download" size={18} color={isDark ? "#CBD5E1" : "#747487"} />
                   </TouchableOpacity>
                 </TourStep>
                 <TourStep id="tx_wealth">
-                  <TouchableOpacity style={styles.filterToggleBtn} onPress={() => navigation.navigate('Wealth')}>
-                    <Feather name="trending-up" size={18} color="#747487" />
+                  <TouchableOpacity style={[styles.filterToggleBtn, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' }]} onPress={() => navigation.navigate('Wealth')}>
+                    <Feather name="trending-up" size={18} color={isDark ? "#CBD5E1" : "#747487"} />
                   </TouchableOpacity>
                 </TourStep>
                 <TourStep id="tx_invoice">
-                  <TouchableOpacity style={styles.filterToggleBtn} onPress={() => navigation.navigate('Invoices')}>
-                    <Feather name="file-text" size={18} color="#747487" />
+                  <TouchableOpacity style={[styles.filterToggleBtn, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' }]} onPress={() => navigation.navigate('Invoices')}>
+                    <Feather name="file-text" size={18} color={isDark ? "#CBD5E1" : "#747487"} />
                   </TouchableOpacity>
                 </TourStep>
               </View>
             </View>
 
             {/* ── Balance summary strip ── */}
-            <View style={styles.summaryStrip}>
+            <View style={[styles.summaryStrip, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Balance</Text>
-                <Text style={[styles.summaryVal, { color: balance >= 0 ? '#16A34A' : '#DC2626' }]}>
-                  {privateMode ? '••••' : `${currencySymbol}${Math.abs(balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                <Text style={[styles.summaryLabel, isDark && { color: '#94A3B8' }]}>Balance</Text>
+                <Text style={[styles.summaryVal, { color: balance >= 0 ? '#16A34A' : '#DC2626' }]} numberOfLines={1} adjustsFontSizeToFit>
+                  {privateMode ? maskCurrency(balance, currencySymbol) : `${currencySymbol}${Math.abs(balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>In</Text>
-                <Text style={[styles.summaryVal, { color: '#16A34A' }]}>
-                  {privateMode ? '••••' : `+${currencySymbol}${inTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                <Text style={[styles.summaryLabel, isDark && { color: '#94A3B8' }]}>In</Text>
+                <Text style={[styles.summaryVal, { color: '#16A34A' }]} numberOfLines={1} adjustsFontSizeToFit>
+                  {privateMode ? maskCurrency(inTotal, currencySymbol, '+') : `+${currencySymbol}${inTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Out</Text>
-                <Text style={[styles.summaryVal, { color: '#DC2626' }]}>
-                  {privateMode ? '••••' : `−${currencySymbol}${outTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                <Text style={[styles.summaryLabel, isDark && { color: '#94A3B8' }]}>Out</Text>
+                <Text style={[styles.summaryVal, { color: '#DC2626' }]} numberOfLines={1} adjustsFontSizeToFit>
+                  {privateMode ? maskCurrency(outTotal, currencySymbol, '−') : `−${currencySymbol}${outTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </Text>
               </View>
             </View>
@@ -316,7 +319,7 @@ export default function TransactionsScreen() {
               <TourStep id="tx_search">
                 <View style={[styles.filterRow, { paddingHorizontal: 0, marginBottom: 0 }]}>
                   <TouchableOpacity 
-                    style={[styles.filterToggleBtn, { paddingHorizontal: 12, marginRight: 8, backgroundColor: showFilters ? '#EFF6FF' : '#F9FAFB' }]} 
+                    style={[styles.filterToggleBtn, { paddingHorizontal: 12, marginRight: 8, backgroundColor: showFilters ? (isDark ? 'rgba(45,140,255,0.3)' : '#EFF6FF') : (isDark ? '#1E293B' : '#F9FAFB') }, isDark && { borderColor: 'rgba(255,255,255,0.1)' }]} 
                     onPress={() => setShowFilters(v => !v)}
                   >
                     <Feather name="sliders" size={16} color={showFilters ? "#2D8CFF" : "#747487"} />
@@ -330,14 +333,16 @@ export default function TransactionsScreen() {
                       key={key}
                       style={[
                         styles.filterChip,
+                        isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' },
                         typeFilter === key && styles.filterChipActive,
-                        typeFilter === key && key === 'in' && styles.filterChipIn,
-                        typeFilter === key && key === 'out' && styles.filterChipOut,
+                        typeFilter === key && key === 'in' && (isDark ? { backgroundColor: 'rgba(22,163,74,0.2)', borderColor: '#16A34A' } : styles.filterChipIn),
+                        typeFilter === key && key === 'out' && (isDark ? { backgroundColor: 'rgba(220,38,38,0.2)', borderColor: '#DC2626' } : styles.filterChipOut),
                       ]}
                       onPress={() => setTypeFilter(key)}
                     >
                       <Text style={[
                         styles.filterChipText,
+                        isDark && { color: '#94A3B8' },
                         typeFilter === key && styles.filterChipTextActive,
                         typeFilter === key && key === 'in' && { color: '#16A34A' },
                         typeFilter === key && key === 'out' && { color: '#DC2626' },
@@ -350,13 +355,13 @@ export default function TransactionsScreen() {
                   {/* Date range buttons */}
                   {showFilters && (
                     <>
-                      <TouchableOpacity style={styles.dateChip} onPress={() => openDatePicker('from')}>
-                        <Feather name="calendar" size={12} color="#747487" />
-                        <Text style={styles.dateChipText}>{fromDate ? formatDate(fromDate) : 'From'}</Text>
+                      <TouchableOpacity style={[styles.dateChip, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' }]} onPress={() => openDatePicker('from')}>
+                        <Feather name="calendar" size={12} color={isDark ? "#94A3B8" : "#747487"} />
+                        <Text style={[styles.dateChipText, isDark && { color: '#F8FAFC' }]}>{fromDate ? formatDate(fromDate) : 'From'}</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.dateChip} onPress={() => openDatePicker('to')}>
-                        <Feather name="calendar" size={12} color="#747487" />
-                        <Text style={styles.dateChipText}>{toDate ? formatDate(toDate) : 'To'}</Text>
+                      <TouchableOpacity style={[styles.dateChip, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' }]} onPress={() => openDatePicker('to')}>
+                        <Feather name="calendar" size={12} color={isDark ? "#94A3B8" : "#747487"} />
+                        <Text style={[styles.dateChipText, isDark && { color: '#F8FAFC' }]}>{toDate ? formatDate(toDate) : 'To'}</Text>
                       </TouchableOpacity>
                       {(fromDate || toDate) && (
                         <TouchableOpacity onPress={() => { setFromDate(null); setToDate(null); }}>
@@ -400,12 +405,12 @@ export default function TransactionsScreen() {
                       <View style={{ width: '100%', height: 100, backgroundColor: '#E2E8F0', borderRadius: 20 }} />
                     </View>
                   ) : (
-                    <View style={styles.emptyListCard}>
-                      <View style={{ width: 64, height: 64, backgroundColor: '#EFF6FF', borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                    <View style={[styles.emptyListCard, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
+                      <View style={{ width: 64, height: 64, backgroundColor: isDark ? 'rgba(45,140,255,0.2)' : '#EFF6FF', borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                         <Text style={{ fontSize: 32 }}>💸</Text>
                       </View>
-                      <Text style={styles.emptyListTitle}>No transactions yet</Text>
-                      <Text style={styles.emptyListText}>Your cashbook is empty. Record your first expense or income to get started.</Text>
+                      <Text style={[styles.emptyListTitle, isDark && { color: '#F8FAFC' }]}>No transactions yet</Text>
+                      <Text style={[styles.emptyListText, isDark && { color: '#94A3B8' }]}>Your cashbook is empty. Record your first expense or income to get started.</Text>
                       
                       {(!activeBook || activeBook.memberRole !== 'VIEWER') && (
                         <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
@@ -434,41 +439,51 @@ export default function TransactionsScreen() {
                     {filteredTransactions.length > PAGE_SIZE && (
                       <View style={styles.paginationRow}>
                         <TouchableOpacity
-                          style={[styles.pageBtn, currentPage === 1 && styles.pageBtnDisabled]}
+                          style={[styles.pageBtn, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' }, currentPage === 1 && styles.pageBtnDisabled]}
                           onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
                           disabled={currentPage === 1}
                         >
                           <Feather name="chevron-left" size={16} color={currentPage === 1 ? '#CBD5E1' : '#2D8CFF'} />
-                          <Text style={[styles.pageBtnText, currentPage === 1 && styles.pageBtnTextDisabled]}>Prev</Text>
+                          <Text style={[styles.pageBtnText, isDark && { color: '#F8FAFC' }, currentPage === 1 && styles.pageBtnTextDisabled]}>Prev</Text>
                         </TouchableOpacity>
 
                         <View style={styles.pageIndicator}>
-                          <Text style={styles.pageIndicatorText}>
+                          <Text style={[styles.pageIndicatorText, isDark && { color: '#F8FAFC' }]}>
                             {currentPage} / {totalPages}
                           </Text>
-                          <Text style={styles.pageIndicatorSub}>
+                          <Text style={[styles.pageIndicatorSub, isDark && { color: '#94A3B8' }]}>
                             {filteredTransactions.length} total
                           </Text>
                         </View>
 
                         <TouchableOpacity
-                          style={[styles.pageBtn, currentPage === totalPages && styles.pageBtnDisabled]}
+                          style={[styles.pageBtn, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)' }, currentPage === totalPages && styles.pageBtnDisabled]}
                           onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                           disabled={currentPage === totalPages}
                         >
-                          <Text style={[styles.pageBtnText, currentPage === totalPages && styles.pageBtnTextDisabled]}>Next</Text>
+                          <Text style={[styles.pageBtnText, isDark && { color: '#F8FAFC' }, currentPage === totalPages && styles.pageBtnTextDisabled]}>Next</Text>
                           <Feather name="chevron-right" size={16} color={currentPage === totalPages ? '#CBD5E1' : '#2D8CFF'} />
                         </TouchableOpacity>
                       </View>
                     )}
 
                     {/* Export card */}
-                    <View style={styles.exportCard}>
-                      <Text style={styles.exportTitle}>Export & Reports</Text>
+                    <View style={[styles.exportCard, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}>
+                      <Text style={[styles.exportTitle, isDark && { color: '#F8FAFC' }]}>Export & Reports</Text>
                       <View style={styles.exportBtns}>
-                        <TouchableOpacity style={[styles.exportBtn, { flex: 1, backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => exportModalRef.current?.present()}>
-                          <Feather name="download" size={16} color="#2D8CFF" />
-                          <Text style={[styles.exportBtnText, { color: '#2D8CFF' }]}>Export Transactions</Text>
+                        <TouchableOpacity
+                          style={[
+                            styles.exportBtn,
+                            {
+                              flex: 1,
+                              backgroundColor: isDark ? 'rgba(45, 140, 255, 0.18)' : '#EFF6FF',
+                              borderColor: isDark ? 'rgba(45, 140, 255, 0.35)' : '#BFDBFE'
+                            }
+                          ]}
+                          onPress={() => exportModalRef.current?.present()}
+                        >
+                          <Feather name="download" size={16} color={isDark ? '#60A5FA' : '#2D8CFF'} />
+                          <Text style={[styles.exportBtnText, { color: isDark ? '#60A5FA' : '#2D8CFF' }]}>Export Transactions</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -536,8 +551,8 @@ export default function TransactionsScreen() {
       {/* Invoice Menu Tooltip */}
       <Modal visible={!!invoiceMenuTx} transparent animationType="fade" onRequestClose={() => setInvoiceMenuTx(null)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setInvoiceMenuTx(null)} />
-        <View style={styles.tooltipMenu}>
-          <Text style={styles.tooltipTitle}>Transaction Options</Text>
+        <View style={[styles.tooltipMenu, isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }]}>
+          <Text style={[styles.tooltipTitle, isDark && { color: '#94A3B8', borderBottomColor: 'rgba(255,255,255,0.1)' }]}>Transaction Options</Text>
           <TouchableOpacity style={styles.menuItem} onPress={async () => {
             const tx = invoiceMenuTx;
             setInvoiceMenuTx(null);
@@ -555,8 +570,8 @@ export default function TransactionsScreen() {
               }
             }, 500);
           }}>
-            <Feather name="share-2" size={18} color="#232333" />
-            <Text style={styles.menuText}>Share Receipt Image</Text>
+            <Feather name="share-2" size={18} color={isDark ? '#F8FAFC' : '#232333'} />
+            <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>Share Receipt Image</Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.menuItem} onPress={async () => {
@@ -564,8 +579,8 @@ export default function TransactionsScreen() {
             setInvoiceMenuTx(null);
             await generateInvoicePdf(activeBook, [tx]);
           }}>
-            <Feather name="download" size={18} color="#232333" />
-            <Text style={styles.menuText}>Download PDF</Text>
+            <Feather name="download" size={18} color={isDark ? '#F8FAFC' : '#232333'} />
+            <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>Download PDF</Text>
           </TouchableOpacity>
         </View>
       </Modal>
@@ -637,12 +652,13 @@ const styles = StyleSheet.create({
 
   // Summary strip
   summaryStrip: {
-    flexDirection: 'row', marginHorizontal: 20, marginBottom: 12,
-    backgroundColor: '#fff', borderRadius: 16, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+    flexDirection: 'row', marginHorizontal: 20, marginBottom: 16,
+    backgroundColor: '#fff', borderRadius: 24, padding: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04, shadowRadius: 16, elevation: 2,
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.02)',
   },
-  summaryItem: { flex: 1, alignItems: 'center' },
+  summaryItem: { flex: 1, alignItems: 'center', paddingHorizontal: 6 },
   summaryLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 },
   summaryVal: { fontSize: 15, fontWeight: '700', letterSpacing: -0.3 },
   summaryDivider: { width: 1, backgroundColor: '#E5E7EB', marginVertical: 4 },

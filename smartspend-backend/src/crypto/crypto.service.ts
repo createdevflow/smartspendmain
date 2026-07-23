@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -6,8 +7,8 @@ export class CryptoService {
   private readonly masterKey: Buffer;
   private readonly algorithm = 'aes-256-gcm';
 
-  constructor() {
-    const keyHex = process.env.SERVER_ENCRYPTION_KEY;
+  constructor(private readonly config: ConfigService) {
+    const keyHex = this.config.get<string>('crypto.serverKey');
     if (!keyHex || keyHex.length !== 64) {
       throw new Error('SERVER_ENCRYPTION_KEY must be exactly 32 bytes (64 hex chars). Generate with: openssl rand -hex 32');
     }

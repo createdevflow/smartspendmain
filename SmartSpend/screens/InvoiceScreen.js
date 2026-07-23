@@ -8,6 +8,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useAppTheme } from '../context/ThemeContext';
 import { useInvoice } from '../context/InvoiceContext';
 import InvoiceCard from '../components/invoice/InvoiceCard';
 import { TourStep, useTourGuide } from '../components/onboarding/TourGuide';
@@ -24,7 +25,7 @@ const FILTERS = [
   { key: 'CANCELLED', label: 'Cancelled' },
 ];
 
-function StatCard({ label, value, color, bg }) {
+function StatCard({ label, value, color, bg, styles }) {
   return (
     <View style={[styles.statCard, { backgroundColor: bg }]}>
       <Text style={[styles.statLabel, { color }]}>{label}</Text>
@@ -36,6 +37,8 @@ function StatCard({ label, value, color, bg }) {
 }
 
 export default function InvoiceScreen() {
+  const { isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(isDark), [isDark]);
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
@@ -165,16 +168,16 @@ export default function InvoiceScreen() {
         )}
 
         {/* Stats */}
-        <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+        <View style={{ marginHorizontal: 20, marginBottom: 16 }}>
           <TourStep id="invoice_stats">
             <View style={[styles.statsGrid, { paddingHorizontal: 0, marginBottom: 0 }]}>
               <View style={styles.statsGridRow}>
-                <StatCard label="Revenue" value={fmtExact(summaryStats.totalRevenue)} color="#15803D" bg="#DCFCE7" />
-                <StatCard label="Pending" value={fmtExact(summaryStats.totalPending)} color="#B45309" bg="#FEF3C7" />
+                <StatCard label="Revenue" value={fmtExact(summaryStats.totalRevenue)} color={isDark ? '#4ADE80' : '#15803D'} bg={isDark ? 'rgba(74,222,128,0.1)' : '#DCFCE7'} styles={styles} />
+                <StatCard label="Pending" value={fmtExact(summaryStats.totalPending)} color={isDark ? '#FBBF24' : '#B45309'} bg={isDark ? 'rgba(251,191,36,0.1)' : '#FEF3C7'} styles={styles} />
               </View>
               <View style={styles.statsGridRow}>
-                <StatCard label="Overdue" value={fmtExact(summaryStats.totalOverdue)} color="#B91C1C" bg="#FEE2E2" />
-                <StatCard label="Total" value={String(summaryStats.total)} color="#2D8CFF" bg="#DBEAFE" />
+                <StatCard label="Overdue" value={fmtExact(summaryStats.totalOverdue)} color={isDark ? '#F87171' : '#B91C1C'} bg={isDark ? 'rgba(248,113,113,0.1)' : '#FEE2E2'} styles={styles} />
+                <StatCard label="Total" value={String(summaryStats.total)} color={isDark ? '#60A5FA' : '#2D8CFF'} bg={isDark ? 'rgba(96,165,250,0.1)' : '#DBEAFE'} styles={styles} />
               </View>
             </View>
           </TourStep>
@@ -239,7 +242,7 @@ export default function InvoiceScreen() {
             )}
           </View>
         ) : (
-          <>
+          <View style={{ paddingHorizontal: 20 }}>
             {paginatedInvoices.map(invoice => (
               <InvoiceCard
                 key={invoice.id}
@@ -250,7 +253,6 @@ export default function InvoiceScreen() {
                 onDuplicate={() => handleDuplicate(invoice)}
               />
             ))}
-
             {totalPages > 1 && (
               <View style={styles.paginationRow}>
                 <TouchableOpacity
@@ -276,7 +278,7 @@ export default function InvoiceScreen() {
                 </TouchableOpacity>
               </View>
             )}
-          </>
+          </View>
         )}
       </ScrollView>
 
@@ -297,55 +299,55 @@ export default function InvoiceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F1F1F6' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
-  title: { fontSize: 24, fontWeight: '800', color: '#12131A', letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: '#8A8D99', marginTop: 2 },
+const getStyles = (isDark) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: isDark ? '#0F172A' : '#F7F9FC' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
+  title: { fontSize: 24, fontWeight: '800', color: isDark ? '#F8FAFC' : '#232333', letterSpacing: -0.5 },
+  subtitle: { fontSize: 13, color: isDark ? '#94A3B8' : '#747487', marginTop: 2 },
   headerActions: { flexDirection: 'row', gap: 10 },
-  headerBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
+  headerBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: isDark ? 'rgba(45,140,255,0.15)' : '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
 
   profileBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12,
-    borderWidth: 1, borderColor: '#FDE68A',
+    marginHorizontal: 20, marginBottom: 12,
+    backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#FEF3C7', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: isDark ? 'rgba(245,158,11,0.3)' : '#FDE68A',
   },
-  profileBannerText: { flex: 1, fontSize: 13, color: '#92400E', fontWeight: '600' },
+  profileBannerText: { flex: 1, fontSize: 13, color: isDark ? '#FCD34D' : '#92400E', fontWeight: '600' },
 
   statsGrid: { paddingHorizontal: 16, marginBottom: 16, gap: 8 },
   statsGridRow: { flexDirection: 'row', gap: 8 },
-  statCard: { flex: 1, borderRadius: 16, padding: 16, alignItems: 'flex-start', justifyContent: 'center' },
+  statCard: { flex: 1, borderRadius: 20, padding: 20, alignItems: 'flex-start', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)' },
   statLabel: { fontSize: 13, fontWeight: '700', marginBottom: 6, opacity: 0.8 },
-  statValue: { fontSize: 22, fontWeight: '900' },
+  statValue: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
 
-  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E4E4EC', borderRadius: 10, paddingHorizontal: 12, height: 40, marginHorizontal: 16, marginBottom: 12, gap: 8 },
-  searchInput: { flex: 1, fontSize: 14, color: '#12131A', padding: 0 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderWidth: 1.5, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB', borderRadius: 16, paddingHorizontal: 16, height: 48, marginHorizontal: 20, marginBottom: 12, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 1 },
+  searchInput: { flex: 1, fontSize: 15, color: isDark ? '#F8FAFC' : '#232333', padding: 0 },
 
-  filtersRow: { paddingHorizontal: 16, paddingBottom: 12, gap: 8 },
-  filterPill: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1, borderColor: '#E4E4EC' },
-  filterPillActive: { backgroundColor: '#2D8CFF', borderColor: '#2D8CFF' },
-  filterText: { fontSize: 13, color: '#747487', fontWeight: '600' },
-  filterTextActive: { color: '#FFFFFF', fontWeight: '700' },
+  filtersRow: { paddingHorizontal: 20, paddingBottom: 16, gap: 8 },
+  filterPill: { paddingHorizontal: 18, paddingVertical: 10, backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderRadius: 24, borderWidth: 1.5, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
+  filterPillActive: { backgroundColor: isDark ? 'rgba(45,140,255,0.3)' : '#EFF6FF', borderColor: isDark ? '#2D8CFF' : '#2D8CFF' },
+  filterText: { fontSize: 13, color: isDark ? '#94A3B8' : '#747487', fontWeight: '600' },
+  filterTextActive: { color: isDark ? '#2D8CFF' : '#2D8CFF', fontWeight: '700' },
 
   list: { flex: 1 },
-  listContent: { paddingBottom: 100, paddingHorizontal: 16 },
+  listContent: { paddingBottom: 100 },
 
-  emptyState: { alignItems: 'center', paddingVertical: 60 },
+  emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 20 },
   emptyEmoji: { fontSize: 52, marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: '#12131A', marginBottom: 8 },
-  emptyText: { fontSize: 14, color: '#8A8D99', textAlign: 'center', lineHeight: 22, marginBottom: 24, paddingHorizontal: 24 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: isDark ? '#F8FAFC' : '#232333', marginBottom: 8 },
+  emptyText: { fontSize: 14, color: isDark ? '#94A3B8' : '#747487', textAlign: 'center', lineHeight: 22, marginBottom: 24, paddingHorizontal: 24 },
   emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#2D8CFF', borderRadius: 14, paddingHorizontal: 24, paddingVertical: 14 },
   emptyBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 
   fab: { position: 'absolute', right: 16, backgroundColor: '#2D8CFF', borderRadius: 28, height: 56, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#2D8CFF', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6 },
   fabText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 
-  paginationRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 20, paddingHorizontal: 4 },
-  pageBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#E4E4EC' },
-  pageBtnDisabled: { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' },
+  paginationRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 20, paddingHorizontal: 20 },
+  pageBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isDark ? '#1E293B' : '#FFFFFF', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E4E4EC' },
+  pageBtnDisabled: { backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' },
   pageBtnText: { fontSize: 14, fontWeight: '700', color: '#2D8CFF' },
-  pageIndicator: { backgroundColor: '#DBEAFE', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
+  pageIndicator: { backgroundColor: isDark ? 'rgba(45,140,255,0.15)' : '#DBEAFE', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
   pageText: { fontSize: 13, color: '#2D8CFF' },
   pageBold: { fontWeight: '800' },
 });

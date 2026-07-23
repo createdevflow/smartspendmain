@@ -89,6 +89,8 @@ const FEATURE_HIGHLIGHTS = [
   { icon: '📤', title: 'One-tap export', desc: 'PDF/CSV from any screen, any time' },
   { icon: '👥', title: 'Shared access', desc: 'Collaborate on cashbooks with team roles' },
   { icon: '🔒', title: 'Bank-grade security', desc: 'End-to-end encrypted, always private' },
+  { icon: '🔌', title: 'API Integrations', desc: 'Connect with third-party tools seamlessly' },
+  { icon: '🧾', title: 'Smart Scanner', desc: 'Auto-extract data from photos and PDFs instantly' },
 ];
 
 export default function EcosystemSection() {
@@ -104,23 +106,15 @@ export default function EcosystemSection() {
 
       <div className="max-w-7xl mx-auto px-5 md:px-10 relative z-10">
         {/* Header */}
-        <div className="text-center mb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-semibold px-5 py-2.5 rounded-full mb-6"
-          >
-            🔗 The Connected Financial OS
-          </motion.div>
+        <div className="text-center mb-20 relative z-10">
           <motion.h2
             initial={{ opacity: 0, y: 24 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-4xl md:text-5xl xl:text-6xl font-black text-white tracking-tight mb-5"
+            className="text-4xl md:text-5xl xl:text-6xl font-black text-white tracking-tight mb-6"
           >
             Everything{' '}
-            <span style={{ background: 'linear-gradient(135deg, #2D8CFF, #F26D21)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+            <span style={{ background: 'linear-gradient(135deg, #2D8CFF, #8B5CF6, #F26D21)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
               talks to everything.
             </span>
           </motion.h2>
@@ -128,9 +122,9 @@ export default function EcosystemSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-slate-400 text-xl max-w-2xl mx-auto leading-relaxed"
+            className="text-slate-300 text-lg md:text-xl max-w-3xl mx-auto leading-relaxed"
           >
-            Cashtro isn&apos;t a collection of tools — it&apos;s an interconnected financial workspace where every module enriches the others.
+            Cashtro isn&apos;t a collection of tools — it&apos;s an interconnected financial workspace where every module enriches the others to provide a seamless experience.
           </motion.p>
         </div>
 
@@ -309,19 +303,19 @@ export default function EcosystemSection() {
           </div>
 
           {/* ── Feature highlights grid ── */}
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {FEATURE_HIGHLIGHTS.map((f, i) => (
               <motion.div
                 key={f.title}
-                initial={{ opacity: 0, x: 30 }}
-                animate={inView ? { opacity: 1, x: 0 } : {}}
-                transition={{ duration: 0.5, delay: 0.3 + i * 0.1 }}
-                className="flex items-start gap-4 p-5 rounded-2xl bg-white/5 border border-white/8 hover:bg-white/8 hover:border-white/15 transition-all group"
+                initial={{ opacity: 0, y: 20 }}
+                animate={inView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5, delay: 0.3 + i * 0.05 }}
+                className="flex items-start gap-4 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md hover:bg-white/10 hover:border-white/20 transition-all duration-300 group shadow-lg hover:shadow-blue-500/10"
               >
-                <div className="text-2xl flex-shrink-0 group-hover:scale-110 transition-transform">{f.icon}</div>
+                <div className="text-3xl flex-shrink-0 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 drop-shadow-md">{f.icon}</div>
                 <div>
-                  <div className="text-white font-bold text-sm mb-1">{f.title}</div>
-                  <div className="text-slate-400 text-sm leading-relaxed">{f.desc}</div>
+                  <div className="text-white font-bold text-[15px] mb-1.5">{f.title}</div>
+                  <div className="text-slate-400 text-[13px] leading-relaxed">{f.desc}</div>
                 </div>
               </motion.div>
             ))}
@@ -341,11 +335,11 @@ export default function EcosystemSection() {
             { val: '< 1s', label: 'Cross-module Sync' },
             { val: '100%', label: 'Data Stays Private' },
           ].map(s => (
-            <div key={s.label} className="text-center p-5 rounded-2xl bg-white/4 border border-white/8">
-              <div className="text-3xl font-black text-white mb-1" style={{ background: 'linear-gradient(135deg, #2D8CFF, #F26D21)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+            <div key={s.label} className="text-center p-6 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl hover:bg-white/10 transition-colors duration-300">
+              <div className="text-4xl font-black text-white mb-2 drop-shadow-lg" style={{ background: 'linear-gradient(135deg, #2D8CFF, #F26D21)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                 {s.val}
               </div>
-              <div className="text-slate-400 text-sm font-medium">{s.label}</div>
+              <div className="text-slate-300 text-sm font-semibold tracking-wide uppercase">{s.label}</div>
             </div>
           ))}
         </motion.div>

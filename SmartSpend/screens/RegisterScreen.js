@@ -8,6 +8,7 @@ import { AuthContext } from '../context/AuthContext';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CountryPicker } from 'react-native-country-codes-picker';
 
 const PasswordHint = ({ met, text }) => (
   <View style={styles.hintRow}>
@@ -24,6 +25,10 @@ export default function RegisterScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [callingCode, setCallingCode] = useState('+91');
+  const [flag, setFlag] = useState('🇮🇳');
 
   const emailRef = useRef(null);
   const phoneRef = useRef(null);
@@ -52,10 +57,19 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
+    if (!agreed) {
+      Alert.alert('Agreement Required', 'You must agree to the Terms of Service and Privacy Policy to create an account.');
+      return;
+    }
+
     Keyboard.dismiss();
     setLoading(true);
+    
+    // Format full phone number
+    const fullPhone = `${callingCode}${trimmedPhone.replace(/^\+/, '')}`; // remove leading + if user typed it
+    
     try {
-      await register(trimmedName, trimmedEmail, trimmedPhone, trimmedPass);
+      await register(trimmedName, trimmedEmail, fullPhone, trimmedPass);
       navigation.navigate('Otp', { email: trimmedEmail, purpose: 'email_verify' });
     } catch (e) {
       let rawMsg = e.response?.data?.message || e.response?.data?.error;
@@ -143,12 +157,35 @@ export default function RegisterScreen({ navigation }) {
                 </View>
 
                 {/* Phone */}
-                <View style={styles.inputContainer}>
-                  <Feather name="phone" size={20} color="#94A3B8" style={styles.inputIcon} />
+                <View style={[styles.inputContainer, { paddingLeft: 8 }]}>
+                  <TouchableOpacity 
+                    onPress={() => setShowCountryPicker(true)}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 }}
+                  >
+                    <Text style={{ fontSize: 16 }}>{flag} {callingCode}</Text>
+                    <Feather name="chevron-down" size={16} color="#94A3B8" style={{ marginLeft: 4 }} />
+                  </TouchableOpacity>
+                  
+                  <CountryPicker
+                    show={showCountryPicker}
+                    pickerButtonOnPress={(item) => {
+                      setCallingCode(item.dial_code);
+                      setFlag(item.flag);
+                      setShowCountryPicker(false);
+                    }}
+                    onBackdropPress={() => setShowCountryPicker(false)}
+                    style={{
+                      modal: { height: 500 },
+                      textInput: { paddingHorizontal: 12, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8 },
+                      countryButtonStyles: { backgroundColor: '#F8FAFC', borderRadius: 8, marginVertical: 4 }
+                    }}
+                  />
+
+                  <View style={{ width: 1, height: 24, backgroundColor: '#E2E8F0', marginHorizontal: 8 }} />
                   <TextInput
                     ref={phoneRef}
-                    style={styles.input}
-                    placeholder="Phone (e.g. +919876543210)"
+                    style={[styles.input, { flex: 1, paddingLeft: 0 }]}
+                    placeholder="Mobile Number"
                     placeholderTextColor="#94A3B8"
                     keyboardType="phone-pad"
                     textContentType="telephoneNumber"
@@ -196,6 +233,23 @@ export default function RegisterScreen({ navigation }) {
                     <PasswordHint met={hasSpecial} text="Special character (@$!%*?&)" />
                   </View>
                 )}
+
+                {/* Terms and Privacy Checkbox */}
+                <TouchableOpacity 
+                  activeOpacity={0.8} 
+                  onPress={() => setAgreed(!agreed)}
+                  style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 24, marginBottom: 12, paddingHorizontal: 4 }}
+                >
+                  <View style={{ width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: agreed ? '#2D8CFF' : '#CBD5E1', backgroundColor: agreed ? '#2D8CFF' : 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 10, marginTop: 2 }}>
+                    {agreed && <Feather name="check" size={14} color="#FFF" />}
+                  </View>
+                  <Text style={{ flex: 1, fontSize: 13, color: '#64748B', lineHeight: 20 }}>
+                    I agree to the{' '}
+                    <Text style={{ color: '#2D8CFF', fontWeight: '600' }} onPress={() => navigation.navigate('LegalWebView', { url: 'https://cashtro.in/documents/terms', title: 'Terms of Service' })}>Terms of Service</Text>,{' '}
+                    <Text style={{ color: '#2D8CFF', fontWeight: '600' }} onPress={() => navigation.navigate('LegalWebView', { url: 'https://cashtro.in/documents/privacy', title: 'Privacy Policy' })}>Privacy Policy</Text>, and{' '}
+                    <Text style={{ color: '#2D8CFF', fontWeight: '600' }} onPress={() => navigation.navigate('LegalWebView', { url: 'https://cashtro.in/data-retention', title: 'Data Collection Practices' })}>Data Collection Practices</Text>.
+                  </Text>
+                </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.registerBtn, loading && styles.btnDisabled]}

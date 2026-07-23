@@ -9,6 +9,7 @@ import OptimizedImage from '../components/OptimizedImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useAppTheme } from '../context/ThemeContext';
 import * as ImagePicker from 'expo-image-picker';
 
 import { useInvoice } from '../context/InvoiceContext';
@@ -17,6 +18,8 @@ import { useFeatureAccess } from '../hooks/useFeatureAccess';
 const TABS = ['Business Profile', 'Preferences'];
 
 export default function InvoiceSettingsScreen() {
+  const { isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(isDark), [isDark]);
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { bizProfile, settings, saveBusinessProfile, saveInvoiceSettings } = useInvoice();
@@ -228,6 +231,8 @@ export default function InvoiceSettingsScreen() {
 }
 
 function SField({ label, value, onChange, placeholder, multiline, keyboardType, autoCapitalize, maxLength }) {
+  const { isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(isDark), [isDark]);
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -246,43 +251,43 @@ function SField({ label, value, onChange, placeholder, multiline, keyboardType, 
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F1F1F6' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#FFFFFF' },
+const getStyles = (isDark) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: isDark ? '#0F172A' : '#F1F1F6' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: isDark ? '#1E293B' : '#FFFFFF' },
   backBtn: { padding: 4, marginRight: 12 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#12131A' },
-  tabRow: { flexDirection: 'row', backgroundColor: '#FFFFFF', paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: isDark ? '#F8FAFC' : '#12131A' },
+  tabRow: { flexDirection: 'row', backgroundColor: isDark ? '#1E293B' : '#FFFFFF', paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabActive: { borderBottomColor: '#2D8CFF' },
-  tabText: { fontSize: 14, fontWeight: '600', color: '#747487' },
+  tabText: { fontSize: 14, fontWeight: '600', color: isDark ? '#94A3B8' : '#747487' },
   tabTextActive: { color: '#2D8CFF', fontWeight: '700' },
   body: { flex: 1 },
-  section: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 20 },
-  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#12131A', marginBottom: 16, textTransform: 'uppercase', letterSpacing: 0.5 },
+  section: { backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB', marginBottom: 20 },
+  sectionTitle: { fontSize: 14, fontWeight: '800', color: isDark ? '#F8FAFC' : '#12131A', marginBottom: 16, textTransform: 'uppercase', letterSpacing: 0.5 },
   divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 20, marginHorizontal: -16 },
   row: { flexDirection: 'row' },
   fieldWrap: { marginBottom: 16 },
-  fieldLabel: { fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 },
-  fieldInput: { backgroundColor: '#FAFAFA', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#12131A', borderWidth: 1.5, borderColor: '#E5E7EB' },
+  fieldLabel: { fontSize: 12, fontWeight: '700', color: isDark ? '#F8FAFC' : '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 },
+  fieldInput: { backgroundColor: '#FAFAFA', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: isDark ? '#F8FAFC' : '#12131A', borderWidth: 1.5, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' },
   imagePickerRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  logoPicker: { width: 80, height: 80, borderRadius: 16, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderStyle: 'dashed', overflow: 'hidden' },
+  logoPicker: { width: 80, height: 80, borderRadius: 16, backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB', borderStyle: 'dashed', overflow: 'hidden' },
   logoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  logoText: { fontSize: 10, color: '#9CA3AF', marginTop: 4, fontWeight: '600' },
+  logoText: { fontSize: 10, color: isDark ? '#64748B' : '#9CA3AF', marginTop: 4, fontWeight: '600' },
   logoImg: { width: '100%', height: '100%' },
-  imageHelpTitle: { fontSize: 14, fontWeight: '700', color: '#12131A', marginBottom: 4 },
-  imageHelpText: { fontSize: 12, color: '#747487', lineHeight: 18 },
+  imageHelpTitle: { fontSize: 14, fontWeight: '700', color: isDark ? '#F8FAFC' : '#12131A', marginBottom: 4 },
+  imageHelpText: { fontSize: 12, color: isDark ? '#94A3B8' : '#747487', lineHeight: 18 },
   signatureWrap: { alignItems: 'flex-start' },
-  sigPicker: { width: '100%', height: 100, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderStyle: 'dashed', borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  sigPlaceholderText: { fontSize: 13, color: '#9CA3AF', fontWeight: '600' },
+  sigPicker: { width: '100%', height: 100, backgroundColor: isDark ? '#0F172A' : '#F9FAFB', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB', borderStyle: 'dashed', borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  sigPlaceholderText: { fontSize: 13, color: isDark ? '#64748B' : '#9CA3AF', fontWeight: '600' },
   sigImg: { width: '100%', height: '100%' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  switchTitle: { fontSize: 15, fontWeight: '700', color: '#12131A', marginBottom: 4 },
-  switchSub: { fontSize: 12, color: '#747487' },
+  switchTitle: { fontSize: 15, fontWeight: '700', color: isDark ? '#F8FAFC' : '#12131A', marginBottom: 4 },
+  switchSub: { fontSize: 12, color: isDark ? '#94A3B8' : '#747487' },
   previewBox: { backgroundColor: '#EFF6FF', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#BFDBFE', marginTop: 8, marginBottom: 16 },
   previewLabel: { fontSize: 11, fontWeight: '800', color: '#1E40AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   previewValue: { fontSize: 18, fontWeight: '800', color: '#232333', fontFamily: 'monospace', marginBottom: 8 },
   previewNote: { fontSize: 12, color: '#3B82F6', lineHeight: 16 },
-  bottomSave: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E5E7EB' },
+  bottomSave: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: isDark ? '#1E293B' : '#FFFFFF', paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E5E7EB' },
   saveBtn: { backgroundColor: '#2D8CFF', borderRadius: 14, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
 });

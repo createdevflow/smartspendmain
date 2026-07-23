@@ -38,7 +38,7 @@ async function bootstrap() {
 
 
   const config = app.get(ConfigService);
-  const port = config.get<number>('PORT', 3000);
+  const port = 3010; // Forced port to avoid local conflicts
   const corsOrigins = config.get<string>('CORS_ORIGINS', '').split(',').filter(Boolean);
 
   // ── Security ────────────────────────────────────────────────────

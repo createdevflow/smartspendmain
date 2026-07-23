@@ -7,6 +7,7 @@ import { AuditAction } from '@prisma/client';
 import { CacheService } from '../cache/cache.service';
 import { MediaCleanupService } from '../media/media.cleanup.service';
 import { MediaStorageProvider } from '../media/media.storage';
+import { AuditService } from '../audit/audit.service';
 
 // ── Feature toggle keys for AppConfig ───────────────────────────────────────
 export const APP_FEATURE_KEYS = [
@@ -63,6 +64,9 @@ export const APP_FEATURE_KEYS = [
   'ai_max_prompt_length',
   'ai_credit_cost_ocr',
   'ai_credit_cost_insight',
+  'ai_credit_cost_chat',
+  'ai_credit_cost_note_analysis',
+  'ai_credit_cost_mini_insight',
   'ai_safety_harassment',
   'ai_safety_hate',
   'ai_safety_dangerous',
@@ -77,6 +81,7 @@ export class AdminService {
     private cache: CacheService,
     private mediaCleanup: MediaCleanupService,
     private mediaStorage: MediaStorageProvider,
+    private audit: AuditService,
   ) {}
 
   // ── Dashboard ────────────────────────────────────────────────────────────────
@@ -489,16 +494,25 @@ export class AdminService {
     return { message: 'Password changed and all sessions revoked' };
   }
 
-  async impersonateUser(id: string) {
+  async impersonateUser(id: string, adminId: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
     if (user.deletedAt) throw new BadRequestException('Cannot impersonate a deleted user');
-    const payload = { sub: user.id, email: user.email, role: user.role, plan: user.planId };
+    // Include impersonated claim so middleware/guards can detect and restrict impersonated sessions
+    const payload = { sub: user.id, email: user.email, role: user.role, plan: user.planId, impersonated: true, impersonatedBy: adminId };
     // Short-lived impersonation token (15 minutes)
     const accessToken = this.jwt.sign(payload, {
       secret: this.config.get<string>('jwt.accessSecret'),
       expiresIn: '15m',
     });
+    // Audit log — immutable record of who impersonated whom
+    await this.audit.log({
+      userId: adminId,
+      action: 'IMPERSONATE_USER' as any,
+      entity: 'User',
+      entityId: id,
+      metadata: { targetEmail: user.email, targetId: id },
+    }).catch(() => {}); // never fail on audit
     return { accessToken, user: { id: user.id, email: user.email, fullName: user.fullName } };
   }
 
@@ -822,8 +836,29 @@ export class AdminService {
 
   // ── System Settings ──────────────────────────────────────────────────────────
 
+  // Keys whose values must never be returned to the client in plaintext
+  private readonly SENSITIVE_CONFIG_KEYS = [
+    'gemini_api_key',
+    'smtp_pass',
+    'smtp_user',
+    'minio_secret_key',
+    'minio_access_key',
+    'db_password',
+    'server_encryption_key',
+    'jwt_access_secret',
+    'jwt_refresh_secret',
+    'super_admin_password',
+  ];
+
   async getSettings() {
-    return this.prisma.appConfig.findMany({ orderBy: { key: 'asc' } });
+    const settings = await this.prisma.appConfig.findMany({ orderBy: { key: 'asc' } });
+    return settings.map(s => ({
+      ...s,
+      // Mask secret values — admin can update but never read them back
+      value: this.SENSITIVE_CONFIG_KEYS.includes(s.key.toLowerCase())
+        ? (s.value ? '***REDACTED***' : '')
+        : s.value,
+    }));
   }
 
   async updateSettings(settings: { key: string; value: string; description?: string }[]) {
@@ -832,6 +867,10 @@ export class AdminService {
     }
     const results: any[] = [];
     for (const setting of settings) {
+      if (setting.value === '***REDACTED***') {
+        // User didn't change the redacted secret field; keep existing
+        continue;
+      }
       const result = await this.prisma.appConfig.upsert({
         where: { key: setting.key },
         update: { value: setting.value, description: setting.description },

@@ -76,6 +76,7 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 300000 } }) // 5 per 5 min
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
   refresh(@Body() dto: RefreshTokenDto, @Ip() ip: string, @Headers('user-agent') ua: string) {
     return this.authService.refreshTokens(dto.refreshToken, ip, ua);

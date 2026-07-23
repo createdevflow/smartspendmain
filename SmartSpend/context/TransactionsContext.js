@@ -9,6 +9,27 @@ import * as FileSystem from 'expo-file-system/legacy';
 const TransactionsContext = createContext(null);
 const STORAGE_KEY = "@smartspend_transactions_v1";
 
+export function maskCurrency(num, sym = '₹', prefix = '') {
+  if (num === null || num === undefined || isNaN(num)) return `${prefix}${sym}xxx`;
+  const absNum = Math.abs(num);
+  const sign = num < 0 ? '−' : prefix;
+  if (absNum >= 100000) {
+    const str = Math.floor(absNum).toString();
+    return `${sign}${sym}${str.slice(0, 2)},xxx`;
+  } else if (absNum >= 10000) {
+    const str = Math.floor(absNum).toString();
+    return `${sign}${sym}${str.slice(0, 2)},xxx`;
+  } else if (absNum >= 1000) {
+    const str = Math.floor(absNum).toString();
+    return `${sign}${sym}${str.slice(0, 1)},xxx`;
+  } else if (absNum >= 100) {
+    const str = Math.floor(absNum).toString();
+    return `${sign}${sym}${str.slice(0, 1)}xx`;
+  } else {
+    return `${sign}${sym}xx`;
+  }
+}
+
 export function TransactionsProvider({ children }) {
   const { user } = useContext(AuthContext);
   const [transactions, setTransactions] = useState([]);
@@ -292,6 +313,7 @@ export function TransactionsProvider({ children }) {
         customCategories,
         refreshCategories,
         loading,
+        maskCurrency,
       }}
     >
       {children}

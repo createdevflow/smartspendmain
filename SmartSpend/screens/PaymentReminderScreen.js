@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, useContext } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput,
-  Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView,
+  Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Modal, Keyboard,
 } from 'react-native';
 import {
-  BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView,
+  BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView, BottomSheetTextInput,
 } from '@gorhom/bottom-sheet';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { useBooks } from '../context/BooksContext';
 import { AuthContext } from '../context/AuthContext';
+import { useAppTheme } from '../context/ThemeContext';
 import { getCurrencySymbol } from '../utils/planFeatures';
 import { api } from '../utils/api';
 
@@ -55,6 +56,7 @@ const EMPTY_FORM = {
 };
 
 export default function PaymentReminderScreen() {
+  const { isDark } = useAppTheme();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { activeBook } = useBooks();
@@ -67,15 +69,17 @@ export default function PaymentReminderScreen() {
   const [activeTab, setActiveTab] = useState('receive'); // 'receive' | 'pay'
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const sheetRef = useRef(null);
-  const snapPoints = useMemo(() => ['65%', '92%'], []);
+  const snapPoints = useMemo(() => ['85%', '96%'], []);
 
   const handleSheetChanges = useCallback((index) => {
     if (index === -1) {
       setShowDatePicker(false);
+      setShowTimePicker(false);
     }
   }, []);
 
@@ -190,7 +194,7 @@ export default function PaymentReminderScreen() {
     } finally {
       setSaving(false);
     }
-  }, [form, editingId, reminders, saveToStorage]);
+  }, [form, editingId, reminders, saveToStorage, user?.id]);
 
   const markPaid = useCallback(async (id) => {
     Alert.alert(
@@ -254,21 +258,21 @@ export default function PaymentReminderScreen() {
     const isPaid = item.status === 'paid';
     return (
       <TouchableOpacity
-        style={[styles.card, isPaid && styles.cardPaid]}
+        style={[styles.card, isPaid && styles.cardPaid, isDark && { backgroundColor: isPaid ? '#1E293B' : '#1E293B', borderColor: 'rgba(255,255,255,0.08)' }]}
         onPress={() => openEdit(item)}
         activeOpacity={0.75}
       >
         <View style={[styles.cardAccent, { backgroundColor: isPaid ? '#10B981' : activeTab === 'receive' ? '#2D8CFF' : '#EF4444' }]} />
         <View style={styles.cardBody}>
           <View style={styles.cardTop}>
-            <View style={styles.cardAvatar}>
+            <View style={[styles.cardAvatar, isDark && { backgroundColor: 'rgba(45,140,255,0.15)' }]}>
               <Text style={styles.cardAvatarText}>
                 {(item.person || '?').charAt(0).toUpperCase()}
               </Text>
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.cardPerson, isPaid && styles.textMuted]}>{item.person}</Text>
-              {!!item.note && <Text style={styles.cardNote} numberOfLines={1}>{item.note}</Text>}
+              <Text style={[styles.cardPerson, isPaid && styles.textMuted, isDark && !isPaid && { color: '#F8FAFC' }]}>{item.person}</Text>
+              {!!item.note && <Text style={[styles.cardNote, isDark && { color: '#94A3B8' }]} numberOfLines={1}>{item.note}</Text>}
               <View style={styles.cardDateRow}>
                 <Feather name="calendar" size={11} color={overdue ? '#EF4444' : '#9CA3AF'} />
                 <Text style={[styles.cardDate, overdue && styles.dateOverdue]}>{formatDate(item.dueDate)}</Text>
@@ -279,12 +283,12 @@ export default function PaymentReminderScreen() {
                 {sym}{(parseFloat(item.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </Text>
               {isPaid ? (
-                <View style={styles.paidBadge}>
+                <View style={[styles.paidBadge, isDark && { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
                   <Feather name="check-circle" size={12} color="#10B981" />
                   <Text style={styles.paidBadgeText}>Paid</Text>
                 </View>
               ) : (
-                <TouchableOpacity style={styles.markPaidBtn} onPress={() => markPaid(item.id)}>
+                <TouchableOpacity style={[styles.markPaidBtn, isDark && { backgroundColor: 'rgba(45,140,255,0.15)' }]} onPress={() => markPaid(item.id)}>
                   <Text style={styles.markPaidBtnText}>Mark Paid</Text>
                 </TouchableOpacity>
               )}
@@ -296,26 +300,26 @@ export default function PaymentReminderScreen() {
         </TouchableOpacity>
       </TouchableOpacity>
     );
-  }, [activeTab, sym, markPaid, deleteReminder, openEdit]);
+  }, [activeTab, sym, markPaid, deleteReminder, openEdit, isDark]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, isDark && { backgroundColor: '#0F172A' }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isDark && { backgroundColor: '#0F172A', borderBottomColor: 'rgba(255,255,255,0.08)' }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color="#232333" />
+          <Feather name="arrow-left" size={22} color={isDark ? '#F8FAFC' : '#232333'} />
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.headerTitle}>Payment Reminders</Text>
-          <Text style={styles.headerSub}>Track amounts to receive or pay</Text>
+          <Text style={[styles.headerTitle, isDark && { color: '#F8FAFC' }]}>Payment Reminders</Text>
+          <Text style={[styles.headerSub, isDark && { color: '#94A3B8' }]}>Track amounts to receive or pay</Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => openAdd(activeTab)}>
+        <TouchableOpacity style={[styles.addBtn, isDark && { backgroundColor: '#1E293B' }]} onPress={() => openAdd(activeTab)}>
           <Feather name="plus" size={20} color="#2D8CFF" />
         </TouchableOpacity>
       </View>
 
       {/* Tab Bar */}
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, isDark && { backgroundColor: '#0F172A', borderBottomColor: 'rgba(255,255,255,0.08)' }]}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'receive' && styles.tabActive]}
           onPress={() => setActiveTab('receive')}
@@ -334,15 +338,15 @@ export default function PaymentReminderScreen() {
 
       {/* Summary Card */}
       {totals.pendingCount > 0 && (
-        <View style={[styles.summaryCard, activeTab === 'pay' && styles.summaryCardPay]}>
+        <View style={[styles.summaryCard, activeTab === 'pay' && styles.summaryCardPay, isDark && { backgroundColor: activeTab === 'pay' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(45, 140, 255, 0.15)', borderColor: activeTab === 'pay' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(45, 140, 255, 0.3)' }]}>
           <View>
-            <Text style={styles.summaryLabel}>Total Pending</Text>
-            <Text style={styles.summaryAmount}>
+            <Text style={[styles.summaryLabel, isDark && { color: '#94A3B8' }]}>Total Pending</Text>
+            <Text style={[styles.summaryAmount, isDark && { color: '#F8FAFC' }]}>
               {sym}{totals.pendingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </Text>
           </View>
           <View style={styles.summaryRight}>
-            <Text style={styles.summaryCount}>{totals.pendingCount} reminder{totals.pendingCount !== 1 ? 's' : ''}</Text>
+            <Text style={[styles.summaryCount, isDark && { color: '#F8FAFC' }]}>{totals.pendingCount} reminder{totals.pendingCount !== 1 ? 's' : ''}</Text>
             {totals.paidCount > 0 && (
               <Text style={styles.summaryPaid}>{totals.paidCount} settled</Text>
             )}
@@ -360,10 +364,10 @@ export default function PaymentReminderScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>{activeTab === 'receive' ? '💸' : '📤'}</Text>
-            <Text style={styles.emptyTitle}>
+            <Text style={[styles.emptyTitle, isDark && { color: '#F8FAFC' }]}>
               {activeTab === 'receive' ? 'No amounts to receive' : 'No payments due'}
             </Text>
-            <Text style={styles.emptyDesc}>
+            <Text style={[styles.emptyDesc, isDark && { color: '#94A3B8' }]}>
               {activeTab === 'receive'
                 ? 'Track money others owe you — loans, dues, refunds'
                 : 'Track what you need to pay — bills, dues, loans'}
@@ -389,33 +393,41 @@ export default function PaymentReminderScreen() {
       <BottomSheetModal
         ref={sheetRef}
         index={1}
-        snapPoints={snapPoints}
-        onChange={handleSheetChanges}
         enableDynamicSizing={false}
-        keyboardBehavior={Platform.OS === 'ios' ? 'extend' : 'fillParent'}
-        keyboardBlurBehavior="none"
+        keyboardBehavior={Platform.OS === 'ios' ? 'extend' : 'interactive'}
+        keyboardBlurBehavior="restore"
         backdropComponent={(props) => (
           <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
         )}
-        handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40, height: 4 }}
-        backgroundStyle={{ borderRadius: 24, backgroundColor: '#FFFFFF' }}
+        handleIndicatorStyle={{ backgroundColor: isDark ? '#475569' : '#D1D5DB', width: 40, height: 4 }}
+        backgroundStyle={{ borderRadius: 24, backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }}
       >
-        <View style={{ flex: 1, paddingBottom: Math.max(insets.bottom, 24) }}>
-          <BottomSheetScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
-            <Text style={styles.modalTitle}>{editingId ? 'Edit Reminder' : 'New Reminder'}</Text>
+        <View style={{ flex: 1 }}>
+          <BottomSheetScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: Math.max(insets.bottom, 160) }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="always"
+          >
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, isDark && { color: '#F8FAFC' }]}>{editingId ? 'Edit Reminder' : 'New Reminder'}</Text>
+              <TouchableOpacity onPress={() => sheetRef.current?.dismiss()} style={[styles.modalCloseBtn, isDark && { backgroundColor: '#334155' }]}>
+                <Feather name="x" size={20} color={isDark ? '#F8FAFC' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
 
             {/* Type toggle */}
             {!editingId && (
-              <View style={styles.typeRow}>
+              <View style={[styles.typeRow, isDark && { backgroundColor: '#0F172A' }]}>
                 <TouchableOpacity
-                  style={[styles.typeBtn, form.type === 'receive' && styles.typeBtnReceive]}
+                  style={[styles.typeBtn, form.type === 'receive' && (isDark ? { backgroundColor: 'rgba(45,140,255,0.2)' } : styles.typeBtnReceive)]}
                   onPress={() => setForm(f => ({ ...f, type: 'receive' }))}
                 >
                   <Feather name="arrow-down-circle" size={16} color={form.type === 'receive' ? '#2D8CFF' : '#9CA3AF'} />
                   <Text style={[styles.typeBtnText, form.type === 'receive' && styles.typeBtnTextReceive]}>To Receive</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.typeBtn, form.type === 'pay' && styles.typeBtnPay]}
+                  style={[styles.typeBtn, form.type === 'pay' && (isDark ? { backgroundColor: 'rgba(239,68,68,0.2)' } : styles.typeBtnPay)]}
                   onPress={() => setForm(f => ({ ...f, type: 'pay' }))}
                 >
                   <Feather name="arrow-up-circle" size={16} color={form.type === 'pay' ? '#EF4444' : '#9CA3AF'} />
@@ -425,9 +437,9 @@ export default function PaymentReminderScreen() {
             )}
 
             <View style={styles.fieldWrap}>
-              <Text style={styles.fieldLabel}>Person / Contact</Text>
-              <TextInput
-                style={styles.fieldInput}
+              <Text style={[styles.fieldLabel, isDark && { color: '#CBD5E1' }]}>Person / Contact</Text>
+              <BottomSheetTextInput
+                style={[styles.fieldInput, isDark && { backgroundColor: '#0F172A', borderColor: 'rgba(255,255,255,0.12)', color: '#F8FAFC' }]}
                 placeholder="Name or @username"
                 placeholderTextColor="#9CA3AF"
                 value={form.person}
@@ -436,9 +448,9 @@ export default function PaymentReminderScreen() {
             </View>
 
             <View style={styles.fieldWrap}>
-              <Text style={styles.fieldLabel}>Amount ({sym})</Text>
-              <TextInput
-                style={styles.fieldInput}
+              <Text style={[styles.fieldLabel, isDark && { color: '#CBD5E1' }]}>Amount ({sym})</Text>
+              <BottomSheetTextInput
+                style={[styles.fieldInput, isDark && { backgroundColor: '#0F172A', borderColor: 'rgba(255,255,255,0.12)', color: '#F8FAFC' }]}
                 placeholder="0.00"
                 placeholderTextColor="#9CA3AF"
                 value={form.amount}
@@ -448,9 +460,9 @@ export default function PaymentReminderScreen() {
             </View>
 
             <View style={styles.fieldWrap}>
-              <Text style={styles.fieldLabel}>Note (optional)</Text>
-              <TextInput
-                style={[styles.fieldInput, { height: 72, textAlignVertical: 'top' }]}
+              <Text style={[styles.fieldLabel, isDark && { color: '#CBD5E1' }]}>Note (optional)</Text>
+              <BottomSheetTextInput
+                style={[styles.fieldInput, { height: 72, textAlignVertical: 'top' }, isDark && { backgroundColor: '#0F172A', borderColor: 'rgba(255,255,255,0.12)', color: '#F8FAFC' }]}
                 placeholder="What's this for?"
                 placeholderTextColor="#9CA3AF"
                 value={form.note}
@@ -460,23 +472,43 @@ export default function PaymentReminderScreen() {
             </View>
 
             <View style={styles.fieldWrap}>
-              <Text style={styles.fieldLabel}>Due Date (optional)</Text>
-              <TouchableOpacity
-                style={styles.datePickerBtn}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Feather name="calendar" size={16} color="#6B7280" />
-                <Text style={[styles.datePickerText, form.dueDate && { color: '#232333' }]}>
-                  {form.dueDate
-                    ? form.dueDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                    : 'Select a date'}
-                </Text>
-                {form.dueDate && (
-                  <TouchableOpacity onPress={() => setForm(f => ({ ...f, dueDate: null }))}>
-                    <Feather name="x" size={16} color="#9CA3AF" />
-                  </TouchableOpacity>
-                )}
-              </TouchableOpacity>
+              <Text style={[styles.fieldLabel, isDark && { color: '#CBD5E1' }]}>Due Date & Time (optional)</Text>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity
+                  style={[styles.datePickerBtn, { flex: 1 }, isDark && { backgroundColor: '#0F172A', borderColor: 'rgba(255,255,255,0.12)' }]}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setShowDatePicker(true);
+                  }}
+                >
+                  <Feather name="calendar" size={16} color={isDark ? '#94A3B8' : '#6B7280'} />
+                  <Text style={[styles.datePickerText, form.dueDate && { color: isDark ? '#F8FAFC' : '#1E293B' }]}>
+                    {form.dueDate
+                      ? form.dueDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : 'Select Date'}
+                  </Text>
+                  {form.dueDate && (
+                    <TouchableOpacity onPress={() => setForm(f => ({ ...f, dueDate: null }))}>
+                      <Feather name="x" size={16} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.datePickerBtn, { flex: 1 }, isDark && { backgroundColor: '#0F172A', borderColor: 'rgba(255,255,255,0.12)' }]}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setShowTimePicker(true);
+                  }}
+                >
+                  <Feather name="clock" size={16} color={isDark ? '#94A3B8' : '#6B7280'} />
+                  <Text style={[styles.datePickerText, form.dueDate && { color: isDark ? '#F8FAFC' : '#1E293B' }]}>
+                    {form.dueDate
+                      ? form.dueDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                      : 'Add Time'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -488,20 +520,80 @@ export default function PaymentReminderScreen() {
             </TouchableOpacity>
           </BottomSheetScrollView>
         </View>
-
-        {showDatePicker && (
-          <DateTimePicker
-            value={form.dueDate || new Date()}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'inline' : 'default'}
-            minimumDate={new Date()}
-            onChange={(e, date) => {
-              setShowDatePicker(Platform.OS === 'ios');
-              if (date) setForm(f => ({ ...f, dueDate: date }));
-            }}
-          />
-        )}
       </BottomSheetModal>
+
+      {/* iOS Date & Time Picker Modal */}
+      {Platform.OS === 'ios' && (showDatePicker || showTimePicker) && (
+        <Modal transparent animationType="fade" visible={true} onRequestClose={() => { setShowDatePicker(false); setShowTimePicker(false); }}>
+          <View style={styles.pickerModalOverlay}>
+            <View style={[styles.pickerModalBox, isDark && { backgroundColor: '#1E293B' }]}>
+              <View style={[styles.pickerHeader, isDark && { borderBottomColor: '#334155' }]}>
+                <Text style={[styles.pickerTitle, isDark && { color: '#F8FAFC' }]}>{showDatePicker ? 'Select Due Date' : 'Select Time'}</Text>
+                <TouchableOpacity onPress={() => { setShowDatePicker(false); setShowTimePicker(false); }}>
+                  <Text style={styles.pickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={form.dueDate || new Date()}
+                mode={showDatePicker ? 'date' : 'time'}
+                display={showDatePicker ? 'inline' : 'spinner'}
+                minimumDate={showDatePicker ? new Date() : undefined}
+                themeVariant={isDark ? "dark" : "light"}
+                textColor={isDark ? "#F8FAFC" : "#232333"}
+                accentColor="#2D8CFF"
+                onChange={(e, val) => {
+                  if (val) {
+                    const current = form.dueDate ? new Date(form.dueDate) : new Date();
+                    if (showDatePicker) {
+                      val.setHours(current.getHours(), current.getMinutes(), 0, 0);
+                    } else {
+                      current.setHours(val.getHours(), val.getMinutes(), 0, 0);
+                      val = current;
+                    }
+                    setForm(f => ({ ...f, dueDate: val }));
+                  }
+                }}
+                style={{ width: '100%', backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Android Native Date Picker */}
+      {Platform.OS === 'android' && showDatePicker && (
+        <DateTimePicker
+          value={form.dueDate || new Date()}
+          mode="date"
+          display="default"
+          minimumDate={new Date()}
+          onChange={(e, date) => {
+            setShowDatePicker(false);
+            if (e.type === 'set' && date) {
+              const current = form.dueDate ? new Date(form.dueDate) : new Date();
+              date.setHours(current.getHours(), current.getMinutes(), 0, 0);
+              setForm(f => ({ ...f, dueDate: date }));
+            }
+          }}
+        />
+      )}
+
+      {/* Android Native Time Picker */}
+      {Platform.OS === 'android' && showTimePicker && (
+        <DateTimePicker
+          value={form.dueDate || new Date()}
+          mode="time"
+          display="default"
+          onChange={(e, time) => {
+            setShowTimePicker(false);
+            if (e.type === 'set' && time) {
+              const current = form.dueDate ? new Date(form.dueDate) : new Date();
+              current.setHours(time.getHours(), time.getMinutes(), 0, 0);
+              setForm(f => ({ ...f, dueDate: current }));
+            }
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -600,7 +692,71 @@ const styles = StyleSheet.create({
   },
   fabPay: { backgroundColor: '#EF4444', shadowColor: '#EF4444' },
 
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#232333', marginBottom: 20 },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.45)' },
+  modalSheetContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 12,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalDragBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D1D5DB',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
+  modalCloseBtn: {
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+
+  pickerModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 20,
+  },
+  pickerModalBox: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    paddingBottom: 10,
+  },
+  pickerTitle: { fontSize: 16, fontWeight: '800', color: '#232333' },
+  pickerDoneText: { fontSize: 16, fontWeight: '700', color: '#2D8CFF' },
+
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#232333' },
 
   typeRow: {
     flexDirection: 'row', gap: 10, marginBottom: 20,

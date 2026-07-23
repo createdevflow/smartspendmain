@@ -2,14 +2,16 @@
 import React, { useState, useCallback, useEffect, useRef, useContext } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, RefreshControl, StatusBar, Alert, ScrollView,
+  TextInput, RefreshControl, ScrollView,
   Animated, Pressable,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useChat } from '../context/ChatContext';
 import { AuthContext } from '../context/AuthContext';
+import { useAppTheme } from '../context/ThemeContext';
 import { api } from '../utils/api';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -76,6 +78,7 @@ function ConversationItem({ item, userId, onPress, onLongPress, isOnline, lastSe
   const name = isNotes ? 'My Notes' : (item.type === 'DIRECT' ? other?.user?.fullName : item.name);
   const unread = item.unreadCount || 0;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const { isDark } = useAppTheme();
 
   const onPressIn = () => Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true }).start();
   const onPressOut = () => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
@@ -97,12 +100,12 @@ function ConversationItem({ item, userId, onPress, onLongPress, isOnline, lastSe
               {item.isPinned && <Feather name="bookmark" size={11} color="#2D8CFF" />}
               {item.isMuted && <Feather name="bell-off" size={11} color="#9CA3AF" />}
               {isNotes && <Feather name="book-open" size={11} color="#2D8CFF" />}
-              <Text style={[styles.convName, unread > 0 && styles.convNameUnread]} numberOfLines={1}>
+              <Text style={[styles.convName, isDark && { color: '#F8FAFC' }, unread > 0 && styles.convNameUnread]} numberOfLines={1}>
                 {name || 'Unknown'}
               </Text>
             </View>
-            <Text style={[styles.convTime, unread > 0 && styles.convTimeUnread]}>
-              {formatTime(item.lastMessageAt)}
+            <Text style={[styles.convTime, unread > 0 && styles.convTimeUnread, isDark && unread === 0 && { color: '#64748B' }]}>
+              {formatTime(item.lastMessageAt || item.updatedAt)}
             </Text>
           </View>
           <View style={styles.convRow}>
@@ -152,6 +155,7 @@ function PinnedBubbles({ pinned, userId, onPress, onLongPress, onlineUsers }) {
 export default function ChatListScreen() {
   const navigation = useNavigation();
   const { user } = useContext(AuthContext);
+  const { isDark, theme } = useAppTheme();
   const { conversations, onlineUsers, fetchConversations, totalUnread } = useChat();
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -290,13 +294,13 @@ export default function ChatListScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <SafeAreaView style={[styles.safe, isDark && { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <StatusBar style={isDark ? "light" : "dark"} backgroundColor={isDark ? theme.colors.background : '#fff'} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isDark && { borderBottomColor: 'rgba(255,255,255,0.05)' }]}>
         <View>
-          <Text style={styles.headerTitle}>Messages</Text>
+          <Text style={[styles.headerTitle, isDark && { color: '#F8FAFC' }]}>Messages</Text>
           <Text style={styles.headerSub}>
             {totalUnread > 0 ? `${totalUnread} unread` : 'All caught up ✓'}
           </Text>
@@ -343,13 +347,13 @@ export default function ChatListScreen() {
 
       {/* Search results */}
       {searchResults.length > 0 && (
-        <View style={styles.searchResultsBox}>
+        <View style={[styles.searchResultsBox, isDark && { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
           <Text style={styles.searchResultsTitle}>People on Cashtro</Text>
           {searchResults.map((u) => (
-            <TouchableOpacity key={u.id} style={styles.searchResult} onPress={() => startChat(u)}>
+            <TouchableOpacity key={u.id} style={[styles.searchResult, isDark && { borderBottomColor: 'rgba(255,255,255,0.05)' }]} onPress={() => startChat(u)}>
               <Avatar name={u.fullName} size={38} />
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.searchResultName}>{u.fullName}</Text>
+                <Text style={[styles.searchResultName, isDark && { color: '#F8FAFC' }]}>{u.fullName}</Text>
                 <Text style={styles.searchResultEmail}>{u.email}</Text>
               </View>
               <Feather name="message-circle" size={18} color="#2D8CFF" />
@@ -387,10 +391,10 @@ export default function ChatListScreen() {
           }
           if (item.type === 'archive_banner') {
             return (
-              <TouchableOpacity style={styles.archiveBanner} onPress={() => setActiveTab('Archived')}>
-                <Feather name="archive" size={16} color="#6B7280" />
-                <Text style={styles.archiveBannerText}>{item.count} archived conversation{item.count > 1 ? 's' : ''}</Text>
-                <Feather name="chevron-right" size={16} color="#9CA3AF" />
+              <TouchableOpacity style={[styles.archiveBanner, isDark && { borderTopColor: 'rgba(255,255,255,0.05)', borderBottomColor: 'rgba(255,255,255,0.05)' }]} onPress={() => setActiveTab('Archived')}>
+                <Feather name="archive" size={16} color={isDark ? '#94A3B8' : '#6B7280'} />
+                <Text style={[styles.archiveBannerText, isDark && { color: '#94A3B8' }]}>{item.count} archived conversation{item.count > 1 ? 's' : ''}</Text>
+                <Feather name="chevron-right" size={16} color={isDark ? '#94A3B8' : '#D1D5DB'} />
               </TouchableOpacity>
             );
           }
@@ -410,9 +414,9 @@ export default function ChatListScreen() {
         ListEmptyComponent={
           !search && (
             <View style={styles.empty}>
-              <Text style={{ fontSize: 48, marginBottom: 16 }}>💬</Text>
-              <Text style={styles.emptyTitle}>No conversations yet</Text>
-              <Text style={styles.emptyText}>
+              <Feather name="message-square" size={48} color={isDark ? '#334155' : '#E5E7EB'} style={{ marginBottom: 16 }} />
+              <Text style={[styles.emptyTitle, isDark && { color: '#F8FAFC' }]}>No conversations yet</Text>
+              <Text style={[styles.emptyText, isDark && { color: '#94A3B8' }]}>
                 Search for people on Cashtro to start chatting and share finances!
               </Text>
             </View>

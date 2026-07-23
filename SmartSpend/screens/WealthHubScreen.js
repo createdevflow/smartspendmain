@@ -2,6 +2,7 @@
 // Premium Cashtro Wealth Hub — INDmoney/Groww-style personal finance module
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useAppTheme } from '../context/ThemeContext';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   FlatList, TextInput, ActivityIndicator,
@@ -25,6 +26,23 @@ const { width: W } = Dimensions.get('window');
 const BRAND_NAVY = '#232333';
 const BRAND_BLUE = '#2D8CFF';
 const FONT_REGULAR = Platform.OS === 'ios' ? 'System' : 'Roboto';
+
+let currentGlobalStyles = {};
+const styles = new Proxy({}, {
+  get(target, prop) {
+    if (!currentGlobalStyles[prop] && typeof getStyles === 'function') {
+      currentGlobalStyles = getStyles({ colors: {} }, false);
+    }
+    return currentGlobalStyles[prop];
+  }
+});
+
+function useWealthStyles() {
+  const { theme, isDark } = useAppTheme();
+  const s = React.useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+  currentGlobalStyles = s;
+  return s;
+}
 
 // ── Tab definitions ─────────────────────────────────────────────
 const TABS = [
@@ -1202,6 +1220,9 @@ function CalcTab() {
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════
 export default function WealthHubScreen() {
+  const { theme, isDark } = useAppTheme();
+  const styles = useWealthStyles();
+
   const { hasAccess, getFeatureTease } = useFeatureAccess();
   const [activeTab, setActiveTab] = useState('overview');
   const { initWealth, stopPolling, watchlists, addToWatchlist } = useWealth();
@@ -1434,39 +1455,39 @@ export default function WealthHubScreen() {
 // ═══════════════════════════════════════════════════════════════
 // STYLES
 // ═══════════════════════════════════════════════════════════════
-const styles = StyleSheet.create({
+function getStyles(theme, isDark) { return StyleSheet.create({
   safe:       { flex: 1, backgroundColor: '#F7F9FC' },
   header:     { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle:{ fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.5, fontFamily: FONT_REGULAR },
+  headerTitle:{ fontSize: 22, fontWeight: '800', color: isDark ? theme.colors.card : '#FFFFFF', letterSpacing: -0.5, fontFamily: FONT_REGULAR },
   headerSub:  { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2, fontFamily: FONT_REGULAR },
   headerLive: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, gap: 5 },
   liveDot:    { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ADE80' },
-  liveText:   { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: 1, fontFamily: FONT_REGULAR },
+  liveText:   { fontSize: 11, fontWeight: '800', color: isDark ? theme.colors.card : '#FFFFFF', letterSpacing: 1, fontFamily: FONT_REGULAR },
 
-  tabBar:     { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', maxHeight: 54 },
-  tabBtn:     { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 7, borderRadius: 20, backgroundColor: '#F1F5F9' },
+  tabBar:     { backgroundColor: isDark ? theme.colors.card : '#FFFFFF', borderBottomWidth: 1, borderBottomColor: isDark ? theme.colors.border : '#F1F5F9', maxHeight: 54 },
+  tabBtn:     { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 7, borderRadius: 20, backgroundColor: isDark ? theme.colors.border : '#F1F5F9' },
   tabBtnActive:{ backgroundColor: BRAND_BLUE },
-  tabLabel:   { fontSize: 12, fontWeight: '600', color: '#64748B', fontFamily: FONT_REGULAR },
-  tabLabelActive:{ color: '#fff' },
+  tabLabel:   { fontSize: 12, fontWeight: '600', color: isDark ? '#94A3B8' : '#64748B', fontFamily: FONT_REGULAR },
+  tabLabelActive:{ color: isDark ? theme.colors.card : '#FFFFFF' },
 
   // Cards
-  card:       { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginHorizontal: 20, marginBottom: 12, borderWidth: 1, borderColor: '#EFF4FB' },
+  card:       { backgroundColor: isDark ? theme.colors.card : '#FFFFFF', borderRadius: 16, padding: 16, marginHorizontal: 20, marginBottom: 12, borderWidth: 1, borderColor: isDark ? theme.colors.border : '#EFF4FB' },
   metalCard:  { flexDirection: 'row', alignItems: 'center', gap: 14 },
   metalIcon:  { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   metalLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 2, fontFamily: FONT_REGULAR },
   metalPrice: { fontSize: 18, fontWeight: '800', color: BRAND_NAVY, fontFamily: FONT_REGULAR },
 
   // Index card (horizontal scroll)
-  indexCard:  { backgroundColor: '#fff', borderRadius: 14, padding: 14, minWidth: 120, borderWidth: 1, borderColor: '#EFF4FB', alignItems: 'center' },
-  indexName:  { fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, fontFamily: FONT_REGULAR },
+  indexCard:  { backgroundColor: isDark ? theme.colors.card : '#FFFFFF', borderRadius: 14, padding: 14, minWidth: 120, borderWidth: 1, borderColor: isDark ? theme.colors.border : '#EFF4FB', alignItems: 'center' },
+  indexName:  { fontSize: 11, fontWeight: '700', color: isDark ? '#64748B' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, fontFamily: FONT_REGULAR },
   indexPrice: { fontSize: 16, fontWeight: '800', color: BRAND_NAVY, marginBottom: 4, fontFamily: FONT_REGULAR },
-  indexRow:   { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: '#EFF4FB', flexDirection: 'row', alignItems: 'center' },
+  indexRow:   { backgroundColor: isDark ? theme.colors.card : '#FFFFFF', borderRadius: 14, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? theme.colors.border : '#EFF4FB', flexDirection: 'row', alignItems: 'center' },
 
   // Asset rows
   row:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   flexRow:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
   assetEmoji: { fontSize: 26 },
-  assetName:  { fontSize: 14, fontWeight: '700', color: '#1E293B', marginBottom: 2, fontFamily: FONT_REGULAR },
+  assetName:  { fontSize: 14, fontWeight: '700', color: isDark ? '#F8FAFC' : '#1E293B', marginBottom: 2, fontFamily: FONT_REGULAR },
   assetSub:   { fontSize: 11, color: '#94A3B8', fontWeight: '500', fontFamily: FONT_REGULAR },
   assetPrice: { fontSize: 14, fontWeight: '700', color: BRAND_NAVY, fontFamily: FONT_REGULAR },
 
@@ -1477,33 +1498,33 @@ const styles = StyleSheet.create({
   badgeText:  { fontWeight: '700', fontFamily: FONT_REGULAR },
 
   // Crypto row
-  cryptoRow:  { backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#EFF4FB', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cryptoRow:  { backgroundColor: isDark ? theme.colors.card : '#FFFFFF', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: isDark ? theme.colors.border : '#EFF4FB', flexDirection: 'row', alignItems: 'center', gap: 8 },
   cryptoRank: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 
   // Forex
-  forexRow:   { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#EFF4FB', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  forexRow:   { backgroundColor: isDark ? theme.colors.card : '#FFFFFF', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: isDark ? theme.colors.border : '#EFF4FB', flexDirection: 'row', alignItems: 'center', gap: 12 },
   forexFlag:  { fontSize: 24 },
   forexRate:  { fontSize: 15, fontWeight: '700', color: BRAND_NAVY, fontFamily: FONT_REGULAR },
 
   // Section header
   sectionHead:{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10 },
-  sectionTitle:{ fontSize: 16, fontWeight: '800', color: '#1E293B', fontFamily: FONT_REGULAR },
+  sectionTitle:{ fontSize: 16, fontWeight: '800', color: isDark ? '#F8FAFC' : '#1E293B', fontFamily: FONT_REGULAR },
   sectionSub: { fontSize: 12, color: '#94A3B8', marginTop: 2, fontFamily: FONT_REGULAR },
 
   // Filter chips
   filterRow:  { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 8, flexWrap: 'wrap' },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: '#F1F5F9' },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: isDark ? theme.colors.border : '#F1F5F9' },
   filterChipActive: { backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: BRAND_BLUE },
-  filterChipText: { fontSize: 12, fontWeight: '500', color: '#64748B', fontFamily: FONT_REGULAR },
+  filterChipText: { fontSize: 12, fontWeight: '500', color: isDark ? '#94A3B8' : '#64748B', fontFamily: FONT_REGULAR },
 
   // Search — unified consistent styling
   searchBox:  {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? theme.colors.card : '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: isDark ? theme.colors.border : '#E2E8F0',
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 10,
@@ -1514,17 +1535,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  searchInput:{ flex: 1, fontSize: 14, color: '#1E293B', fontFamily: FONT_REGULAR, fontWeight: '500', padding: 0, margin: 0 },
-  searchResult:{ backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 6, borderWidth: 1, borderColor: '#EFF4FB' },
+  searchInput:{ flex: 1, fontSize: 14, color: isDark ? '#F8FAFC' : '#1E293B', fontFamily: FONT_REGULAR, fontWeight: '500', padding: 0, margin: 0 },
+  searchResult:{ backgroundColor: isDark ? theme.colors.card : '#FFFFFF', borderRadius: 12, padding: 14, marginBottom: 6, borderWidth: 1, borderColor: isDark ? theme.colors.border : '#EFF4FB' },
   noResults:  { fontSize: 13, color: '#94A3B8', textAlign: 'center', paddingVertical: 16, fontFamily: FONT_REGULAR },
   // News — 2-column grid
-  newsCatBar:    { borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  newsCatBar:    { borderBottomWidth: 1, borderBottomColor: isDark ? theme.colors.border : '#F1F5F9' },
   newsGridCard: {
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? theme.colors.card : '#FFFFFF',
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#EFF4FB',
+    borderColor: isDark ? theme.colors.border : '#EFF4FB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -1534,69 +1555,69 @@ const styles = StyleSheet.create({
   newsThumb:     { height: 110, width: '100%' },
   // No flex:1 or justifyContent here — natural height, prevents white gap
   newsGridBody:  { padding: 10, paddingTop: 8 },
-  newsGridTitle: { fontSize: 12, fontWeight: '700', color: '#1E293B', lineHeight: 17, marginBottom: 6, fontFamily: FONT_REGULAR },
+  newsGridTitle: { fontSize: 12, fontWeight: '700', color: isDark ? '#F8FAFC' : '#1E293B', lineHeight: 17, marginBottom: 6, fontFamily: FONT_REGULAR },
   newsGridMeta:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 2 },
   newsSourceSmall: { fontSize: 9, color: BRAND_BLUE, fontWeight: '700', fontFamily: FONT_REGULAR, flexShrink: 1 },
-  newsDateSmall:   { fontSize: 9, color: '#9CA3AF', fontFamily: FONT_REGULAR },
+  newsDateSmall:   { fontSize: 9, color: isDark ? '#64748B' : '#9CA3AF', fontFamily: FONT_REGULAR },
   newsBookmark:  { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, padding: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
   // Legacy (kept for other usages)
-  newsCard:     { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#EFF4FB', flexDirection: 'row', alignItems: 'flex-start', gap: 2 },
-  newsTitle:    { fontSize: 14, fontWeight: '700', color: '#1E293B', lineHeight: 20, marginBottom: 4, fontFamily: FONT_REGULAR },
-  newsSub:      { fontSize: 12, color: '#64748B', lineHeight: 17, marginBottom: 6, fontFamily: FONT_REGULAR },
+  newsCard:     { backgroundColor: isDark ? theme.colors.card : '#FFFFFF', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: isDark ? theme.colors.border : '#EFF4FB', flexDirection: 'row', alignItems: 'flex-start', gap: 2 },
+  newsTitle:    { fontSize: 14, fontWeight: '700', color: isDark ? '#F8FAFC' : '#1E293B', lineHeight: 20, marginBottom: 4, fontFamily: FONT_REGULAR },
+  newsSub:      { fontSize: 12, color: isDark ? '#94A3B8' : '#64748B', lineHeight: 17, marginBottom: 6, fontFamily: FONT_REGULAR },
   newsMeta:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   newsSource:   { fontSize: 10, color: BRAND_BLUE, fontWeight: '600', fontFamily: FONT_REGULAR },
-  newsDate:     { fontSize: 10, color: '#9CA3AF', fontFamily: FONT_REGULAR },
+  newsDate:     { fontSize: 10, color: isDark ? '#64748B' : '#9CA3AF', fontFamily: FONT_REGULAR },
 
   // Detail rows (for stock modal etc.)
-  detailRow:  { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  detailLabel:{ fontSize: 13, color: '#64748B', fontFamily: FONT_REGULAR },
-  detailValue:{ fontSize: 13, fontWeight: '700', color: '#1E293B', fontFamily: FONT_REGULAR },
+  detailRow:  { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: isDark ? theme.colors.border : '#F1F5F9' },
+  detailLabel:{ fontSize: 13, color: isDark ? '#94A3B8' : '#64748B', fontFamily: FONT_REGULAR },
+  detailValue:{ fontSize: 13, fontWeight: '700', color: isDark ? '#F8FAFC' : '#1E293B', fontFamily: FONT_REGULAR },
 
   // Calculator
-  inputLabel: { fontSize: 11, fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6, fontFamily: FONT_REGULAR },
-  calcInput:  { backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1.5, borderColor: '#E2E8F0', padding: 12, fontSize: 16, color: '#1E293B', fontWeight: '600', fontFamily: FONT_REGULAR },
+  inputLabel: { fontSize: 11, fontWeight: '700', color: isDark ? '#94A3B8' : '#64748B', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6, fontFamily: FONT_REGULAR },
+  calcInput:  { backgroundColor: isDark ? theme.colors.background : '#F8FAFC', borderRadius: 12, borderWidth: 1.5, borderColor: isDark ? theme.colors.border : '#E2E8F0', padding: 12, fontSize: 16, color: isDark ? '#F8FAFC' : '#1E293B', fontWeight: '600', fontFamily: FONT_REGULAR },
   karatRow:   { flexDirection: 'row', gap: 8 },
-  karatBtn:   { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center' },
+  karatBtn:   { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: isDark ? theme.colors.border : '#F1F5F9', alignItems: 'center' },
   karatBtnActive: { backgroundColor: BRAND_BLUE },
-  karatBtnText: { fontSize: 13, fontWeight: '700', color: '#64748B', fontFamily: FONT_REGULAR },
+  karatBtnText: { fontSize: 13, fontWeight: '700', color: isDark ? '#94A3B8' : '#64748B', fontFamily: FONT_REGULAR },
   calcResult: { backgroundColor: '#EFF6FF', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 4 },
   calcResultLabel: { fontSize: 11, fontWeight: '700', color: '#2D8CFF', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4, fontFamily: FONT_REGULAR },
   calcResultValue: { fontSize: 28, fontWeight: '800', color: BRAND_NAVY, marginBottom: 4, fontFamily: FONT_REGULAR },
-  calcResultSub: { fontSize: 11, color: '#64748B', textAlign: 'center', fontFamily: FONT_REGULAR },
+  calcResultSub: { fontSize: 11, color: isDark ? '#94A3B8' : '#64748B', textAlign: 'center', fontFamily: FONT_REGULAR },
 
   // Portfolio
   portfolioSummary: { backgroundColor: BRAND_NAVY, borderRadius: 16, margin: 20, padding: 20, flexDirection: 'row' },
   portfolioLabel: { fontSize: 11, color: 'rgba(255,255,255,0.65)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4, fontFamily: FONT_REGULAR },
-  portfolioValue: { fontSize: 22, fontWeight: '800', color: '#fff', fontFamily: FONT_REGULAR },
-  holdingCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#EFF4FB', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  portfolioValue: { fontSize: 22, fontWeight: '800', color: isDark ? theme.colors.card : '#FFFFFF', fontFamily: FONT_REGULAR },
+  holdingCard: { backgroundColor: isDark ? theme.colors.card : '#FFFFFF', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: isDark ? theme.colors.border : '#EFF4FB', flexDirection: 'row', alignItems: 'center', gap: 8 },
 
   // Watchlist
-  watchlistCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginHorizontal: 20, marginBottom: 8, borderWidth: 1, borderColor: '#EFF4FB', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  watchlistCard: { backgroundColor: isDark ? theme.colors.card : '#FFFFFF', borderRadius: 14, padding: 14, marginHorizontal: 20, marginBottom: 8, borderWidth: 1, borderColor: isDark ? theme.colors.border : '#EFF4FB', flexDirection: 'row', alignItems: 'center', gap: 12 },
   watchlistDot: { width: 12, height: 12, borderRadius: 6 },
 
   // SIP
-  sipCard:    { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginHorizontal: 20, marginBottom: 8, borderWidth: 1, borderColor: '#EFF4FB', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sipCard:    { backgroundColor: isDark ? theme.colors.card : '#FFFFFF', borderRadius: 14, padding: 14, marginHorizontal: 20, marginBottom: 8, borderWidth: 1, borderColor: isDark ? theme.colors.border : '#EFF4FB', flexDirection: 'row', alignItems: 'center', gap: 8 },
 
   // Insights
   insightCard:{ borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1 },
   insightText:{ fontSize: 14, lineHeight: 22, fontWeight: '500', fontFamily: FONT_REGULAR },
   confidenceRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   confidenceText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: FONT_REGULAR },
-  disclaimer: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, padding: 14, backgroundColor: '#F8FAFC', borderRadius: 12, marginTop: 8 },
-  disclaimerText: { flex: 1, fontSize: 11, color: '#9CA3AF', lineHeight: 16, fontFamily: FONT_REGULAR },
+  disclaimer: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, padding: 14, backgroundColor: isDark ? theme.colors.background : '#F8FAFC', borderRadius: 12, marginTop: 8 },
+  disclaimerText: { flex: 1, fontSize: 11, color: isDark ? '#64748B' : '#9CA3AF', lineHeight: 16, fontFamily: FONT_REGULAR },
 
   // Add button
   addBtn:     { backgroundColor: BRAND_BLUE, borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 15, fontFamily: FONT_REGULAR },
+  addBtnText: { color: isDark ? theme.colors.card : '#FFFFFF', fontWeight: '700', fontSize: 15, fontFamily: FONT_REGULAR },
 
   // Empty state
   emptyState: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 40 },
-  emptyText:  { fontSize: 14, color: '#9CA3AF', textAlign: 'center', lineHeight: 22, fontFamily: FONT_REGULAR },
+  emptyText:  { fontSize: 14, color: isDark ? '#64748B' : '#9CA3AF', textAlign: 'center', lineHeight: 22, fontFamily: FONT_REGULAR },
 
   // Modal / bottom sheet
   backdrop:   { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
   bottomSheet:{
-    backgroundColor: '#fff',
+    backgroundColor: isDark ? theme.colors.card : '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -1604,16 +1625,17 @@ const styles = StyleSheet.create({
     gap: 14,
     maxHeight: '85%',
   },
-  sheetHandle:{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', alignSelf: 'center', marginBottom: 4 },
-  sheetTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B', fontFamily: FONT_REGULAR },
+  sheetHandle:{ width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? theme.colors.border : '#E2E8F0', alignSelf: 'center', marginBottom: 4 },
+  sheetTitle: { fontSize: 18, fontWeight: '800', color: isDark ? '#F8FAFC' : '#1E293B', fontFamily: FONT_REGULAR },
   sheetInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: isDark ? theme.colors.background : '#F8FAFC',
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: isDark ? theme.colors.border : '#E2E8F0',
     padding: 14,
     fontSize: 15,
-    color: '#1E293B',
+    color: isDark ? '#F8FAFC' : '#1E293B',
     fontFamily: FONT_REGULAR,
   },
 });
+}

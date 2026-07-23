@@ -1,6 +1,6 @@
 import {
   Injectable, NotFoundException, ForbiddenException, BadRequestException,
-  HttpException, InternalServerErrorException,
+  HttpException, InternalServerErrorException, Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI } from '@google/genai';
@@ -18,6 +18,7 @@ import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class TransactionsService {
+  private readonly logger = new Logger(TransactionsService.name);
   constructor(
     private prisma: PrismaService,
     private crypto: CryptoService,
@@ -399,11 +400,11 @@ export class TransactionsService {
       if (suggested) { categoryId = suggested; autoDetected = true; }
     }
 
-    // Server-side GST recalculation guard
+    // Server-side GST recalculation guard — never trust client-supplied tax breakdown
     if (dto.isGstApplied && dto.gstRate && dto.gstRate > 0) {
       const providedTax = (dto.cgst || 0) + (dto.sgst || 0) + (dto.igst || 0);
       const expectedTax = (dto.amount * dto.gstRate) / (100 + dto.gstRate);
-      if (Math.abs(expectedTax - providedTax) > 2) { // 2 units margin for rounding
+      if (Math.abs(expectedTax - providedTax) > 0.5) { // tighter: 0.5 units margin
         throw new BadRequestException(`GST mismatch: Expected tax ~${expectedTax.toFixed(2)}, got ${providedTax.toFixed(2)}`);
       }
     }
@@ -426,21 +427,18 @@ export class TransactionsService {
     const encNotes = dto.notes ? this.crypto.encrypt(dto.notes, salt) : null;
     const encMerchant = dto.merchant ? this.crypto.encrypt(dto.merchant, salt) : null;
 
-    let receiptUrl = (dto as any).receiptUrl || null;
+    // receiptKey must come from upload service — ignore any client-supplied URL
+    let receiptUrl: string | null = null;
     let receiptKey = dto.receiptKey || null;
 
-    if (receiptUrl && (receiptUrl.startsWith('data:') || receiptUrl.length > 500)) {
-      try {
-        const mediaRes = await this.mediaService.uploadBase64(receiptUrl, { module: 'receipts', ownerId });
-        receiptUrl = mediaRes.url;
-        receiptKey = mediaRes.key;
-      } catch (e) {}
-    } else if (receiptKey && (receiptKey.startsWith('data:') || receiptKey.length > 500)) {
-      try {
-        const mediaRes = await this.mediaService.uploadBase64(receiptKey, { module: 'receipts', ownerId });
-        receiptUrl = mediaRes.url;
-        receiptKey = mediaRes.key;
-      } catch (e) {}
+    // If client provides a receiptKey, verify it exists in DB (owned by this user)
+    if (receiptKey) {
+      const mediaAsset = await this.mediaService.getMediaById(receiptKey).catch(() => null);
+      if (!mediaAsset) {
+        receiptKey = null; // silently reject invalid key
+      } else {
+        receiptUrl = mediaAsset.url;
+      }
     }
 
     const tx = await this.prisma.transaction.create({
@@ -509,21 +507,17 @@ export class TransactionsService {
       }
     }
 
-    let receiptUrl = (dto as any).receiptUrl;
-    let receiptKey = (dto as any).receiptKey;
+    // receiptKey must come from upload service — ignore any client-supplied URLs
+    let receiptUrl: string | undefined;
+    let receiptKey: string | undefined = (dto as any).receiptKey || undefined;
 
-    if (receiptUrl && (receiptUrl.startsWith('data:') || receiptUrl.length > 500)) {
-      try {
-        const mediaRes = await this.mediaService.uploadBase64(receiptUrl, { module: 'receipts', ownerId: userId });
-        receiptUrl = mediaRes.url;
-        receiptKey = mediaRes.key;
-      } catch (e) {}
-    } else if (receiptKey && (receiptKey.startsWith('data:') || receiptKey.length > 500)) {
-      try {
-        const mediaRes = await this.mediaService.uploadBase64(receiptKey, { module: 'receipts', ownerId: userId });
-        receiptUrl = mediaRes.url;
-        receiptKey = mediaRes.key;
-      } catch (e) {}
+    if (receiptKey) {
+      const mediaAsset = await this.mediaService.getMediaById(receiptKey).catch(() => null);
+      if (mediaAsset) {
+        receiptUrl = mediaAsset.url;
+      } else {
+        receiptKey = undefined;
+      }
     }
 
     const updated = await this.prisma.transaction.update({
@@ -679,7 +673,7 @@ export class TransactionsService {
         receiptUrl = mediaRes.url;
         receiptKey = mediaRes.key;
       } catch (e) {
-        console.error('Failed to upload scanned receipt to MediaService:', e);
+        this.logger.error('Failed to upload scanned receipt to storage', e instanceof Error ? e.message : String(e));
       }
 
       const rawData = parsedData?.data !== undefined ? parsedData.data : (parsedData || {});
@@ -701,7 +695,7 @@ export class TransactionsService {
       if (error instanceof HttpException) {
         throw error;
       }
-      console.error('Failed to parse receipt data', error);
+      this.logger.error('Receipt scan failed', error instanceof Error ? error.message : String(error));
       throw new InternalServerErrorException('Failed to process receipt via AI.');
     }
   }

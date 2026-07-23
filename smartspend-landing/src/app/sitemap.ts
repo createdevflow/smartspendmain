@@ -28,23 +28,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
     {
-      url: `${SITE_URL}/privacy`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
-    {
-      url: `${SITE_URL}/terms`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
-    {
       url: `${SITE_URL}/blog`,
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.8,
     },
+    // Legal & Policy Pages
+    ...([
+      'privacy',
+      'terms',
+      'cookie-policy',
+      'data-retention',
+      'refund-policy',
+      'ai-usage',
+      'community-guidelines',
+      'invoice-disclaimer',
+      'security-policy',
+      'contact',
+    ].map((slug) => ({
+      url: `${SITE_URL}/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.5,
+    }))),
   ];
 
   const blogRoutes: MetadataRoute.Sitemap = slugs.map((slug) => ({

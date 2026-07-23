@@ -36,7 +36,7 @@ export default function BlogPage() {
   const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken') || localStorage.getItem('admin_token');
+    const token = (localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'));
     if (!token) { router.push('/login'); return; }
     setAuthChecked(true);
   }, [router]);

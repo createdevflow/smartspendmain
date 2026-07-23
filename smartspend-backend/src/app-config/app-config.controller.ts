@@ -48,4 +48,24 @@ export class AppConfigController {
       }
     };
   }
+
+  @Public()
+  @Get('metrics')
+  @ApiOperation({ summary: 'Get public landing page metrics' })
+  async getPublicMetrics() {
+    const totalUsers = await this.prisma.user.count();
+    const totalTransactions = await this.prisma.transaction.count();
+    const activeCashbooks = await this.prisma.cashbook.count();
+    const totalBudgets = await this.prisma.budget.count();
+    
+    return {
+      success: true,
+      data: {
+        totalUsers,
+        totalTransactions,
+        totalBudgets,
+        activeCashbooks,
+      }
+    };
+  }
 }

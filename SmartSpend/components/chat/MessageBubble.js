@@ -7,6 +7,7 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import FinancialShareCard from './FinancialShareCard';
 import OptimizedImage from '../OptimizedImage';
+import { useAppTheme } from '../../context/ThemeContext';
 import { api } from '../../utils/api';
 
 const getValidMediaUrl = (url) => {
@@ -56,6 +57,7 @@ export default function MessageBubble({
   onSmartAction,
 }) {
   const [showMenu, setShowMenu] = useState(false);
+  const { isDark, theme } = useAppTheme();
   const [showReactions, setShowReactions] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showFullScreenImage, setShowFullScreenImage] = useState(false);
@@ -374,7 +376,7 @@ export default function MessageBubble({
           <Pressable style={styles.menuBackdrop} onPress={() => setShowMenu(false)}>
             <View style={styles.menuContainer}>
               {/* Quick Reactions Bar */}
-              <View style={styles.quickReactions}>
+              <View style={[styles.quickReactions, isDark && { backgroundColor: theme.colors.card }]}>
                 {REACTIONS.map((emoji) => (
                   <TouchableOpacity
                     key={emoji}
@@ -390,21 +392,21 @@ export default function MessageBubble({
               </View>
 
               {/* Action Menu Grid/List */}
-              <View style={styles.menuBox}>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); onReply && onReply(message); }}>
-                  <Feather name="corner-up-left" size={16} color="#374151" />
-                  <Text style={styles.menuText}>Reply</Text>
+              <View style={[styles.menuBox, isDark && { backgroundColor: theme.colors.card }]}>
+                <TouchableOpacity style={[styles.menuItem, isDark && { borderBottomColor: 'rgba(255,255,255,0.05)' }]} onPress={() => { setShowMenu(false); onReply && onReply(message); }}>
+                  <Feather name="corner-up-left" size={16} color={isDark ? '#F8FAFC' : '#374151'} />
+                  <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>Reply</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); onForward && onForward(message); }}>
-                  <Feather name="corner-up-right" size={16} color="#374151" />
-                  <Text style={styles.menuText}>Forward</Text>
+                <TouchableOpacity style={[styles.menuItem, isDark && { borderBottomColor: 'rgba(255,255,255,0.05)' }]} onPress={() => { setShowMenu(false); onForward && onForward(message); }}>
+                  <Feather name="corner-up-right" size={16} color={isDark ? '#F8FAFC' : '#374151'} />
+                  <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>Forward</Text>
                 </TouchableOpacity>
 
                 {isText && (
-                  <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); onCopy && onCopy(message.content); }}>
-                    <Feather name="copy" size={16} color="#374151" />
-                    <Text style={styles.menuText}>Copy</Text>
+                  <TouchableOpacity style={[styles.menuItem, isDark && { borderBottomColor: 'rgba(255,255,255,0.05)' }]} onPress={() => { setShowMenu(false); onCopy && onCopy(message.content); }}>
+                    <Feather name="copy" size={16} color={isDark ? '#F8FAFC' : '#374151'} />
+                    <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>Copy</Text>
                   </TouchableOpacity>
                 )}
 
@@ -431,41 +433,41 @@ export default function MessageBubble({
                   </>
                 )}
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); onStar && onStar(message); }}>
+                <TouchableOpacity style={[styles.menuItem, isDark && { borderBottomColor: 'rgba(255,255,255,0.05)' }]} onPress={() => { setShowMenu(false); onStar && onStar(message); }}>
                   <Feather name="star" size={16} color="#F59E0B" />
-                  <Text style={styles.menuText}>Star</Text>
+                  <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>Star</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); onPin && onPin(message); }}>
+                <TouchableOpacity style={[styles.menuItem, isDark && { borderBottomColor: 'rgba(255,255,255,0.05)' }]} onPress={() => { setShowMenu(false); onPin && onPin(message); }}>
                   <Feather name="bookmark" size={16} color="#2D8CFF" />
-                  <Text style={styles.menuText}>{message.isPinned ? 'Unpin' : 'Pin'}</Text>
+                  <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>{message.isPinned ? 'Unpin' : 'Pin'}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); onRemind && onRemind(message); }}>
+                <TouchableOpacity style={[styles.menuItem, isDark && { borderBottomColor: 'rgba(255,255,255,0.05)' }]} onPress={() => { setShowMenu(false); onRemind && onRemind(message); }}>
                   <Feather name="bell" size={16} color="#0EA5E9" />
-                  <Text style={styles.menuText}>Reminder</Text>
+                  <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>Reminder</Text>
                 </TouchableOpacity>
 
                 {onSchedule && (
-                  <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); onSchedule(message); }}>
-                    <Feather name="calendar" size={16} color="#F26D21" />
-                    <Text style={styles.menuText}>Schedule</Text>
+                  <TouchableOpacity style={[styles.menuItem, isDark && { borderBottomColor: 'rgba(255,255,255,0.05)' }]} onPress={() => { setShowMenu(false); onSchedule(message); }}>
+                    <Feather name="clock" size={16} color="#6366F1" />
+                    <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>Schedule</Text>
                   </TouchableOpacity>
                 )}
 
                 {isSelf && isText && (
-                  <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); onEdit && onEdit(message); }}>
-                    <Feather name="edit-2" size={16} color="#374151" />
-                    <Text style={styles.menuText}>Edit</Text>
+                  <TouchableOpacity style={[styles.menuItem, isDark && { borderBottomColor: 'rgba(255,255,255,0.05)' }]} onPress={() => { setShowMenu(false); onEdit && onEdit(message); }}>
+                    <Feather name="edit-2" size={16} color={isDark ? '#F8FAFC' : '#374151'} />
+                    <Text style={[styles.menuText, isDark && { color: '#F8FAFC' }]}>Edit</Text>
                   </TouchableOpacity>
                 )}
 
                 {isSelf && (
-                  <TouchableOpacity style={styles.menuItem} onPress={() => {
+                  <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={() => {
                     setShowMenu(false);
-                    Alert.alert('Delete Message', 'Choose deletion method:', [
+                    Alert.alert('Delete Message?', 'This cannot be undone.', [
                       { text: 'Cancel', style: 'cancel' },
-                      { text: 'Delete for Everyone', style: 'destructive', onPress: () => onDelete && onDelete(message.id) },
+                      { text: 'Delete', style: 'destructive', onPress: () => onDelete && onDelete(message.id) }
                     ]);
                   }}>
                     <Feather name="trash-2" size={16} color="#EF4444" />

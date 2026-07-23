@@ -3,6 +3,7 @@
 // handles user-specific DB operations (watchlists, portfolio, alerts, SIP)
 
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from './market-data/market-data.service';
 import { WealthAssetType, AlertDirection } from '@prisma/client';
@@ -12,6 +13,7 @@ export class WealthService {
   constructor(
     private prisma: PrismaService,
     private market: MarketDataService,
+    private config: ConfigService,
   ) {}
 
   // ── Overview ─────────────────────────────────────────────────
@@ -84,7 +86,7 @@ export class WealthService {
       }).catch(() => []),
     ]);
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3002';
+    const siteUrl = this.config.get<string>('app.url') || 'http://localhost:3000';
 
     const formattedOurPosts = ourPosts.map(post => ({
       id: post.id,

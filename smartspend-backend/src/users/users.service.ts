@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
   constructor(
     private prisma: PrismaService,
     private mediaService: MediaService,
@@ -21,7 +22,12 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: any) {
-    let { fullName, defaultCurrency, timezone, language, avatar, phone, pushNotifications, emailReports } = dto;
+    let { fullName, defaultCurrency, timezone, language, avatar, phone, pushNotifications, emailReports, preferences } = dto;
+    
+    // Get existing user to merge preferences
+    const existingUser = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!existingUser) throw new NotFoundException('User not found');
+
     if (avatar && (avatar.startsWith('data:') || avatar.length > 500)) {
       try {
         const uploadRes = await this.mediaService.uploadBase64(avatar, {
@@ -32,9 +38,14 @@ export class UsersService {
         avatar = uploadRes.url;
       } catch (e) {}
     }
+    
+    const mergedPreferences = preferences !== undefined 
+      ? { ...(typeof existingUser.preferences === 'object' && existingUser.preferences !== null ? existingUser.preferences : {}), ...preferences }
+      : undefined;
+
     const updated = await this.prisma.user.update({
       where: { id: userId },
-      data: { ...(fullName ? { fullName } : {}), ...(defaultCurrency ? { defaultCurrency } : {}), ...(timezone ? { timezone } : {}), ...(language ? { language } : {}), ...(avatar !== undefined ? { avatar } : {}), ...(phone !== undefined ? { phone } : {}), ...(pushNotifications !== undefined ? { pushNotifications } : {}), ...(emailReports !== undefined ? { emailReports } : {}) },
+      data: { ...(fullName ? { fullName } : {}), ...(defaultCurrency ? { defaultCurrency } : {}), ...(timezone ? { timezone } : {}), ...(language ? { language } : {}), ...(avatar !== undefined ? { avatar } : {}), ...(phone !== undefined ? { phone } : {}), ...(pushNotifications !== undefined ? { pushNotifications } : {}), ...(emailReports !== undefined ? { emailReports } : {}), ...(mergedPreferences !== undefined ? { preferences: mergedPreferences } : {}) },
     });
     const { passwordHash, encryptionKeySalt, ...safe } = updated;
     return safe;
@@ -92,7 +103,7 @@ export class UsersService {
         });
         avatarUrl = uploadRes.url;
       } catch (e) {
-        console.error('Avatar media service upload failed:', e);
+        this.logger.error('Avatar upload failed', e instanceof Error ? e.message : String(e));
         throw e;
       }
     }
@@ -124,8 +135,12 @@ export class UsersService {
       where: {
         phone: { in: normalized },
         id: { not: userId }, // Don't return the user themselves
+        isEmailVerified: true, // Only return verified accounts
+        deletedAt: null,
+        status: 'ACTIVE',
       },
-      select: { id: true, fullName: true, avatar: true, phone: true, email: true },
+      // Return only safe fields — never expose email or raw phone number
+      select: { id: true, fullName: true, avatar: true },
     });
 
     return users;

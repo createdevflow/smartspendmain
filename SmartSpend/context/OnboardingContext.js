@@ -55,16 +55,25 @@ export function OnboardingProvider({ children }) {
           // ignore API error, rely on local
         }
 
+        let mergedTours = localData?.seenTours || {};
+        const toursToCheck = ['home', 'after_first_tx', 'after_first_book', 'invoice_tour', 'wealth_tour', 'settings_discovery'];
+        for (const t of toursToCheck) {
+          const globalVal = await AsyncStorage.getItem(`@tour_seen_v1_global_${t}`).catch(() => null);
+          const userVal = user ? await AsyncStorage.getItem(`@tour_seen_v1_${user.id}_${t}`).catch(() => null) : null;
+          if (globalVal === 'true' || userVal === 'true') mergedTours[t] = true;
+        }
+
         if (localData) {
           setHasSeenWelcome(localData.hasSeenWelcome ?? false);
           setSeenFeatures(localData.seenFeatures || {});
-          setSeenTours(localData.seenTours || {});
+          setSeenTours(mergedTours);
           setChecklist(localData.checklist || {
             profile: false, firstCashbook: false, firstTransaction: false, firstInvoice: false, firstGoal: false
           });
         } else {
           // completely new user
           setHasSeenWelcome(false);
+          setSeenTours(mergedTours);
         }
       } catch (err) {
         console.error('Failed to load onboarding state:', err);
@@ -112,13 +121,21 @@ export function OnboardingProvider({ children }) {
 
   const markTourSeen = useCallback((tourId) => {
     if (stateRef.current.seenTours[tourId]) return;
-    saveState({ seenTours: { ...stateRef.current.seenTours, [tourId]: true } });
-  }, [saveState]);
+    const updatedTours = { ...stateRef.current.seenTours, [tourId]: true };
+    stateRef.current.seenTours = updatedTours;
+    setSeenTours(updatedTours);
+    saveState({ seenTours: updatedTours });
+    AsyncStorage.setItem(`@tour_seen_v1_global_${tourId}`, 'true').catch(() => {});
+    if (user?.id) {
+      AsyncStorage.setItem(`@tour_seen_v1_${user.id}_${tourId}`, 'true').catch(() => {});
+    }
+  }, [saveState, user?.id]);
 
   // Returns true if tour should auto-start (not yet seen)
   const shouldShowTour = useCallback((tourId) => {
     if (loading || !user) return false;
-    return hasSeenWelcome && !seenTours[tourId];
+    if (stateRef.current.seenTours[tourId] || seenTours[tourId]) return false;
+    return hasSeenWelcome;
   }, [loading, user, hasSeenWelcome, seenTours]);
 
   const updateChecklist = useCallback((key, value = true) => {

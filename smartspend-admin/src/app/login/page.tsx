@@ -2,11 +2,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Shield, Key, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { Shield, AlertCircle, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -18,7 +20,7 @@ export default function LoginPage() {
 
     try {
       const res = await api.post('/auth/login', { emailOrPhone: email.trim(), password });
-      
+
       const role = res.data?.data?.user?.role;
       if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
         setError('Unauthorized: Administrator access required.');
@@ -28,8 +30,11 @@ export default function LoginPage() {
 
       const token = res.data?.data?.accessToken;
       if (token) {
-        localStorage.setItem('adminToken', token);
-        localStorage.setItem('admin_token', token);
+        if (rememberMe) {
+          localStorage.setItem('adminToken', token);
+        } else {
+          sessionStorage.setItem('adminToken', token);
+        }
         router.push('/');
       } else {
         setError('Login failed: Invalid credentials.');
@@ -47,170 +52,232 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ display: 'flex', width: '100%', flex: 1, minHeight: '100vh', background: '#F5F7FB', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      {/* Left side - Brand / Marketing */}
-      <div style={{ 
-        flex: '0 0 50%', 
-        width: '50%',
-        flexDirection: 'column', 
-        justifyContent: 'space-between',
-        padding: '3rem',
-        background: '#FFFFFF',
-        position: 'relative',
-        overflow: 'hidden',
-        borderRight: '1px solid #E5E7EB'
-      }} className="lg-flex">
-        
-        {/* Background decorative elements */}
-        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(37,99,235,0.05) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%' }} />
+    <div
+      style={{
+        display: 'flex',
+        width: '100%',
+        minHeight: '100vh',
+        background: 'var(--canvas)',
+      }}
+    >
+      {/* Left brand panel — visible desktop only */}
+      <div
+        className="login-brand-panel"
+        aria-hidden="true"
+        style={{
+          flex: '0 0 55%',
+          background: 'var(--surface)',
+          borderRight: '1px solid var(--border)',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Illustration */}
+        <img 
+          src="/admin/login_banner.png" 
+          alt="" 
+          style={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%', 
+            height: '100%', 
+            objectFit: 'cover',
+            zIndex: 1
+          }} 
+        />
 
-        <div style={{ position: 'relative', zIndex: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '4rem' }}>
-            <img src="/admin/cashtro-logo.png" alt="Cashtro Logo" style={{ height: '36px', objectFit: 'contain' }} />
-          </div>
-
-          <div style={{ maxWidth: '480px' }}>
-            <h1 style={{ color: '#111827', fontSize: '3rem', fontWeight: 800, lineHeight: 1.1, marginBottom: '1.5rem', letterSpacing: '-0.03em' }}>
-              Command Center for <br />
-              <span style={{ color: '#2563EB' }}>Modern Finance</span>
-            </h1>
-            <p style={{ color: '#6B7280', fontSize: '1.125rem', lineHeight: 1.6, fontWeight: 400 }}>
-              Monitor transactions, manage users, and configure feature toggles across the entire Cashtro ecosystem securely.
-            </p>
-          </div>
-        </div>
-
-        <div style={{ position: 'relative', zIndex: 10 }}>
-          <p style={{ color: '#9CA3AF', fontSize: '0.875rem' }}>&copy; {new Date().getFullYear()} Cashtro. All rights reserved.</p>
+        {/* Logo */}
+        <div style={{ padding: '40px 48px', position: 'absolute', top: 0, left: 0, zIndex: 10 }}>
+          <img 
+            src="/admin/cashtro-logo.png" 
+            alt="Cashtro" 
+            style={{ 
+              height: '48px', 
+              width: 'auto', 
+              objectFit: 'contain' 
+            }} 
+          />
         </div>
       </div>
 
-      {/* Right side - Login Form */}
-      <div style={{ 
-        flex: '0 0 50%',
-        width: '50%', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        padding: '2rem',
-        background: '#F5F7FB',
-        position: 'relative'
-      }}>
-        
-        <div style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 10 }}>
-          
-          <div style={{ textAlign: 'left', marginBottom: '2.5rem' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', marginBottom: '1.25rem' }}>
-              <Shield size={24} />
-            </div>
-            <h2 style={{ fontSize: '1.875rem', fontWeight: 700, color: '#111827', margin: '0 0 0.5rem 0', letterSpacing: '-0.02em' }}>Welcome back</h2>
-            <p style={{ color: '#6B7280', fontSize: '0.95rem', margin: 0 }}>Please enter your administrator credentials to proceed.</p>
+      {/* Right form panel */}
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '32px 24px',
+          background: 'var(--canvas)',
+        }}
+      >
+        <div style={{ width: '100%', maxWidth: '380px' }}>
+          {/* Form header */}
+          <div style={{ marginBottom: 'var(--sp-6)' }}>
+
+            <h2
+              style={{
+                fontSize: 'var(--type-page-title)',
+                lineHeight: 'var(--lh-page-title)',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+                marginBottom: 'var(--sp-1)',
+              }}
+            >
+              Welcome back
+            </h2>
+            <p style={{ fontSize: 'var(--type-body)', color: 'var(--text-secondary)' }}>
+              Enter your administrator credentials to continue.
+            </p>
           </div>
-          
+
+          {/* Error */}
           {error && (
-            <div style={{ 
-              background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#DC2626', 
-              padding: '1rem', borderRadius: '12px', fontSize: '0.875rem', 
-              marginBottom: '1.75rem', display: 'flex', alignItems: 'flex-start', gap: '0.75rem' 
-            }}>
-              <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-              <span style={{ lineHeight: 1.4 }}>{error}</span>
+            <div
+              role="alert"
+              style={{
+                background: 'var(--danger-bg)',
+                border: '1px solid var(--danger)',
+                color: 'var(--danger)',
+                padding: 'var(--sp-3)',
+                borderRadius: 'var(--radius-btn)',
+                fontSize: 'var(--type-body)',
+                fontWeight: 500,
+                marginBottom: 'var(--sp-4)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 'var(--sp-2)',
+              }}
+            >
+              <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
+              <span>{error}</span>
             </div>
           )}
-          
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>
+
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label" htmlFor="login-email">
                 Email Address
               </label>
-              <div style={{ position: 'relative' }}>
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@cashtro.app"
-                  required
-                  style={{ 
-                    width: '100%', padding: '0.875rem 1rem', background: '#F9FAFB', 
-                    border: '1px solid #E5E7EB', borderRadius: '12px', fontSize: '0.95rem',
-                    color: '#111827', outline: 'none', transition: 'all 0.2s ease',
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = '#2563EB'; e.target.style.background = '#FFFFFF'; e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'; }}
-                  onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.background = '#F9FAFB'; e.target.style.boxShadow = 'none'; }}
-                />
-              </div>
+              <input
+                id="login-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@cashtro.app"
+                required
+                autoComplete="email"
+                className="input-field"
+              />
             </div>
-            
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Password</label>
-              </div>
+
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label" htmlFor="login-password">
+                Password
+              </label>
               <div style={{ position: 'relative' }}>
-                <input 
-                  type="password" 
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  style={{ 
-                    width: '100%', padding: '0.875rem 1rem', background: '#F9FAFB', 
-                    border: '1px solid #E5E7EB', borderRadius: '12px', fontSize: '0.95rem',
-                    color: '#111827', outline: 'none', transition: 'all 0.2s ease',
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = '#2563EB'; e.target.style.background = '#FFFFFF'; e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)'; }}
-                  onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.background = '#F9FAFB'; e.target.style.boxShadow = 'none'; }}
+                  autoComplete="current-password"
+                  className="input-field"
+                  style={{ paddingRight: '40px' }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    color: 'var(--text-tertiary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                </button>
               </div>
             </div>
-            
-            <button 
-              type="submit" 
-              disabled={loading} 
-              style={{ 
-                marginTop: '0.5rem', width: '100%', padding: '0.875rem', 
-                background: loading ? '#60A5FA' : '#2563EB', 
-                color: '#FFFFFF', border: 'none', borderRadius: '12px', 
-                fontSize: '1rem', fontWeight: 600, letterSpacing: '0.01em',
-                cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
-                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem',
-                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)',
-              }}
-              onMouseOver={(e) => { if(!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.background = '#1D4ED8'; } }}
-              onMouseOut={(e) => { if(!loading) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = '#2563EB'; } }}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                id="remember-me"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  cursor: 'pointer',
+                  accentColor: 'var(--brand-blue)',
+                }}
+              />
+              <label 
+                htmlFor="remember-me" 
+                style={{ 
+                  fontSize: '0.875rem', 
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  userSelect: 'none'
+                }}
+              >
+                Remember me
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary btn-lg"
+              style={{ width: '100%', marginTop: 'var(--sp-2)' }}
             >
               {loading ? (
                 <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Authenticating...
+                  <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                  Authenticating…
                 </>
               ) : (
                 <>
                   Secure Sign In
-                  <ArrowRight size={18} />
+                  <ArrowRight size={16} aria-hidden="true" />
                 </>
               )}
             </button>
           </form>
-          
+
+          <p
+            style={{
+              textAlign: 'center',
+              marginTop: 'var(--sp-6)',
+              fontSize: 'var(--type-caption)',
+              color: 'var(--text-muted)',
+            }}
+          >
+            © {new Date().getFullYear()} Cashtro. All systems secure.
+          </p>
         </div>
       </div>
-      
-      {/* Global styles for utility classes */}
-      <style dangerouslySetInnerHTML={{__html: `
+
+      {/* Hide brand panel below 1024px */}
+      <style>{`
         @media (max-width: 1023px) {
-          .lg-flex { display: none !important; }
+          .login-brand-panel { display: none !important; }
         }
-        @media (min-width: 1024px) {
-          .lg-flex { display: flex !important; }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin {
-          animation: spin 1s linear infinite;
-        }
-      `}} />
+      `}</style>
     </div>
   );
 }

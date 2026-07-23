@@ -2,11 +2,13 @@
 import React, { useRef } from "react";
 import { View, PanResponder } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useAppTheme } from "../context/ThemeContext";
 
 const TAB_ORDER = ["Home", "Books", "Transactions", "Settings"];
 const SWIPE_THRESHOLD = 50;
 
 export default function SwipeTabsWrapper({ children }) {
+  const { isDark } = useAppTheme();
   const navigation = useNavigation();
   const route = useRoute();
   const currentName = route.name;
@@ -34,7 +36,7 @@ export default function SwipeTabsWrapper({ children }) {
   ).current;
 
   return (
-    <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+    <View style={{ flex: 1, backgroundColor: isDark ? '#0F172A' : '#F8FAFC' }} {...panResponder.panHandlers}>
       {children}
     </View>
   );

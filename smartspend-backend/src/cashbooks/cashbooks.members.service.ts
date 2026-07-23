@@ -96,9 +96,19 @@ export class CashbookMembersService {
     });
     
     const token = randomBytes(32).toString('hex');
-    const targetUser = dto.userId 
-      ? await this.prisma.user.findUnique({ where: { id: dto.userId } })
-      : await this.prisma.user.findFirst({ where: { email: { equals: cleanEmail, mode: 'insensitive' } } });
+    let targetUser: any = null;
+    if (dto.email) {
+      targetUser = await this.prisma.user.findFirst({ where: { email: { equals: cleanEmail, mode: 'insensitive' } } });
+    } else if (dto.userId) {
+      targetUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { id: dto.userId },
+            { phone: dto.userId }
+          ]
+        }
+      });
+    }
 
     let member;
     if (existing) {

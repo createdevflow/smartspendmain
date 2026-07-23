@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
+import { useAppTheme } from '../context/ThemeContext';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform
@@ -13,6 +14,9 @@ import { api } from '../utils/api';
 import { getCurrencySymbol } from '../utils/planFeatures';
 
 export default function SubscriptionsScreen() {
+  const { theme, isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+
   const navigation = useNavigation();
   const { activeBook: active } = useBooks();
   
@@ -282,31 +286,31 @@ export default function SubscriptionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+const getStyles = (theme, isDark) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? '#0F172A' : '#F9FAFB' },
   header: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16,
-    backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6'
+    backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6'
   },
   backBtn: { marginRight: 16 },
-  title: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  title: { fontSize: 20, fontWeight: '700', color: isDark ? '#F8FAFC' : '#111827' },
   content: { padding: 16, paddingBottom: 100 },
   
   // Empty State
   emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 60, paddingHorizontal: 32 },
-  emptyText: { fontSize: 18, fontWeight: '700', color: '#374151', marginTop: 16 },
-  emptySubText: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8, lineHeight: 22 },
+  emptyText: { fontSize: 18, fontWeight: '700', color: isDark ? '#CBD5E1' : '#374151', marginTop: 16 },
+  emptySubText: { fontSize: 14, color: isDark ? '#94A3B8' : '#6B7280', textAlign: 'center', marginTop: 8, lineHeight: 22 },
 
   // Card
-  card: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#F3F4F6' },
+  card: { backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   iconContainer: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 2 },
-  cardSubtitle: { fontSize: 13, color: '#6B7280' },
-  cardDivider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 12 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: isDark ? '#F8FAFC' : '#111827', marginBottom: 2 },
+  cardSubtitle: { fontSize: 13, color: isDark ? '#94A3B8' : '#6B7280' },
+  cardDivider: { height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6', marginVertical: 12 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  footerLabel: { fontSize: 12, color: '#6B7280', marginBottom: 4 },
-  footerValue: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  footerLabel: { fontSize: 12, color: isDark ? '#94A3B8' : '#6B7280', marginBottom: 4 },
+  footerValue: { fontSize: 14, fontWeight: '600', color: isDark ? '#E2E8F0' : '#374151' },
   footerAmount: { fontSize: 18, fontWeight: '800', color: '#DC2626' },
 
   // FAB
@@ -319,18 +323,18 @@ const styles = StyleSheet.create({
   // Bottom Sheet
   sheetContent: { padding: 24, paddingBottom: 40 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: isDark ? '#F8FAFC' : '#111827' },
   inputGroup: { marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  label: { fontSize: 14, fontWeight: '600', color: isDark ? '#CBD5E1' : '#374151', marginBottom: 8 },
   input: { 
-    backgroundColor: '#FFFFFF', 
+    backgroundColor: isDark ? '#0F172A' : '#FFFFFF', 
     borderWidth: 1.5, 
-    borderColor: 'rgba(148, 163, 184, 0.25)', 
+    borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(148, 163, 184, 0.25)', 
     borderRadius: 14, 
     paddingHorizontal: 16, 
     paddingVertical: Platform.OS === 'android' ? 14 : 16, 
     fontSize: 16, 
-    color: '#111827',
+    color: isDark ? '#F8FAFC' : '#111827',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -340,19 +344,19 @@ const styles = StyleSheet.create({
   freqTabs: { flexDirection: 'row', gap: 8 },
   freqTab: { 
     flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: 14, 
-    borderWidth: 1.5, borderColor: 'rgba(148, 163, 184, 0.25)', backgroundColor: '#FFFFFF',
+    borderWidth: 1.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(148, 163, 184, 0.25)', backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1
   },
-  freqTabActive: { backgroundColor: '#EFF6FF', borderColor: '#2D8CFF' },
-  freqTabText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
-  freqTabTextActive: { color: '#2D8CFF' },
+  freqTabActive: { backgroundColor: isDark ? 'rgba(45,140,255,0.2)' : '#EFF6FF', borderColor: '#2D8CFF' },
+  freqTabText: { fontSize: 15, fontWeight: '600', color: isDark ? '#94A3B8' : '#6B7280' },
+  freqTabTextActive: { color: isDark ? '#60A5FA' : '#2D8CFF' },
   dateSelector: { 
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', 
-    borderWidth: 1.5, borderColor: 'rgba(148, 163, 184, 0.25)', borderRadius: 14, 
+    flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#0F172A' : '#FFFFFF', 
+    borderWidth: 1.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(148, 163, 184, 0.25)', borderRadius: 14, 
     paddingHorizontal: 16, paddingVertical: 16, gap: 10,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1
   },
-  dateSelectorText: { fontSize: 16, color: '#111827' },
+  dateSelectorText: { fontSize: 16, color: isDark ? '#F8FAFC' : '#111827' },
   submitBtn: { backgroundColor: '#2D8CFF', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 12 },
-  submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' }
+  submitBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' }
 });

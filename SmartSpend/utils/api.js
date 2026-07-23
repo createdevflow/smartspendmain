@@ -13,7 +13,7 @@ const getApiUrl = () => {
   
   // 2. Dynamic Detection for Web
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return `http://${window.location.hostname}:3000/api/v1`;
+    return `http://${window.location.hostname}:3010/api/v1`;
   }
   
   // 3. Auto-detect from Expo Metro host (works for tunnel, LAN, localhost)
@@ -21,11 +21,11 @@ const getApiUrl = () => {
   if (hostUri) {
     const host = hostUri.split(':')[0]; // strip port
     const scheme = hostUri.includes('exp.host') ? 'https' : 'http';
-    return `${scheme}://${host}:3000/api/v1`;
+    return `${scheme}://${host}:3010/api/v1`;
   }
   
   // 4. Final fallback
-  return 'http://localhost:3000/api/v1';
+  return 'http://localhost:3010/api/v1';
 };
 
 const API_URL = getApiUrl();

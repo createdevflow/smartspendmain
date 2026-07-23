@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { api } from '../utils/api';
+import { useAppTheme } from '../context/ThemeContext';
 
 const TABS = ['Scheduled Emails', 'Scheduled Messages'];
 const STATUS_META = {
@@ -26,6 +27,9 @@ function formatDt(iso) {
 }
 
 export default function CommunicationScreen({ navigation }) {
+  const { theme, isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+
   const [activeTab, setActiveTab] = useState(0);
   const [emails, setEmails] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -291,11 +295,11 @@ export default function CommunicationScreen({ navigation }) {
 
       {/* Schedule Email Modal */}
       <Modal visible={showEmailModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowEmailModal(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4FF' }} edges={['top']}>
+        <SafeAreaView style={styles.modalContainer} edges={['top']}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Schedule Email</Text>
             <TouchableOpacity onPress={() => setShowEmailModal(false)}>
-              <Feather name="x" size={22} color="#374151" />
+              <Feather name="x" size={22} color={isDark ? '#F8FAFC' : '#374151'} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
@@ -357,11 +361,11 @@ export default function CommunicationScreen({ navigation }) {
 
       {/* Schedule Message Modal */}
       <Modal visible={showMsgModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowMsgModal(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4FF' }} edges={['top']}>
+        <SafeAreaView style={styles.modalContainer} edges={['top']}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Schedule Message</Text>
             <TouchableOpacity onPress={() => setShowMsgModal(false)}>
-              <Feather name="x" size={22} color="#374151" />
+              <Feather name="x" size={22} color={isDark ? '#F8FAFC' : '#374151'} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
@@ -419,45 +423,46 @@ export default function CommunicationScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F4FF' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F0F4FF', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, fontSize: 20, fontWeight: '800', color: '#111827' },
+const getStyles = (theme, isDark) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: isDark ? '#0F172A' : '#F0F4FF' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: isDark ? '#1E293B' : '#fff', borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' },
+  backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: isDark ? '#334155' : '#F0F4FF', alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { flex: 1, fontSize: 20, fontWeight: '800', color: isDark ? '#F8FAFC' : '#111827' },
   addBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#2D8CFF', alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
 
-  tabBar: { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  tabBar: { flexDirection: 'row', backgroundColor: isDark ? '#1E293B' : '#fff', borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' },
   tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabActive: { borderBottomColor: '#2D8CFF' },
-  tabText: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
-  tabTextActive: { color: '#2D8CFF' },
+  tabText: { fontSize: 13, fontWeight: '600', color: isDark ? '#94A3B8' : '#9CA3AF' },
+  tabTextActive: { color: isDark ? '#60A5FA' : '#2D8CFF' },
 
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  card: { backgroundColor: isDark ? '#1E293B' : '#fff', borderRadius: 14, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, borderWidth: isDark ? 1 : 0, borderColor: 'rgba(255,255,255,0.08)' },
   cardHeader: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   statusText: { fontSize: 11, fontWeight: '700' },
-  typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: '#F3F4F6' },
-  typeBadgeText: { fontSize: 10, fontWeight: '700', color: '#374151', textTransform: 'uppercase' },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 3 },
-  cardSub: { fontSize: 12, color: '#6B7280', marginBottom: 6 },
+  typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: isDark ? '#334155' : '#F3F4F6' },
+  typeBadgeText: { fontSize: 10, fontWeight: '700', color: isDark ? '#E2E8F0' : '#374151', textTransform: 'uppercase' },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: isDark ? '#F8FAFC' : '#111827', marginBottom: 3 },
+  cardSub: { fontSize: 12, color: isDark ? '#94A3B8' : '#6B7280', marginBottom: 6 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 },
-  cardMetaText: { fontSize: 12, color: '#9CA3AF' },
+  cardMetaText: { fontSize: 12, color: isDark ? '#94A3B8' : '#9CA3AF' },
   cardActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  actionChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: '#F3F4F6' },
-  actionChipText: { fontSize: 12, fontWeight: '600', color: '#374151' },
+  actionChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: isDark ? '#334155' : '#F3F4F6' },
+  actionChipText: { fontSize: 12, fontWeight: '600', color: isDark ? '#E2E8F0' : '#374151' },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#374151', marginTop: 12 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: isDark ? '#CBD5E1' : '#374151', marginTop: 12 },
 
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
+  modalContainer: { flex: 1, backgroundColor: isDark ? '#0F172A' : '#F0F4FF' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: isDark ? '#1E293B' : '#fff', borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: isDark ? '#F8FAFC' : '#111827' },
   formGroup: { gap: 6 },
-  label: { fontSize: 14, fontWeight: '700', color: '#374151' },
-  input: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: '#111827' },
-  hint: { fontSize: 11, color: '#9CA3AF' },
-  typeChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  label: { fontSize: 14, fontWeight: '700', color: isDark ? '#CBD5E1' : '#374151' },
+  input: { backgroundColor: isDark ? '#1E293B' : '#fff', borderRadius: 10, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#E5E7EB', paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: isDark ? '#F8FAFC' : '#111827' },
+  hint: { fontSize: 11, color: isDark ? '#94A3B8' : '#9CA3AF' },
+  typeChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: isDark ? '#1E293B' : '#F3F4F6', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E5E7EB' },
   typeChipActive: { backgroundColor: '#2D8CFF', borderColor: '#2D8CFF' },
-  typeChipText: { fontSize: 12, fontWeight: '700', color: '#374151' },
+  typeChipText: { fontSize: 12, fontWeight: '700', color: isDark ? '#CBD5E1' : '#374151' },
   submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2D8CFF', borderRadius: 12, paddingVertical: 14, marginTop: 8 },
   submitBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

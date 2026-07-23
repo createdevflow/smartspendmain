@@ -215,7 +215,10 @@ export class MediaStorageProvider implements IStorageProvider {
       return `${publicUrl}/${bucket}/${key}`;
     }
     // Return backend API stream endpoint URL as fallback
-    const backendUrl = this.config.get<string>('app.url', 'http://localhost:3000');
+    let backendUrl = this.config.get<string>('app.url', 'http://localhost:3010').replace(/\/$/, '');
+    if (!backendUrl.endsWith('/api/v1')) {
+      backendUrl += '/api/v1';
+    }
     return `${backendUrl}/media/file/${bucket}/${key}`;
   }
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, Alert, RefreshControl, TextInput,
-  ScrollView,
+  ScrollView, Linking,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import OptimizedImage from '../components/OptimizedImage';
@@ -11,6 +11,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../utils/api';
 import { useBooks } from '../context/BooksContext';
+import { useAppTheme } from '../context/ThemeContext';
 
 const CATEGORIES = [
   { key: 'ALL',         label: 'All',         icon: 'bell',           color: '#6B7280' },
@@ -47,6 +48,7 @@ function timeAgo(dateStr) {
 }
 
 export default function NotificationsScreen({ navigation }) {
+  const { isDark } = useAppTheme();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -139,6 +141,17 @@ export default function NotificationsScreen({ navigation }) {
     }
   };
 
+  const handleNotifActionPress = async (item) => {
+    if (!item.isRead) await markAsRead(item.id);
+    if (item.actionUrl) {
+      try {
+        await Linking.openURL(item.actionUrl);
+      } catch {
+        Alert.alert('Notice', 'Cannot open URL: ' + item.actionUrl);
+      }
+    }
+  };
+
   const handleLongPress = (item) => {
     Alert.alert('Notification', item.title, [
       item.isPinned
@@ -185,54 +198,62 @@ export default function NotificationsScreen({ navigation }) {
         containerStyle={{ overflow: 'visible' }}
       >
         <TouchableOpacity
-        style={[styles.card, !item.isRead && styles.cardUnread, item.isPinned && styles.cardPinned]}
-        onPress={() => {
-          if (!item.isRead) markAsRead(item.id);
-        }}
-        onLongPress={() => handleLongPress(item)}
-        activeOpacity={0.85}
-      >
-        {/* Left icon */}
-        <View style={[styles.iconWrap, { backgroundColor: meta.bg }]}>
-          <Feather name={meta.icon} size={18} color={meta.color} />
-        </View>
-
-        {/* Content */}
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.notifTitle, item.isRead && styles.notifTitleRead]}>{item.title}</Text>
-          <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
-
-          {item.imageUrl && (
-            <OptimizedImage source={{ uri: item.imageUrl }} style={styles.bannerImage} contentFit="cover" size="medium" />
-          )}
-
-          {isInvite && (
-            <TouchableOpacity style={styles.actionBtn} onPress={() => handleAcceptInvite(item)}>
-              <Feather name="check-circle" size={14} color="#fff" />
-              <Text style={styles.actionBtnText}>Accept Invite</Text>
-            </TouchableOpacity>
-          )}
-
-          {!isInvite && item.actionButton && item.actionUrl && (
-            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: meta.color }]}>
-              <Text style={styles.actionBtnText}>{item.actionButton}</Text>
-            </TouchableOpacity>
-          )}
-
-          <View style={styles.notifFooter}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={styles.notifTime}>{timeAgo(item.createdAt)}</Text>
-              {item.isPinned && (
-                <View style={[styles.pinnedTag, { marginBottom: 0 }]}>
-                  <MaterialCommunityIcons name="pin" size={12} color="#F59E0B" />
-                  <Text style={styles.pinnedText}>Pinned</Text>
-                </View>
-              )}
-            </View>
-            {!item.isRead && <View style={styles.unreadDot} />}
+          style={[
+            styles.card,
+            isDark && { backgroundColor: '#1E293B', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1 },
+            !item.isRead && (isDark ? { backgroundColor: 'rgba(45, 140, 255, 0.1)', borderLeftColor: '#2D8CFF' } : styles.cardUnread),
+            item.isPinned && (isDark ? { backgroundColor: 'rgba(245, 158, 11, 0.1)' } : styles.cardPinned),
+          ]}
+          onPress={() => {
+            if (!item.isRead) markAsRead(item.id);
+          }}
+          onLongPress={() => handleLongPress(item)}
+          activeOpacity={0.85}
+        >
+          {/* Left icon */}
+          <View style={[styles.iconWrap, { backgroundColor: isDark ? `${meta.color}25` : meta.bg }]}>
+            <Feather name={meta.icon} size={18} color={meta.color} />
           </View>
-        </View>
-      </TouchableOpacity>
+
+          {/* Content */}
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.notifTitle, isDark && { color: '#F8FAFC' }, item.isRead && (isDark ? { color: '#94A3B8', fontWeight: '600' } : styles.notifTitleRead)]}>{item.title}</Text>
+            <Text style={[styles.notifBody, isDark && { color: '#94A3B8' }]} numberOfLines={2}>{item.body}</Text>
+
+            {item.imageUrl && (
+              <OptimizedImage source={{ uri: item.imageUrl }} style={styles.bannerImage} contentFit="cover" size="medium" />
+            )}
+
+            {isInvite && (
+              <TouchableOpacity style={styles.actionBtn} onPress={() => handleAcceptInvite(item)}>
+                <Feather name="check-circle" size={14} color="#fff" />
+                <Text style={styles.actionBtnText}>Accept Invite</Text>
+              </TouchableOpacity>
+            )}
+
+            {!isInvite && item.actionButton && item.actionUrl && (
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: meta.color }]}
+                onPress={() => handleNotifActionPress(item)}
+              >
+                <Text style={styles.actionBtnText}>{item.actionButton}</Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.notifFooter}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[styles.notifTime, isDark && { color: '#64748B' }]}>{timeAgo(item.createdAt)}</Text>
+                {item.isPinned && (
+                  <View style={[styles.pinnedTag, { marginBottom: 0 }]}>
+                    <MaterialCommunityIcons name="pin" size={12} color="#F59E0B" />
+                    <Text style={styles.pinnedText}>Pinned</Text>
+                  </View>
+                )}
+              </View>
+              {!item.isRead && <View style={styles.unreadDot} />}
+            </View>
+          </View>
+        </TouchableOpacity>
       </Swipeable>
     );
   };
@@ -243,38 +264,38 @@ export default function NotificationsScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, isDark && { backgroundColor: '#0F172A' }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color="#232333" />
+      <View style={[styles.header, isDark && { backgroundColor: '#1E293B', borderBottomColor: 'rgba(255,255,255,0.08)' }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, isDark && { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+          <Feather name="arrow-left" size={22} color={isDark ? '#F8FAFC' : '#232333'} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Notifications</Text>
+          <Text style={[styles.headerTitle, isDark && { color: '#F8FAFC' }]}>Notifications</Text>
           {unreadCount > 0 && (
-            <Text style={styles.headerSub}>{unreadCount} unread</Text>
+            <Text style={[styles.headerSub, isDark && { color: '#94A3B8' }]}>{unreadCount} unread</Text>
           )}
         </View>
         {unreadCount > 0 && (
-          <TouchableOpacity onPress={markAllRead} style={styles.markAllBtn}>
-            <Text style={styles.markAllText}>Mark all read</Text>
+          <TouchableOpacity onPress={markAllRead} style={[styles.markAllBtn, isDark && { backgroundColor: 'rgba(45, 140, 255, 0.15)' }]}>
+            <Text style={[styles.markAllText, isDark && { color: '#60A5FA' }]}>Mark all read</Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* Category Filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.categoryBar, isDark && { backgroundColor: '#1E293B', borderBottomColor: 'rgba(255,255,255,0.08)' }]} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 8 }}>
         {CATEGORIES.map((cat) => {
           const active = activeCategory === cat.key;
           const count = categoryUnread(cat.key);
           return (
             <TouchableOpacity
               key={cat.key}
-              style={[styles.catPill, active && styles.catPillActive]}
+              style={[styles.catPill, active && styles.catPillActive, !active && isDark && { backgroundColor: '#0F172A', borderColor: 'rgba(255,255,255,0.08)' }]}
               onPress={() => { setActiveCategory(cat.key); setLoading(true); loadNotifs(cat.key); }}
             >
-              <Feather name={cat.icon} size={13} color={active ? '#fff' : cat.color} />
-              <Text style={[styles.catPillText, active && styles.catPillTextActive]}>{cat.label}</Text>
+              <Feather name={cat.icon} size={13} color={active ? '#fff' : (isDark ? '#94A3B8' : cat.color)} />
+              <Text style={[styles.catPillText, active && styles.catPillTextActive, !active && isDark && { color: '#CBD5E1' }]}>{cat.label}</Text>
               {count > 0 && !active && (
                 <View style={[styles.catBadge, { backgroundColor: cat.color }]}>
                   <Text style={styles.catBadgeText}>{count > 9 ? '9+' : count}</Text>
@@ -292,11 +313,11 @@ export default function NotificationsScreen({ navigation }) {
         </View>
       ) : notifications.length === 0 ? (
         <View style={styles.centered}>
-          <View style={styles.emptyIcon}>
-            <Feather name="bell-off" size={36} color="#9CA3AF" />
+          <View style={[styles.emptyIcon, isDark && { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+            <Feather name="bell-off" size={36} color={isDark ? '#64748B' : '#9CA3AF'} />
           </View>
-          <Text style={styles.emptyTitle}>No notifications</Text>
-          <Text style={styles.emptySub}>
+          <Text style={[styles.emptyTitle, isDark && { color: '#F8FAFC' }]}>No notifications</Text>
+          <Text style={[styles.emptySub, isDark && { color: '#94A3B8' }]}>
             {activeCategory !== 'ALL' ? `No ${activeCategory.toLowerCase()} alerts yet.` : "You're all caught up!"}
           </Text>
         </View>

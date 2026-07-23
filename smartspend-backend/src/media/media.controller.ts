@@ -7,6 +7,7 @@ import {
   Headers,
   Res,
   UseInterceptors,
+  UseGuards,
   UploadedFile,
   Body,
   HttpStatus,
@@ -18,6 +19,7 @@ import { Response } from 'express';
 import { MediaService } from './media.service';
 import { MediaModule, ResponsiveSize } from './media.interface';
 import { Public } from '../common/decorators/public.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 
 @Controller('media')
@@ -26,6 +28,7 @@ export class MediaController {
 
   constructor(private readonly mediaService: MediaService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(
@@ -63,6 +66,7 @@ export class MediaController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('upload-base64')
   async uploadBase64(
     @Body('base64') base64: string,

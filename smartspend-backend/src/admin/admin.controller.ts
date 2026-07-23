@@ -7,7 +7,7 @@ import { AdminService } from './admin.service';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole, UserStatus } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { MailService } from '../mail/mail.service';
 
@@ -99,13 +99,17 @@ export class AdminController {
 
   @Post('users/bulk/role')
   @ApiOperation({ summary: 'Bulk assign role to users' })
-  bulkAssignRole(@Body() body: { userIds: string[], role: any }) {
+  bulkAssignRole(@Body() body: { userIds: string[], role: UserRole }) {
+    const validRoles = Object.values(UserRole);
+    if (!validRoles.includes(body.role)) throw new BadRequestException('Invalid role');
     return this.adminService.bulkAssignRole(body.userIds, body.role);
   }
 
   @Post('users/bulk/status')
   @ApiOperation({ summary: 'Bulk assign status to users' })
-  bulkAssignStatus(@Body() body: { userIds: string[], status: any }) {
+  bulkAssignStatus(@Body() body: { userIds: string[], status: UserStatus }) {
+    const validStatuses = ['ACTIVE', 'SUSPENDED', 'BANNED'];
+    if (!validStatuses.includes(body.status)) throw new BadRequestException('Invalid status');
     return this.adminService.bulkAssignStatus(body.userIds, body.status);
   }
 
@@ -126,13 +130,18 @@ export class AdminController {
 
   @Patch('users/:id/status')
   @ApiOperation({ summary: 'Update user status (ACTIVE/SUSPENDED/BANNED)' })
-  updateUserStatus(@Param('id') id: string, @Body() body: { status: any }) {
+  updateUserStatus(@Param('id') id: string, @Body() body: { status: UserStatus }) {
+    const validStatuses = ['ACTIVE', 'SUSPENDED', 'BANNED'];
+    if (!validStatuses.includes(body.status)) throw new BadRequestException('Invalid status');
     return this.adminService.updateUserStatus(id, body.status);
   }
 
   @Patch('users/:id/role')
   @ApiOperation({ summary: 'Update user role' })
-  updateUserRole(@Param('id') id: string, @Body() body: { role: any }) {
+  @Roles(UserRole.SUPER_ADMIN) // Only SUPER_ADMIN can change roles
+  updateUserRole(@Param('id') id: string, @Body() body: { role: UserRole }) {
+    const validRoles = Object.values(UserRole);
+    if (!validRoles.includes(body.role)) throw new BadRequestException('Invalid role');
     return this.adminService.updateUserRole(id, body.role);
   }
 
@@ -158,8 +167,9 @@ export class AdminController {
 
   @Delete('users/:id/hard')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Permanently delete user and ALL their data (irreversible)' })
-  hardDeleteUser(@Param('id') id: string) {
+  @Roles(UserRole.SUPER_ADMIN) // Only SUPER_ADMIN may permanently delete
+  @ApiOperation({ summary: 'Permanently delete user and ALL their data (irreversible) — SUPER_ADMIN only' })
+  hardDeleteUser(@Param('id') id: string, @CurrentUser() admin: any) {
     return this.adminService.hardDeleteUser(id);
   }
 
@@ -171,9 +181,10 @@ export class AdminController {
 
   @Post('users/:id/impersonate')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Generate a short-lived token to log in as this user (15 min)' })
-  impersonateUser(@Param('id') id: string) {
-    return this.adminService.impersonateUser(id);
+  @Roles(UserRole.SUPER_ADMIN) // Only SUPER_ADMIN may impersonate
+  @ApiOperation({ summary: 'Generate a short-lived token to log in as this user (15 min) — SUPER_ADMIN only' })
+  impersonateUser(@Param('id') id: string, @CurrentUser() admin: any) {
+    return this.adminService.impersonateUser(id, admin.sub);
   }
 
   @Post('users/:id/reset')
@@ -390,7 +401,8 @@ export class AdminController {
       await this.mailService.sendTestEmail(target);
       return { message: `Test email sent to ${target}` };
     } catch (error: any) {
-      throw new BadRequestException(`Failed to send test email: ${error.message || 'Check SMTP configuration'}`);
+      // Log full error server-side; return generic message to prevent SMTP config leakage
+      throw new BadRequestException('Failed to send test email. Check SMTP configuration in server logs.');
     }
   }
 

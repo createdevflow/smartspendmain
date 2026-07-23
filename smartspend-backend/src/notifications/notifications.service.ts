@@ -166,6 +166,7 @@ export class NotificationsService {
       imageUrl?: string;
       actionButton?: string;
     },
+    options: { sendPush?: boolean } = { sendPush: true },
   ) {
     if (!userIds.length) return;
     const now = new Date();
@@ -185,15 +186,24 @@ export class NotificationsService {
       skipDuplicates: true,
     });
 
-    // Send Expo push in batches of 100
-    const pushUserIds = [...userIds];
-    while (pushUserIds.length > 0) {
-      const batch = pushUserIds.splice(0, 100);
-      await this.sendBulkExpoPush(batch, payload.title, payload.body, payload.actionUrl);
+    if (options.sendPush) {
+      await this.sendBulkExpoPushPublic(userIds, payload.title, payload.body, payload.actionUrl);
     }
   }
 
   // ── Expo Push ─────────────────────────────────────────────────────────────
+
+  async testPushNotification(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { expoPushToken: true, pushNotifications: true },
+    });
+    if (!user?.expoPushToken) {
+      return { success: false, message: 'No push token registered for this user or device yet.' };
+    }
+    await this.sendExpoPush(userId, '🔔 SmartSpend Test', 'Push notifications are working smoothly on your mobile device!');
+    return { success: true, message: 'Test notification sent to server!' };
+  }
 
   async sendExpoPush(userId: string, title: string, body: string, actionUrl?: string) {
     try {
@@ -220,10 +230,21 @@ export class NotificationsService {
     }
   }
 
+  async sendBulkExpoPushPublic(userIds: string[], title: string, body: string, actionUrl?: string) {
+    const pushUserIds = [...userIds];
+    while (pushUserIds.length > 0) {
+      const batch = pushUserIds.splice(0, 100);
+      await this.sendBulkExpoPush(batch, title, body, actionUrl);
+    }
+  }
+
   private async sendBulkExpoPush(userIds: string[], title: string, body: string, actionUrl?: string) {
     try {
       const users = await this.prisma.user.findMany({
-        where: { id: { in: userIds }, NOT: { pushNotifications: false } },
+        where: {
+          id: { in: userIds },
+          pushNotifications: true,
+        },
         select: { expoPushToken: true, id: true },
       });
       
@@ -241,7 +262,11 @@ export class NotificationsService {
         rawTokens.filter((t): t is string => typeof t === 'string' && Expo.isExpoPushToken(t))
       ));
 
-      if (!tokens.length) return;
+      if (!tokens.length) {
+        this.logger.warn(`Bulk push: No valid Expo push tokens found for ${userIds.length} target users.`);
+        return;
+      }
+      this.logger.log(`Sending bulk push batch to ${tokens.length} target tokens.`);
       await this.sendExpoPushBatch(tokens, title, body, actionUrl);
     } catch (e: any) {
       this.logger.warn(`Bulk push failed: ${e.message}`);

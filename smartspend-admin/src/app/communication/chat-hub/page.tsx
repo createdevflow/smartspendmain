@@ -14,7 +14,7 @@ export default function ChatHubAdmin() {
   const [broadcastContent, setBroadcastContent] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
+    const token = (localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'));
     if (!token) {
       router.push('/login');
       return;

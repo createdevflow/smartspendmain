@@ -310,6 +310,8 @@ export default function SchedulerModal({ visible, onClose, transaction, defaultT
                 onChange={onDateChange}
                 minimumDate={new Date()}
                 style={{ marginBottom: 8 }}
+                themeVariant="light"
+                textColor="#111827"
               />
             )}
             {showTimePicker && Platform.OS === 'ios' && (
@@ -319,6 +321,8 @@ export default function SchedulerModal({ visible, onClose, transaction, defaultT
                 display="spinner"
                 onChange={onTimeChange}
                 style={{ marginBottom: 8 }}
+                themeVariant="light"
+                textColor="#111827"
               />
             )}
             {showDatePicker && Platform.OS === 'android' && (
